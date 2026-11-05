@@ -137,9 +137,9 @@ const Simbolos = (() => {
 
   // Dibuja el símbolo: origen en (x,y), girado 'ang'. k = píxeles por metro (o por unidad de papel).
   // w = ancho para aberturas. Devuelve la caja (para deshacer).
-  function dibujar(ctx, sim, x, y, ang, k, w, color, lwPx, texto) {
+  function dibujar(ctx, sim, x, y, ang, k, w, color, lwPx, texto, flip) {
     ctx.save();
-    ctx.translate(x, y); ctx.rotate(ang); ctx.scale(k, k);
+    ctx.translate(x, y); ctx.rotate(ang); ctx.scale(k, flip ? -k : k);
     ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = lwPx / k; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     sim.draw(ctx, w != null ? w : sim.w, sim.h, texto, k);
     ctx.restore();

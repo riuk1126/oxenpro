@@ -177,13 +177,13 @@ hr{border:0;border-top:1px solid var(--linea);margin:8px 0}
 /* ---------- v1.3: fluidez, hover, arquitectura, tutorial ---------- */
 #cursorCv{position:absolute;left:0;top:0;pointer-events:none}
 .sep{width:1px;height:22px;background:var(--linea);margin:0 4px}
-.ib{transition:background .12s,transform .12s,color .12s}
+.ib{transition:background .1s,color .1s}
 @media (hover:hover),(any-hover:hover){
-  .ib:hover{background:rgba(255,255,255,.08);color:#fff;transform:scale(1.08)}
+  .ib:hover{background:rgba(255,255,255,.08);color:#fff}
   .ib.activo:hover{color:var(--verde2)}
   .pin-item:hover,.tex-item:hover,.capa:hover,.guia-modos button:hover,.opciones button:hover{border-color:rgba(138,207,0,.45)}
   .cats button:hover,.item:hover,.seg button:hover{background:rgba(255,255,255,.06);color:var(--texto)}
-  .paleta button:hover{transform:scale(1.15)}
+  .paleta button:hover{box-shadow:0 0 0 2px rgba(138,207,0,.6)}
   .color-btn:hover #colorActual{transform:scale(1.1)}
   .btn-verde:hover{background:var(--verde2)}
 }
@@ -222,3 +222,7 @@ hr{border:0;border-top:1px solid var(--linea);margin:8px 0}
 .tut-btns{display:flex;gap:8px;align-items:center}
 .tut-btns > button:first-child{color:var(--texto2);padding:10px 14px}
 @media (max-width:700px){ .sep{display:none} #barra .ib{width:32px} .color-btn{width:34px} }
+.sel-bar{position:absolute;z-index:12;display:flex;gap:2px;padding:4px;border-radius:12px;background:#161618;border:1px solid var(--linea);box-shadow:var(--sombra)}
+.sel-bar button{padding:8px 11px;border-radius:8px;font-weight:600;font-size:13px;white-space:nowrap}
+.sel-bar button:active{background:var(--gris3)}
+.sel-bar .peligro{color:#ff6b5e}
