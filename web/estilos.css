@@ -261,11 +261,28 @@ body.sinUI #barra,body.sinUI #lateral{display:none}
 .pin-lista button{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:9px 10px;border-radius:10px;background:var(--gris2)}
 .pin-lista b{flex:none;width:22px;height:22px;border-radius:50%;background:#ff7a2f;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
 
-.gota-color{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:6px auto;touch-action:none}
-#gotaColor{width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 0 0 2px #0b0b0c,0 0 0 3.5px rgba(255,255,255,.75)}
 #bColor,#bPin{touch-action:none}
 
 .btn-importar{display:flex;flex-direction:column;gap:2px;text-align:left;padding:12px;border-radius:10px;border:1.5px dashed rgba(138,207,0,.6);background:rgba(138,207,0,.06)}
 .btn-importar b{color:var(--verde);font-size:13.5px}.btn-importar small{opacity:.7;font-size:11.5px}
 .pin-item{position:relative}
 .pin-borrar{position:absolute;top:4px;right:8px;font-style:normal;font-size:18px;line-height:18px;opacity:.6;padding:0 4px}
+
+/* el círculo de color se aleja de la esquina (ahí la tableta abre el menú del lápiz) */
+#bColor{margin-right:12px}
+button,.ib,.color-btn,#barra,#lateral{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+/* globo de una nota y ventana de notas */
+.pin-globo{position:absolute;z-index:14;width:260px;max-width:calc(100vw - 20px);background:#161618;border:1px solid var(--linea);border-radius:14px;box-shadow:var(--sombra);padding:10px 12px}
+.pg-cab{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px}
+.pg-cab b,.pv-item b{flex:none;width:24px;height:24px;border-radius:50%;background:#ff7a2f;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.pg-cab span{flex:1}.pg-x{font-size:20px;line-height:20px;padding:0 6px;opacity:.7}
+.pg-txt{margin:8px 2px 10px;font-size:14px;line-height:1.4;white-space:normal;word-break:break-word;max-height:40vh;overflow:auto}
+.pg-btns{display:flex;justify-content:flex-end;gap:6px}
+.pg-btns button{padding:7px 14px;border-radius:999px;background:var(--gris3);font-weight:600;font-size:13px}
+.pg-btns button.ok{background:var(--verde);color:#0b0b0c}.pg-btns button.peligro{color:#ff6b6b}
+.pines-ventana{position:absolute;z-index:13;left:calc(66px + var(--sa-l));top:calc(64px + var(--sa-t));width:250px;max-height:calc(100vh - 90px);overflow:auto;touch-action:pan-y;background:rgba(22,22,24,.96);border:1px solid var(--linea);border-radius:14px;box-shadow:var(--sombra);padding:10px}
+body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
+.pv-cab{display:flex;align-items:center;justify-content:space-between;padding:0 2px 8px}.pv-cab button{font-size:20px;padding:0 6px;opacity:.7}
+.pv-item{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;padding:8px;border-radius:10px;background:var(--gris2);margin-bottom:6px;font-size:13px;line-height:1.35}
+.pv-item span{flex:1;word-break:break-word}.pv-item.activo{box-shadow:0 0 0 1.5px var(--verde)}

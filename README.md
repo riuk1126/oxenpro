@@ -18,11 +18,11 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Mantén el lápiz quieto al final de un trazo** y se convierte en línea recta, círculo, elipse o rectángulo.
 - **Guías** (ícono de perspectiva): elige 1, 2 o 3 puntos de fuga, arrastra los puntos verdes y activa la asistencia para que las líneas se alineen solas.
 - **Relleno** (ícono de lazo): dibuja un contorno y se rellena con la textura o el color elegido.
-- **Arrastra la gota de color** (barra lateral) o el círculo de color a un ambiente cerrado y se rellena (como ColorDrop de Procreate).
+- **Arrastra el círculo de color** (arriba a la derecha) a un ambiente cerrado y se rellena (como ColorDrop de Procreate).
 - **Pinceles importados**: en Pinceles → Importados puedes traer pinceles de Procreate (.brush, .brushset), Photoshop (.abr) o una imagen PNG/JPG.
 - **Texturas**: cada material (porcelanato, parquet, deck, OSB, sillar, granito…) es un pincel en Pinceles → Texturas.
 - **Selección** (ícono de recuadro): encierra algo con el lazo y muévelo, escálalo, gíralo, voltéalo o duplícalo. Toca otra vez el ícono para copiar, pegar o seleccionar toda la capa.
-- **Nota en el plano** (ícono de pin): arrástrala al punto exacto o toca la hoja; queda numerada y se lista en Notas.
+- **Nota en el plano** (ícono de pin): arrástrala al punto exacto; queda numerada. Tócala (con el dedo o el lápiz) para leerla; todas aparecen en la ventana de notas de la izquierda.
 - **Formas**: tras enderezar, sin soltar mueve el lápiz para agrandar o girar; un dedo la vuelve perfecta.
 - **Estructura**: columnas, vigas (se pegan a las columnas), placas y zapatas con su sección.
 - **Simetría** (en Guías), **bloquear transparencia** y **grupos** (en Capas), **imagen de referencia** para calcar (en Acciones).

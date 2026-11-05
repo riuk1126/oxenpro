@@ -75,9 +75,10 @@ const PINCELES = [
   { id: 'bsuave', cat: 'Borradores', nombre: 'Borrador suave', tip: 'suave', dureza: 0.2, min: 10, max: 200, esp: 0.06, alfa: 0.25, pTam: 0.2, pAlfa: 1 },
   { id: 'bgrano', cat: 'Borradores', nombre: 'Borrador de grano', tip: 'grano', grano: 'fino', min: 4, max: 60, esp: 0.1, alfa: 0.5, pTam: 0.3, pAlfa: 1 },
 ];
-for (const tx of Texturas.lista) PINCELES.push({ id: 'tx_' + tx.id, cat: 'Texturas', nombre: tx.nombre, tip: 'textura', texId: tx.id, min: 10, max: 160, pTam: 0.2 });
+for (const tx of Texturas.lista) PINCELES.push({ id: 'tx_' + tx.id, cat: 'Texturas', nombre: tx.nombre, tip: 'textura', texId: tx.id, min: 16, max: 420, pTam: 0.15 });
 const pincel = id => PINCELES.find(p => p.id === id) || PINCELES[2];
 const PXMM = 1754 / 297; // píxeles por milímetro de papel (150 ppp: hojas livianas y fluidas)
+const ESC_TEX = 1.8; // las texturas se dibujan más grandes para que se reconozca cada material
 
 // ---------- punta suave coloreada ----------
 const puntas = new Map();
@@ -108,7 +109,7 @@ function crearTrazo(ctx, pin, color, tex) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.lineCap = pin.tip === 'guion' && !pin.redondo ? 'butt' : 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   if (pin.tip === 'grano') t.estilo = Texturas.patronGrano(ctx, pin.grano, color);
-  else if (pin.tip === 'textura') t.estilo = Texturas.patron(ctx, pin.texId || tex.id, color, tex.escala);
+  else if (pin.tip === 'textura') t.estilo = Texturas.patron(ctx, pin.texId || tex.id, color, (tex.escala || 1) * ESC_TEX);
   else if (pin.tip === 'suave') t.punta = puntaSuave(color, pin.dureza || 0);
   else if (pin.tip === 'sello') t.punta = puntaSello(pin, color);
   ctx.fillStyle = ctx.strokeStyle = t.estilo || color;
@@ -230,6 +231,7 @@ const escalaVista = () => Math.hypot(M[0], M[1]);
 function aDoc(x, y) { return mApl(mInv(M), x, y); }
 function aplicarVista() {
   docEl.style.transform = `matrix(${M.join(',')})`;
+  if (pinVisto) ubicarGloboPin();
   if (!trazo) limpiarCursor();
   pedirSup();
 }
@@ -382,7 +384,8 @@ let presionVista = 0, estadoPresion = null; // última presión real leída (par
 function esLapiz(e) {
   if (e.pointerType === 'pen') return true;
   if (e.pointerType !== 'touch') return false;
-  return (e.width > 0 && e.width <= 3 && e.height <= 3) || !!(e.tiltX || e.tiltY) || (typeof e.altitudeAngle === 'number' && e.altitudeAngle < 1.5);
+  // inclinación = seguro es lápiz; punta finísima solo si además trae presión real (un dedo no la trae así)
+  return !!(e.tiltX || e.tiltY) || (typeof e.altitudeAngle === 'number' && e.altitudeAngle < 1.5) || (e.width > 0 && e.width <= 3 && e.height <= 3 && e.pressure > 0 && e.pressure < 1 && e.pressure !== 0.5);
 }
 function presionDe(e) {
   if (esLapiz(e) && e.pressure > 0 && e.pressure !== 0.5 || e.pointerType === 'pen') {
@@ -402,6 +405,7 @@ const panelAbierto = id => !$(id).classList.contains('oculto');
 escenario.addEventListener('pointerdown', e => {
   if (!doc) return;
   e.preventDefault();
+  if (pinVisto && herramienta !== 'pin' && !(e.pointerType === 'touch' && soloLapiz())) ocultarPin();
   try { escenario.setPointerCapture(e.pointerId); } catch (_) {}
   // tocar el lienzo con un panel abierto: lo cierra (salvo mover puntos de fuga)
   if (panelAbierto('pGuias') && e.pointerType !== 'touch' || panelAbierto('pGuias') && toques.size === 0) {
@@ -477,6 +481,7 @@ function finPuntero(e) {
     if (toques.size < 2 && gesto) terminarGesto(true);
     if (toques.size === 0) {
       const dt = performance.now() - gestoTap.t;
+      if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz()) { const o = pinEn(aDoc(e.clientX, e.clientY)); if (o) verPin(o); else if (pinVisto) ocultarPin(); }
       if (gestoTap.max >= 2 && !gestoTap.movido && dt < 380) { gestoTap.max >= 4 ? alternarInterfaz() : gestoTap.max === 3 ? hacerRehacer() : hacerDeshacer(); }
       gestoTap.max = 0; gestoTap.menu3 = false;
     }
@@ -489,6 +494,8 @@ if (RAW) escenario.addEventListener('pointerrawupdate', e => { if (doc && trazo 
 escenario.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') { hover = null; pedirCursor(); } });
 escenario.addEventListener('pointercancel', finPuntero);
 escenario.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('contextmenu', e => { if (!e.target.closest('input,textarea')) e.preventDefault(); });
+document.addEventListener('dragstart', e => e.preventDefault());
 
 escenario.addEventListener('wheel', e => {
   if (!doc) return; e.preventDefault();
@@ -658,7 +665,7 @@ function componerTrazo(t) {
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
   c.globalAlpha = t.op; c.globalCompositeOperation = t.gco;
-  if (t.pin && t.pin.grano) c.drawImage(conGrano(t.pin, r), r[0], r[1]);
+  if (t.pin && t.pin.granoImg) c.drawImage(conGrano(t.pin, r), r[0], r[1]);
   else c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
 }
@@ -666,7 +673,7 @@ const granoCv = document.createElement('canvas'), granoCtx = granoCv.getContext(
 function conGrano(pin, r) {
   if (granoCv.width < r[2]) granoCv.width = r[2]; if (granoCv.height < r[3]) granoCv.height = r[3];
   const g = granoCtx; g.globalCompositeOperation = 'copy'; g.drawImage(trazoCv, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
-  g.globalCompositeOperation = 'destination-in'; if (!pin._pat) pin._pat = g.createPattern(pin.grano, 'repeat');
+  g.globalCompositeOperation = 'destination-in'; if (!pin._pat) pin._pat = g.createPattern(pin.granoImg, 'repeat');
   g.save(); g.translate(-r[0], -r[1]); g.fillStyle = pin._pat; g.fillRect(r[0], r[1], r[2], r[3]); g.restore();
   g.globalCompositeOperation = 'source-over';
   const out = document.createElement('canvas'); out.width = r[2]; out.height = r[3]; out.getContext('2d').drawImage(granoCv, 0, 0, r[2], r[3], 0, 0, r[2], r[3]); return out;
@@ -684,7 +691,7 @@ function terminarTrazo(e) {
   if (t.lapiz) estadoPresion = (t.prMax - t.prMin > 0.04) ? 'ok' : 'plana';
   // toque corto sobre una puerta o mueble con el lápiz: se selecciona (no deja un punto)
   if (!t.borrar && performance.now() - t.t0 < 350 && t.largo * escalaVista() < 6 && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 8) {
-    const pn = pinEn(t.inicio); if (pn) { trazo = t; cancelarTrazo(); editarPin(pn); return; }
+    const pn = pinEn(t.inicio); if (pn) { trazo = t; cancelarTrazo(); verPin(pn); return; }
     const o = simEn(t.inicio);
     if (o) { trazo = t; cancelarTrazo(); herrAntesSim = herramienta; elegirHerramienta('simbolo'); seleccionar(o); avisarSuave('Arrastra para mover · manija verde para girar · toca fuera para seguir dibujando'); return; }
   }
@@ -728,7 +735,7 @@ function cancelarTrazo() {
 
 // ---- relleno con lazo ----
 function estiloRelleno(ctx) {
-  if (aj.textura.modo === 'textura') return Texturas.patron(ctx, aj.textura.id, aj.color, aj.textura.escala);
+  if (aj.textura.modo === 'textura') return Texturas.patron(ctx, aj.textura.id, aj.color, aj.textura.escala * ESC_TEX);
   if (aj.textura.modo === 'borrar') return '#ff4d4d';
   return aj.color;
 }
@@ -1313,7 +1320,7 @@ function descartarCota(o) {
 
 // ---- notas con punto (pines numerados en el plano) ----
 const COLOR_PIN = '#ff7a2f';
-const radioPin = () => 3.4 * doc.pxmm;
+const radioPin = () => 5 * doc.pxmm;
 function dibujarPin(c, o) {
   const r = radioPin(), x = o.x, y = o.y;
   c.save(); c.fillStyle = o.color || COLOR_PIN; c.strokeStyle = '#ffffff'; c.lineWidth = Math.max(1, 0.35 * doc.pxmm);
@@ -1343,11 +1350,40 @@ function editarPin(o, antesNuevo) {
     $('mSi').onclick = () => {
       const v = i.value.trim(); cerrar();
       if (!v && nuevo) return quitarNuevo();
-      const antes = nuevo ? antesNuevo : snapObj(); o.texto = v; histObj(antes); refrescarPines();
+      const antes = nuevo ? antesNuevo : snapObj(); o.texto = v; histObj(antes); if (nuevo) ventanaPines = true; refrescarPines();
     };
   }, () => { if (nuevo) { const k = doc.objetos.indexOf(o); if (k >= 0) doc.objetos.splice(k, 1); renderObjetos(); } });
 }
-function refrescarPines() { if (panelAbierto('pNotas')) pintarNotas(); }
+function refrescarPines() { if (panelAbierto('pNotas')) pintarNotas(); pintarVentanaPines(); if (pinVisto && !doc.objetos.includes(pinVisto)) ocultarPin(); }
+// ---- ver una nota: globo junto al punto (se abre con el dedo o el lápiz) ----
+let pinVisto = null;
+function verPin(o) {
+  pinVisto = o; const g = $('pinGlobo');
+  g.innerHTML = `<div class="pg-cab"><b>${o.n}</b><span>Nota ${o.n}</span><button class="pg-x" data-a="x">×</button></div>
+    <div class="pg-txt">${o.texto ? escapar(o.texto).replace(/\n/g, '<br>') : '<i>Sin texto</i>'}</div>
+    <div class="pg-btns"><button data-a="borrar" class="peligro">Eliminar</button><button data-a="editar" class="ok">Editar</button></div>`;
+  g.onclick = ev => { const a = ev.target.closest('button')?.dataset.a; if (!a) return;
+    if (a === 'x') ocultarPin(); else if (a === 'editar') { ocultarPin(); editarPin(o); }
+    else if (a === 'borrar') { ocultarPin(); const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); histObj(antes); refrescarPines(); } };
+  g.classList.remove('oculto'); ubicarGloboPin(); pintarVentanaPines();
+}
+function ocultarPin() { pinVisto = null; $('pinGlobo').classList.add('oculto'); pintarVentanaPines(); }
+function ubicarGloboPin() {
+  if (!pinVisto) return; const g = $('pinGlobo'), p = mApl(M, pinVisto.x, pinVisto.y - radioPin() * 3.1), w = g.offsetWidth, h = g.offsetHeight;
+  g.style.left = clamp(p.x - w / 2, 70, innerWidth - w - 8) + 'px'; g.style.top = clamp(p.y - h - 6, 58, innerHeight - h - 8) + 'px';
+}
+// ---- ventana con todas las notas (a la izquierda) ----
+let ventanaPines = false;
+function pintarVentanaPines() {
+  const v = $('pinesVentana'), mostrar = !!doc && (ventanaPines || herramienta === 'pin');
+  v.classList.toggle('oculto', !mostrar); if (!mostrar) return;
+  const pines = doc.objetos.filter(o => o.tipo === 'pin').sort((a, b) => a.n - b.n);
+  v.innerHTML = `<div class="pv-cab"><b>Notas del plano</b><button data-x="1">×</button></div>` + (pines.length
+    ? pines.map(o => `<button class="pv-item${o === pinVisto ? ' activo' : ''}" data-id="${o.id}"><b>${o.n}</b><span>${o.texto ? escapar(o.texto) : '<i>Sin texto</i>'}</span></button>`).join('')
+    : '<p class="nota">Arrastra el ícono de nota hasta un punto del plano para agregar una.</p>');
+  v.onclick = ev => { if (ev.target.closest('[data-x]')) { ventanaPines = false; if (herramienta === 'pin') elegirHerramienta('pincel'); else pintarVentanaPines(); return; }
+    const b = ev.target.closest('.pv-item'); if (!b) return; const o = doc.objetos.find(x => String(x.id) === b.dataset.id); if (o) { irAPin(o); verPin(o); } };
+}
 function irAPin(o) { // centra la vista en la nota
   const p = mApl(M, o.x, o.y); M = mMul([1, 0, 0, 1, innerWidth / 2 - p.x, innerHeight / 2 - p.y], M); aplicarVista();
 }
@@ -1497,7 +1533,8 @@ function terminarArq(t) {
     agregarCota(t.a, t.b, 0, false, doc.pedirMedida);
   } else if (t.arq === 'pin') {
     if (t.obj && t.movido) { histObj(t.antes); return; }
-    if (t.obj) return editarPin(t.obj);
+    if (t.obj) return verPin(t.obj);
+    if (pinVisto) return ocultarPin(); // primer toque fuera: cierra el globo
     nuevoPin(t.a);
   } else if (t.arq === 'texto') {
     if (t.obj && t.movido) { histObj(t.antes); return; }
@@ -1767,6 +1804,7 @@ function elegirHerramienta(h) {
   if (h !== 'gotero') herrPrevia = h;
   if (h !== 'simbolo') herrAntesSim = null;
   if (flot && h !== 'seleccion') aplicarFlot();
+  setTimeout(pintarVentanaPines, 0);
   herramienta = h; marcarBotones(); actualizarSliders(); ponerBarraSel(); pedirSup();
 }
 function marcarBotones() {
@@ -1793,7 +1831,7 @@ document.querySelectorAll('.herr').forEach(b => b.addEventListener('click', () =
     if (h === 'relleno') { abrirPanel('pTexturas', b); pintarTexturas(); }
     else if (h === 'simbolo') { abrirPanel('pSimbolos', b); pintarSimbolos(); }
     else if (h === 'seleccion') menuCopiarPegar();
-    else if (h === 'pin') { tabNotas = 'notas'; abrirPanel('pNotas', $('bNotas')); pintarNotas(); }
+    else if (h === 'pin') { ventanaPines = !ventanaPines; pintarVentanaPines(); }
     else if (h === 'cota' || h === 'texto') { abrirPanel('pNotas', $('bNotas')); pintarNotas(); }
     else { abrirPanel('pPinceles', b); pintarPinceles(); }
   } else {
@@ -1988,7 +2026,7 @@ async function importarArchivo(f) {
   return res;
 }
 function pinDeRegistro(r, forma, grano) {
-  return { id: r.id, cat: 'Importados', nombre: r.nombre, tip: 'sello', forma, grano, esp: r.esp, rot: r.rot, min: 3, max: 200, alfa: 1, pTam: 0.55, pAlfa: 0.35, origen: r.origen };
+  return { id: r.id, cat: 'Importados', nombre: r.nombre, tip: 'sello', forma, granoImg: grano, esp: r.esp, rot: r.rot, min: 3, max: 200, alfa: 1, pTam: 0.55, pAlfa: 0.35, origen: r.origen };
 }
 const blobDe = cv => new Promise(res => cv.toBlob(res, 'image/png'));
 async function guardarImportados(lista) {
@@ -2239,7 +2277,7 @@ function hsvHex(h, s, v) {
   return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
 }
 function ponerColor(hex, desdeGotero) {
-  aj.color = hex.toLowerCase(); $('gotaColor').style.background = $('colorActual').style.background = aj.color;
+  aj.color = hex.toLowerCase(); $('colorActual').style.background = aj.color;
   if (!desdeGotero) { const r = aj.recientes.filter(c => c !== aj.color); r.unshift(aj.color); aj.recientes = r.slice(0, 9); }
   guardarAjustes();
   if (panelAbierto('pColor')) pintarColorPanel(true);
@@ -2266,8 +2304,8 @@ function arrastre(el, fn) {
   el.addEventListener('pointermove', e => act && fn(e));
   el.addEventListener('pointerup', () => { if (act) { act = false; ponerColor(aj.color); } });
 }
-arrastre($('cvSV'), e => { const r = $('cvSV').getBoundingClientRect(); hsv[1] = clamp((e.clientX - r.left) / r.width, 0, 1); hsv[2] = clamp(1 - (e.clientY - r.top) / r.height, 0, 1); aj.color = hsvHex(...hsv); $('gotaColor').style.background = $('colorActual').style.background = aj.color; pintarColorPanel(true); });
-arrastre($('cvHue'), e => { const r = $('cvHue').getBoundingClientRect(); hsv[0] = clamp((e.clientX - r.left) / r.width, 0, 0.999) * 360; aj.color = hsvHex(...hsv); $('gotaColor').style.background = $('colorActual').style.background = aj.color; pintarColorPanel(true); });
+arrastre($('cvSV'), e => { const r = $('cvSV').getBoundingClientRect(); hsv[1] = clamp((e.clientX - r.left) / r.width, 0, 1); hsv[2] = clamp(1 - (e.clientY - r.top) / r.height, 0, 1); aj.color = hsvHex(...hsv); $('colorActual').style.background = aj.color; pintarColorPanel(true); });
+arrastre($('cvHue'), e => { const r = $('cvHue').getBoundingClientRect(); hsv[0] = clamp((e.clientX - r.left) / r.width, 0, 0.999) * 360; aj.color = hsvHex(...hsv); $('colorActual').style.background = aj.color; pintarColorPanel(true); });
 $('colorHex').addEventListener('change', e => { let v = e.target.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { ponerColor(v); pintarColorPanel(); } });
 
 // ---------- guías ----------
@@ -2571,6 +2609,7 @@ function prepararEditor() {
   if (history.state?.pd !== 'editor') history.pushState({ pd: 'editor' }, '');
   ajustarPantalla(); marcarBotones(); actualizarSliders(); pedirSup();
   setTimeout(prepararPrevias, 1500);
+  ventanaPines = false; pinVisto = null; $('pinGlobo').classList.add('oculto'); pintarVentanaPines();
 }
 function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   r = r || {};
@@ -2732,10 +2771,11 @@ $('mTutorial').onclick = () => { cerrarPaneles(); mostrarTutorial(); };
 // =====================================================================
 function arrastrable(btn, clase, html, alSoltar) {
   let st = null;
-  btn.addEventListener('pointerdown', e => { if (!doc || e.button > 0) return; st = { id: e.pointerId, x: e.clientX, y: e.clientY, fant: null }; try { btn.setPointerCapture(e.pointerId); } catch (_) {} });
+  // preventDefault: que la tableta no tome el "mantener presionado" del lápiz como su propio menú
+  btn.addEventListener('pointerdown', e => { if (!doc || e.button > 0) return; e.preventDefault(); st = { id: e.pointerId, x: e.clientX, y: e.clientY, fant: null }; try { btn.setPointerCapture(e.pointerId); } catch (_) {} });
   btn.addEventListener('pointermove', e => {
     if (!st || st.id !== e.pointerId) return;
-    if (!st.fant && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 14) { st.fant = document.createElement('div'); st.fant.className = clase; st.fant.innerHTML = html(); document.body.appendChild(st.fant); cerrarPaneles(); }
+    if (!st.fant && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 7) { st.fant = document.createElement('div'); st.fant.className = clase; st.fant.innerHTML = html(); document.body.appendChild(st.fant); cerrarPaneles(); }
     if (st.fant) { st.fant.style.left = e.clientX + 'px'; st.fant.style.top = e.clientY + 'px'; }
   });
   const fin = e => {
@@ -2748,9 +2788,6 @@ function arrastrable(btn, clase, html, alSoltar) {
   btn.addEventListener('pointerup', fin); btn.addEventListener('pointercancel', fin);
   btn.addEventListener('click', e => { if (btn._arr && performance.now() - btn._arr < 800) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 }
-// también desde la gota de color de la barra lateral (lejos de la esquina, donde la tableta abre su menú del lápiz)
-arrastrable($('bGota'), 'arrastre-color', () => `<div style="width:100%;height:100%;border-radius:50%;background:${aj.color}"></div>`, d => rellenarEn(d));
-$('bGota').addEventListener('click', () => avisar('Arrastra este color hasta un ambiente cerrado para rellenarlo'));
 arrastrable($('bColor'), 'arrastre-color', () => `<div style="width:100%;height:100%;border-radius:50%;background:${aj.color}"></div>`, d => rellenarEn(d));
 arrastrable($('bPin'), 'arrastre-pin', () => '<svg viewBox="0 0 24 24" style="width:100%;height:100%;fill:currentColor;stroke:#fff;stroke-width:1.2"><path d="M12 22s-7-6.6-7-11.5a7 7 0 0 1 14 0C19 15.4 12 22 12 22z"/></svg>', d => { if (flot) aplicarFlot(); nuevoPin(d); });
 
@@ -2905,7 +2942,7 @@ addEventListener('visibilitychange', () => { if (!document.hidden) buscarActuali
 addEventListener('resize', () => { tamSup(); });
 tamSup();
 cargarImportados(); // pinceles importados guardados en la tableta
-$('gotaColor').style.background = $('colorActual').style.background = aj.color;
+$('colorActual').style.background = aj.color;
 history.replaceState({ pd: 'galeria' }, '');
 mostrarGaleria().then(() => {
   // tras actualizar, vuelve a abrir el boceto en el que estabas
