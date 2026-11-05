@@ -1128,9 +1128,9 @@ async function entregarArchivo(blob, nombre) {
     try {
       const data = await blobB64(blob);
       let guardado = false;
-      try { await P.Filesystem.writeFile({ path: 'OXEN/' + nombre, data, directory: 'DOCUMENTS', recursive: true }); guardado = true; } catch (e) {}
+      try { await P.Filesystem.writeFile({ path: 'OXEN PRO/' + nombre, data, directory: 'DOCUMENTS', recursive: true }); guardado = true; } catch (e) {}
       const r = await P.Filesystem.writeFile({ path: nombre, data, directory: 'CACHE' });
-      avisar(guardado ? 'Guardado en Documentos/OXEN' : 'Imagen lista');
+      avisar(guardado ? 'Guardado en Documentos/OXEN PRO' : 'Imagen lista');
       if (P.Share) await P.Share.share({ title: nombre, files: [r.uri], dialogTitle: 'Compartir boceto' }).catch(() => {});
       return;
     } catch (e) { console.error(e); }
@@ -1247,12 +1247,12 @@ function mostrarEstadoAct(manual) {
   $('bAct').classList.toggle('oculto', !hay);
   $('mActualizar').lastChild.textContent = hay ? 'Actualizar ahora' : 'Buscar actualizaciones';
   $('galAct').classList.toggle('oculto', !hay);
-  $('galActTxt').textContent = UPD.apk ? '✨ Hay una versión nueva de OXEN (' + UPD.apk + ')' : '✨ Hay mejoras nuevas para OXEN';
-  if (manual && !hay) avisar('OXEN está al día ✓');
+  $('galActTxt').textContent = UPD.apk ? '✨ Hay una versión nueva de OXEN PRO (' + UPD.apk + ')' : '✨ Hay mejoras nuevas para OXEN PRO';
+  if (manual && !hay) avisar('OXEN PRO está al día ✓');
 }
 async function aplicarActualizacion() {
   if (UPD.apk) return actualizarApk();
-  avisar('Actualizando OXEN…');
+  avisar('Actualizando OXEN PRO…');
   try { if (doc) { if (trazo) cancelarTrazo(); await guardar(); } } catch (e) {}
   try { const reg = await navigator.serviceWorker?.getRegistration(); await reg?.update(); } catch (e) {}
   try { sessionStorage.setItem('oxen-reabrir', doc ? doc.id : ''); } catch (e) {}
@@ -1265,8 +1265,8 @@ async function actualizarApk() {
   try { h = await N.addListener('updProgress', d => avisar('Descargando actualización… ' + d.p + '%')); } catch (e) {}
   try {
     avisar('Descargando actualización…');
-    const r = await N.installUpdate({ url: 'https://github.com/riuk1126/oxen/releases/latest/download/OXEN.apk' });
-    if (r.status === 'permission') avisar('Permite «instalar apps» para OXEN y vuelve a tocar Actualizar');
+    const r = await N.installUpdate({ url: 'https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk' });
+    if (r.status === 'permission') avisar('Permite «instalar apps» para OXEN PRO y vuelve a tocar Actualizar');
   } catch (e) { avisar('No se pudo descargar la actualización'); }
   finally { try { h && h.remove(); } catch (e) {} }
 }
@@ -1287,7 +1287,7 @@ history.replaceState({ pd: 'galeria' }, '');
 mostrarGaleria().then(() => {
   // tras actualizar, vuelve a abrir el boceto en el que estabas
   let re = ''; try { re = sessionStorage.getItem('oxen-reabrir') || ''; sessionStorage.removeItem('oxen-reabrir'); } catch (e) {}
-  if (re) { abrirDibujo(re).then(() => avisar('OXEN actualizado ✓')); }
+  if (re) { abrirDibujo(re).then(() => avisar('OXEN PRO actualizado ✓')); }
   setTimeout(() => buscarActualizacion(false), 2500);
 });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

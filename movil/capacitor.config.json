@@ -1,9 +1,9 @@
 {
-  "appId": "com.arquizo.oxen",
-  "appName": "OXEN",
+  "appId": "com.arquizo.oxenpro",
+  "appName": "OXEN PRO",
   "webDir": "www",
   "server": {
-    "url": "https://riuk1126.github.io/oxen/",
+    "url": "https://riuk1126.github.io/oxenpro/",
     "androidScheme": "https",
     "errorPath": "sin-conexion.html"
   },

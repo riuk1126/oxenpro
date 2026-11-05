@@ -172,3 +172,4 @@ hr{border:0;border-top:1px solid var(--linea);margin:8px 0}
 #btnActualizar{color:var(--texto2)}
 #btnActualizar.girando svg{animation:girar 1s linear infinite}
 @keyframes girar{to{transform:rotate(360deg)}}
+.marca .pro{color:var(--verde);font-weight:800;margin-left:6px;font-size:.8em;letter-spacing:.04em}

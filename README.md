@@ -1,4 +1,4 @@
-# OXEN
+# OXEN PRO
 
 **Bocetos para arquitectos.** Lápices con grano de papel, tintas, marcadores que se superponen como los reales, acuarela, texturas de materiales (ladrillo, concreto, madera, piedra, pasto, agua…), guías de perspectiva de 1, 2 y 3 puntos, isometría y cuadrícula.
 
@@ -6,8 +6,8 @@
 
 | Sistema | Instalador |
 |---|---|
-| 🤖 Android (tableta y celular) | [OXEN.apk](https://github.com/riuk1126/oxen/releases/latest/download/OXEN.apk) |
-| 🌐 Navegador (para probar) | [riuk1126.github.io/oxen](https://riuk1126.github.io/oxen/) |
+| 🤖 Android (tableta y celular) | [OXEN-PRO.apk](https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk) |
+| 🌐 Navegador (para probar) | [riuk1126.github.io/oxenpro](https://riuk1126.github.io/oxenpro/) |
 
 La app de Android se actualiza sola: cada mejora que se sube aquí llega a la tableta al abrirla.
 

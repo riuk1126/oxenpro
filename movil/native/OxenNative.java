@@ -1,4 +1,4 @@
-package com.arquizo.oxen;
+package com.arquizo.oxenpro;
 
 import android.content.Context;
 import android.content.Intent;
@@ -35,7 +35,7 @@ public class OxenNative extends Plugin {
   // Descarga el APK nuevo dentro de la app y abre el instalador de Android (un toque: «Actualizar»)
   @PluginMethod
   public void installUpdate(final PluginCall call) {
-    final String url = call.getString("url", "https://github.com/riuk1126/oxen/releases/latest/download/OXEN.apk");
+    final String url = call.getString("url", "https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk");
     final Context ctx = getContext();
     if (Build.VERSION.SDK_INT >= 26 && !ctx.getPackageManager().canRequestPackageInstalls()) {
       try {
@@ -52,7 +52,7 @@ public class OxenNative extends Plugin {
       try {
         File dir = new File(ctx.getCacheDir(), "update");
         dir.mkdirs();
-        File f = new File(dir, "OXEN.apk");
+        File f = new File(dir, "OXEN-PRO.apk");
         String u = url;
         HttpURLConnection c = null;
         for (int k = 0; k < 6; k++) {

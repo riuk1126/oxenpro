@@ -38,7 +38,7 @@ jobs:
           cat site/version.json
           touch site/.nojekyll
           cd site && git init -q && git checkout -q -b gh-pages && git add -A
-          git -c user.name="OXEN" -c user.email="oxen@users.noreply.github.com" commit -qm "OXEN web $V"
+          git -c user.name="OXEN PRO" -c user.email="oxen@users.noreply.github.com" commit -qm "OXEN web $V"
           git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" gh-pages
           # activa GitHub Pages la primera vez (si ya está activo no pasa nada)
           gh api -X POST "repos/${{ github.repository }}/pages" -f "source[branch]=gh-pages" -f "source[path]=/" >/dev/null 2>&1 || true
@@ -66,7 +66,7 @@ jobs:
           V=$(node -p "require('./package.json').version")
           sed -i "s/__PD_VERSION__/$V/g" www/index.html
           npx cap add android
-          cp native/*.java android/app/src/main/java/com/arquizo/oxen/
+          cp native/*.java android/app/src/main/java/com/arquizo/oxenpro/
           cp -r res/* android/app/src/main/res/
           # permiso para que OXEN se actualice desde la propia app
           MF=android/app/src/main/AndroidManifest.xml
@@ -90,8 +90,8 @@ jobs:
         run: |
           BT=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)
           $BT/zipalign -p -f 4 movil/android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
-          $BT/apksigner sign --ks movil/oxen.jks --ks-key-alias prodraft --ks-pass pass:prodraft-arquizo-2026 --key-pass pass:prodraft-arquizo-2026 --out OXEN.apk aligned.apk
-          $BT/apksigner verify OXEN.apk && ls -la OXEN.apk
+          $BT/apksigner sign --ks movil/oxen.jks --ks-key-alias prodraft --ks-pass pass:prodraft-arquizo-2026 --key-pass pass:prodraft-arquizo-2026 --out OXEN-PRO.apk aligned.apk
+          $BT/apksigner verify OXEN-PRO.apk && ls -la OXEN-PRO.apk
           V=$(node -p "require('./movil/package.json').version")
-          gh release view "v$V" >/dev/null 2>&1 || gh release create "v$V" --target "${{ github.sha }}" --title "OXEN $V" --notes "OXEN $V — bocetos para arquitectos. Descarga OXEN.apk e instálalo en tu tableta Android."
-          gh release upload "v$V" OXEN.apk --clobber
+          gh release view "v$V" >/dev/null 2>&1 || gh release create "v$V" --target "${{ github.sha }}" --title "OXEN PRO $V" --notes "OXEN PRO $V — bocetos para arquitectos. Descarga OXEN-PRO.apk e instálalo en tu tableta Android."
+          gh release upload "v$V" OXEN-PRO.apk --clobber

@@ -1,4 +1,4 @@
-package com.arquizo.oxen;
+package com.arquizo.oxenpro;
 
 import android.os.Bundle;
 import androidx.core.view.WindowCompat;
