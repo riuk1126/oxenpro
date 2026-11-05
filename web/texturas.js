@@ -224,6 +224,107 @@ const Texturas = (() => {
       const r = rng(71);
       for (let i = 0; i < 420; i++) { const x = r() * S, y = r() * S; c.beginPath(); c.arc(x, y, 0.6 + r() * 0.9, 0, 6.283); c.fill(); }
     } },
+
+    // ---------- v1.7: más acabados ----------
+    { id: 'porcelanato', nombre: 'Porcelanato 60×60', S: 120, draw(c, S) {
+      c.lineWidth = 1.3; c.beginPath(); for (let k = 0; k <= S; k += 60) { c.moveTo(k, 0); c.lineTo(k, S); c.moveTo(0, k); c.lineTo(S, k); } c.stroke();
+      const r = rng(31); c.globalAlpha = 0.18; c.lineWidth = 0.8;
+      for (let i = 0; i < 6; i++) { const x = r() * S, y = r() * S; c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x + 10, y + 6, x + 18, y - 4, x + 30, y + 3); c.stroke(); }
+      c.globalAlpha = 1;
+    } },
+    { id: 'porcelanato_rect', nombre: 'Porcelanato 60×120', S: 180, draw(c, S) {
+      const w = 90, h = 45; c.lineWidth = 1.3; c.beginPath();
+      for (let y = 0; y <= S; y += h) { c.moveTo(0, y); c.lineTo(S, y); }
+      for (let r = 0; r < S / h; r++) { const off = r % 2 ? w / 2 : 0; for (let x = off; x <= S; x += w) { c.moveTo(x, r * h); c.lineTo(x, r * h + h); } }
+      c.stroke();
+    } },
+    { id: 'ceramico_peq', nombre: 'Cerámico pequeño / mosaico', S: 48, draw(c, S) {
+      c.lineWidth = 1.1; c.beginPath(); for (let k = 0; k <= S; k += 12) { c.moveTo(k, 0); c.lineTo(k, S); c.moveTo(0, k); c.lineTo(S, k); } c.stroke();
+    } },
+    { id: 'damero', nombre: 'Parquet en damero', S: 96, draw(c, S) {
+      c.lineWidth = 1.3; c.beginPath();
+      for (let by = 0; by < S; by += 48) for (let bx = 0; bx < S; bx += 48) {
+        c.rect(bx, by, 48, 48);
+        const horiz = ((bx + by) / 48) % 2 === 0;
+        for (let k = 12; k < 48; k += 12) { if (horiz) { c.moveTo(bx, by + k); c.lineTo(bx + 48, by + k); } else { c.moveTo(bx + k, by); c.lineTo(bx + k, by + 48); } }
+      }
+      c.stroke();
+    } },
+    { id: 'chevron', nombre: 'Parquet espiga (chevron)', S: 96, draw(c, S) {
+      c.lineWidth = 1.3; c.beginPath();
+      for (let x = 0; x <= S; x += 24) { c.moveTo(x, 0); c.lineTo(x, S); }
+      for (let x = 0; x < S; x += 24) { const sube = (x / 24) % 2 === 0; for (let y = -24; y <= S + 24; y += 16) { c.moveTo(x, y + (sube ? 12 : 0)); c.lineTo(x + 24, y + (sube ? 0 : 12)); } }
+      c.stroke();
+    } },
+    { id: 'deck', nombre: 'Deck de madera', S: 160, draw(c, S) {
+      const r = rng(5); c.lineWidth = 1.3; c.beginPath();
+      for (let y = 0; y < S; y += 20) { c.moveTo(0, y); c.lineTo(S, y); c.moveTo(0, y + 3); c.lineTo(S, y + 3); }
+      c.stroke(); c.globalAlpha = 0.35; c.lineWidth = 0.8; c.beginPath();
+      for (let y = 0; y < S; y += 20) for (let k = 0; k < 3; k++) { const yy = y + 7 + r() * 10, x = r() * S; c.moveTo(x, yy); c.lineTo(x + 30 + r() * 40, yy + (r() - 0.5) * 2); }
+      c.stroke(); c.globalAlpha = 1;
+      for (let y = 0; y < S; y += 20) for (const x of [20, 100]) { c.beginPath(); c.arc(x, y + 11.5, 1.3, 0, 6.283); c.fill(); }
+    } },
+    { id: 'osb', nombre: 'OSB / aglomerado', S: 160, draw(c, S) {
+      const r = rng(9); c.lineWidth = 1; wrap(c, S, () => {
+        for (let i = 0; i < 70; i++) { const x = r() * S, y = r() * S, a = r() * Math.PI, l = 10 + r() * 18, w = 3 + r() * 3;
+          c.save(); c.translate(x, y); c.rotate(a); c.globalAlpha = 0.5 + r() * 0.5; c.strokeRect(-l / 2, -w / 2, l, w); c.restore(); }
+      }); c.globalAlpha = 1;
+    } },
+    { id: 'tarrajeo', nombre: 'Tarrajeo / yeso', S: 128, draw(c, S) {
+      const r = rng(13); for (let i = 0; i < 260; i++) { const x = r() * S, y = r() * S; c.globalAlpha = 0.25 + r() * 0.5; c.beginPath(); c.arc(x, y, 0.4 + r() * 0.8, 0, 6.283); c.fill(); }
+      c.globalAlpha = 0.3; c.lineWidth = 0.8; for (let i = 0; i < 12; i++) { const x = r() * S, y = r() * S; c.beginPath(); c.arc(x, y, 3 + r() * 5, r() * 6, r() * 6 + 1.2); c.stroke(); }
+      c.globalAlpha = 1;
+    } },
+    { id: 'calamina', nombre: 'Calamina / plancha ondulada', S: 48, draw(c, S) {
+      c.beginPath(); for (let x = 0; x <= S; x += 12) { c.lineWidth = 1.6; c.moveTo(x, 0); c.lineTo(x, S); } c.stroke();
+      c.globalAlpha = 0.45; c.lineWidth = 0.9; c.beginPath(); for (let x = 6; x <= S; x += 12) { c.moveTo(x, 0); c.lineTo(x, S); } c.stroke(); c.globalAlpha = 1;
+    } },
+    { id: 'bloque', nombre: 'Bloque de concreto', S: 160, draw(c, S) {
+      const w = 80, h = 40; c.lineWidth = 2; c.beginPath();
+      for (let y = 0; y <= S; y += h) { c.moveTo(0, y); c.lineTo(S, y); }
+      for (let r = 0; r < S / h; r++) { const off = r % 2 ? w / 2 : 0; for (let x = off; x <= S; x += w) { c.moveTo(x, r * h); c.lineTo(x, r * h + h); } }
+      c.stroke();
+    } },
+    { id: 'sillar', nombre: 'Sillar', S: 192, draw(c, S) {
+      const w = 96, h = 48, r = rng(21); c.lineWidth = 1.6; c.beginPath();
+      for (let y = 0; y <= S; y += h) { c.moveTo(0, y); c.lineTo(S, y); }
+      for (let k = 0; k < S / h; k++) { const off = k % 2 ? w / 2 : 0; for (let x = off; x <= S; x += w) { c.moveTo(x, k * h); c.lineTo(x, k * h + h); } }
+      c.stroke(); for (let i = 0; i < 90; i++) { c.globalAlpha = 0.25 + r() * 0.4; c.beginPath(); c.arc(r() * S, r() * S, 0.6 + r() * 1.6, 0, 6.283); c.fill(); } c.globalAlpha = 1;
+    } },
+    { id: 'grassblock', nombre: 'Grass block (concreto y pasto)', S: 96, draw(c, S) {
+      c.lineWidth = 1.6; c.beginPath(); for (let k = 0; k <= S; k += 48) { c.moveTo(k, 0); c.lineTo(k, S); c.moveTo(0, k); c.lineTo(S, k); } c.stroke();
+      const r = rng(4); c.lineWidth = 1; c.beginPath();
+      for (let by = 0; by < S; by += 48) for (let bx = 0; bx < S; bx += 48) { c.rect(bx + 10, by + 10, 28, 28);
+        for (let i = 0; i < 8; i++) { const x = bx + 13 + r() * 22, y = by + 34 - r() * 4; c.moveTo(x, y); c.lineTo(x + (r() - 0.5) * 4, y - 6 - r() * 8); } }
+      c.stroke();
+    } },
+    { id: 'alfombra', nombre: 'Alfombra', S: 64, draw(c, S) {
+      const r = rng(17); for (let i = 0; i < 520; i++) { c.globalAlpha = 0.2 + r() * 0.5; c.beginPath(); c.arc(r() * S, r() * S, 0.5 + r() * 0.7, 0, 6.283); c.fill(); } c.globalAlpha = 1;
+    } },
+    { id: 'drywall', nombre: 'Drywall / tablero', S: 240, draw(c, S) {
+      c.lineWidth = 1.5; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, S); c.moveTo(120, 0); c.lineTo(120, S); c.stroke();
+      for (const x of [0, 120]) for (let y = 15; y < S; y += 30) { c.beginPath(); c.arc(x + 6, y, 1.2, 0, 6.283); c.fill(); c.beginPath(); c.arc(x + 114, y, 1.2, 0, 6.283); c.fill(); }
+    } },
+    { id: 'estriada', nombre: 'Plancha estriada (acero)', S: 40, draw(c, S) {
+      c.lineWidth = 2.2; c.lineCap = 'round'; c.beginPath();
+      for (let y = 0; y <= S; y += 20) for (let x = 0; x <= S; x += 20) { const alt = ((x + y) / 20) % 2 === 0;
+        if (alt) { c.moveTo(x - 4, y - 4); c.lineTo(x + 4, y + 4); } else { c.moveTo(x - 4, y + 4); c.lineTo(x + 4, y - 4); } }
+      c.stroke();
+    } },
+    { id: 'malla', nombre: 'Malla / rejilla', S: 32, draw(c, S) {
+      c.lineWidth = 1.1; c.beginPath(); for (let k = -S; k <= 2 * S; k += 16) { c.moveTo(k, 0); c.lineTo(k + S, S); c.moveTo(k, S); c.lineTo(k + S, 0); } c.stroke();
+    } },
+    { id: 'listones', nombre: 'Listones / celosía', S: 48, draw(c, S) {
+      c.lineWidth = 1.4; c.beginPath(); for (let x = 0; x < S; x += 16) c.rect(x + 1, -2, 10, S + 4); c.stroke();
+    } },
+    { id: 'granito', nombre: 'Granito / cuarzo', S: 160, draw(c, S) {
+      const r = rng(23); wrap(c, S, () => { for (let i = 0; i < 160; i++) { const x = r() * S, y = r() * S, k = 0.6 + r() * 2.6;
+        c.globalAlpha = 0.25 + r() * 0.7; c.beginPath(); c.moveTo(x + k, y); for (let j = 1; j < 5; j++) { const a = j / 5 * 6.283; c.lineTo(x + Math.cos(a) * k * (0.6 + r() * 0.6), y + Math.sin(a) * k * (0.6 + r() * 0.6)); } c.closePath(); c.fill(); } });
+      c.globalAlpha = 1;
+    } },
+    { id: 'corcho', nombre: 'Corcho', S: 120, draw(c, S) {
+      const r = rng(29); for (let i = 0; i < 180; i++) { c.globalAlpha = 0.3 + r() * 0.5; c.beginPath(); c.ellipse(r() * S, r() * S, 0.8 + r() * 2.5, 0.6 + r() * 1.6, r() * 3, 0, 6.283); c.fill(); } c.globalAlpha = 1;
+    } },
   ];
 
   const base = {};

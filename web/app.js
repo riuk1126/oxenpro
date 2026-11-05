@@ -9,7 +9,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // =====================================================================
 //  PINCELES
 // =====================================================================
-const CATS = ['Lápices', 'Tintas', 'Técnicas', 'Marcadores', 'Color', 'Vegetación', 'Texturas', 'Borradores'];
+const CATS = ['Lápices', 'Tintas', 'Técnicas', 'Marcadores', 'Color', 'Vegetación', 'Texturas', 'Borradores', 'Importados'];
 const PINCELES = [
   // --- Lápices ---
   { id: 'construccion', cat: 'Lápices', nombre: 'Lápiz de construcción', tip: 'grano', grano: 'fino', min: 1, max: 6, esp: 0.14, alfa: 0.14, pTam: 0.2, pAlfa: 0.7 },
@@ -68,18 +68,26 @@ const PINCELES = [
   { id: 'gravaP', cat: 'Vegetación', nombre: 'Grava / piedras', tip: 'disperso', forma: 'grava', n: 4, min: 14, max: 90, esp: 0.4, alfa: 0.9, pTam: 0.3, pAlfa: 0.3 },
   { id: 'agua', cat: 'Vegetación', nombre: 'Ondas de agua', tip: 'disperso', forma: 'onda', n: 2, min: 16, max: 90, esp: 0.6, alfa: 0.85, pTam: 0.2, pAlfa: 0.3 },
   // --- Texturas ---
-  { id: 'textura', cat: 'Texturas', nombre: 'Pincel de textura', tip: 'textura', min: 10, max: 160, pTam: 0.2 },
+  { id: 'textura', cat: 'Texturas', nombre: 'Textura del relleno (la elegida en el lazo)', tip: 'textura', min: 10, max: 160, pTam: 0.2 },
   // --- Borradores ---
   { id: 'bduro', cat: 'Borradores', nombre: 'Borrador duro', tip: 'linea', min: 2, max: 90, pTam: 0.2 },
   { id: 'bfino', cat: 'Borradores', nombre: 'Borrador de precisión', tip: 'linea', min: 0.6, max: 10, pTam: 0.1 },
   { id: 'bsuave', cat: 'Borradores', nombre: 'Borrador suave', tip: 'suave', dureza: 0.2, min: 10, max: 200, esp: 0.06, alfa: 0.25, pTam: 0.2, pAlfa: 1 },
   { id: 'bgrano', cat: 'Borradores', nombre: 'Borrador de grano', tip: 'grano', grano: 'fino', min: 4, max: 60, esp: 0.1, alfa: 0.5, pTam: 0.3, pAlfa: 1 },
 ];
+for (const tx of Texturas.lista) PINCELES.push({ id: 'tx_' + tx.id, cat: 'Texturas', nombre: tx.nombre, tip: 'textura', texId: tx.id, min: 10, max: 160, pTam: 0.2 });
 const pincel = id => PINCELES.find(p => p.id === id) || PINCELES[2];
 const PXMM = 1754 / 297; // píxeles por milímetro de papel (150 ppp: hojas livianas y fluidas)
 
 // ---------- punta suave coloreada ----------
 const puntas = new Map();
+const sellos = new Map();
+function puntaSello(pin, color) { // la forma importada, teñida con el color
+  const k = pin.id + color; if (sellos.has(k)) return sellos.get(k);
+  const f = pin.forma, cv = document.createElement('canvas'); cv.width = f.width; cv.height = f.height;
+  const c = cv.getContext('2d'); c.fillStyle = color; c.fillRect(0, 0, cv.width, cv.height); c.globalCompositeOperation = 'destination-in'; c.drawImage(f, 0, 0);
+  if (sellos.size > 40) sellos.clear(); sellos.set(k, cv); return cv;
+}
 function puntaSuave(color, dureza) {
   const k = color + dureza;
   if (puntas.has(k)) return puntas.get(k);
@@ -100,8 +108,9 @@ function crearTrazo(ctx, pin, color, tex) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.lineCap = pin.tip === 'guion' && !pin.redondo ? 'butt' : 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   if (pin.tip === 'grano') t.estilo = Texturas.patronGrano(ctx, pin.grano, color);
-  else if (pin.tip === 'textura') t.estilo = Texturas.patron(ctx, tex.id, color, tex.escala);
+  else if (pin.tip === 'textura') t.estilo = Texturas.patron(ctx, pin.texId || tex.id, color, tex.escala);
   else if (pin.tip === 'suave') t.punta = puntaSuave(color, pin.dureza || 0);
+  else if (pin.tip === 'sello') t.punta = puntaSello(pin, color);
   ctx.fillStyle = ctx.strokeStyle = t.estilo || color;
   return t;
 }
@@ -127,6 +136,11 @@ function dab(t, x, y, s, a) {
   else if (pin.tip === 'bisel') {
     const an = pin.ang, co = Math.cos(an), si = Math.sin(an), h = s * pin.ratio;
     c.setTransform(co, si, -si, co, x, y); c.fillRect(-s / 2, -h / 2, s, h); c.setTransform(1, 0, 0, 1, 0, 0);
+  } else if (pin.tip === 'sello') { // forma importada (Procreate, Photoshop o imagen)
+    const im = t.punta, w = s, h = s * im.height / im.width;
+    const an = pin.rot === 'azar' ? Math.random() * 6.2832 : pin.rot === 'trazo' ? (t.dirAng || 0) : 0;
+    if (an) { const co = Math.cos(an), si = Math.sin(an); c.setTransform(co, si, -si, co, x, y); c.drawImage(im, -w / 2, -h / 2, w, h); c.setTransform(1, 0, 0, 1, 0, 0); }
+    else c.drawImage(im, x - w / 2, y - h / 2, w, h);
   } else if (pin.tip === 'disperso') {
     for (let k = 0; k < pin.n; k++) { const an = Math.random() * 6.2832, d = Math.sqrt(Math.random()) * s / 2; forma(c, pin.forma, x + Math.cos(an) * d, y + Math.sin(an) * d, s, a); }
   }
@@ -168,6 +182,7 @@ function trazoPunto(t, p) {
     t.falta = Math.max(0.4, p.s * pin.esp);
   } else {
     const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+    if (d > 0.01) t.dirAng = Math.atan2(dy, dx);
     let u = t.falta;
     while (u <= d) {
       const f = u / d, s = lerp(q.s, p.s, f);
@@ -611,7 +626,7 @@ function moverTrazo(e, soloPrediccion) {
       }
       agregarPunto(t, p);
     }
-    if (t.forma && lista.length) { const p = t.raw[t.raw.length - 1]; editarForma(t, { x: p.x, y: p.y }); dibujarForma(t); }
+    if (t.forma && lista.length) { const p = t.raw[t.raw.length - 1]; editarForma(t, { x: p.x, y: p.y }); t.formaPend = true; }
     reiniciarQuickShape(t, e);
   }
   // tinta adelantada: dibuja hacia donde va el lápiz para que se sienta sin retraso
@@ -634,7 +649,7 @@ function agregarPunto(t, p) {
 
 // ---- composición por cuadro: solo se repinta la zona que cambió ----
 let rafComp = 0;
-function pedirComp() { if (!rafComp) rafComp = requestAnimationFrame(() => { rafComp = 0; componerTrazo(trazo); dibujarCursor(); }); }
+function pedirComp() { if (!rafComp) rafComp = requestAnimationFrame(() => { rafComp = 0; if (trazo && trazo.formaPend) { trazo.formaPend = false; dibujarFormaPrevia(trazo); } componerTrazo(trazo); dibujarCursor(); }); }
 function componerTrazo(t) {
   if (!t || !t.motor) return;
   const r = bbEntero(bbTrazo(t, 'sucio')); t.motor.sucio = [1e9, 1e9, -1e9, -1e9]; if (t.motores) for (const m of t.motores) m.sucio = [1e9, 1e9, -1e9, -1e9];
@@ -643,8 +658,18 @@ function componerTrazo(t) {
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
   c.globalAlpha = t.op; c.globalCompositeOperation = t.gco;
-  c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
+  if (t.pin && t.pin.grano) c.drawImage(conGrano(t.pin, r), r[0], r[1]);
+  else c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+}
+const granoCv = document.createElement('canvas'), granoCtx = granoCv.getContext('2d');
+function conGrano(pin, r) {
+  if (granoCv.width < r[2]) granoCv.width = r[2]; if (granoCv.height < r[3]) granoCv.height = r[3];
+  const g = granoCtx; g.globalCompositeOperation = 'copy'; g.drawImage(trazoCv, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+  g.globalCompositeOperation = 'destination-in'; if (!pin._pat) pin._pat = g.createPattern(pin.grano, 'repeat');
+  g.save(); g.translate(-r[0], -r[1]); g.fillStyle = pin._pat; g.fillRect(r[0], r[1], r[2], r[3]); g.restore();
+  g.globalCompositeOperation = 'source-over';
+  const out = document.createElement('canvas'); out.width = r[2]; out.height = r[3]; out.getContext('2d').drawImage(granoCv, 0, 0, r[2], r[3], 0, 0, r[2], r[3]); return out;
 }
 
 function terminarTrazo(e) {
@@ -669,6 +694,7 @@ function terminarTrazo(e) {
     for (let i = 1; i <= 6; i++) { const f = i / 6; puntoTodos(t, { x: lerp(t.f.x, last.x, f), y: lerp(t.f.y, last.y, f), s: last.s, a: last.a }); }
   }
   if (t.asist && !t.dir && !t.pts.length) agregarPunto(t, t.inicio);
+  if (t.forma) dibujarForma(t); // la forma final, con el pincel de verdad
   cancelAnimationFrame(rafComp); rafComp = 0;
   componerTrazo(t); limpiarCursor();
   const r = bbEntero(bbTrazo(t)); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
@@ -946,7 +972,7 @@ function intentarForma(t) {
   let f = detectarForma(t.pts); if (!f) return;
   if (f.tipo === 'rect') f = { tipo: 'rect', cx: (f.x0 + f.x1) / 2, cy: (f.y0 + f.y1) / 2, hw: (f.x1 - f.x0) / 2, hh: (f.y1 - f.y0) / 2, ang: 0 };
   else if (f.tipo === 'elipse' || f.tipo === 'circulo') f.ang = 0;
-  t.forma = f; anclarForma(t); dibujarForma(t);
+  t.forma = f; anclarForma(t); dibujarFormaPrevia(t); pedirComp();
   avisar(NOMBRE_FORMA[f.tipo] + (f.tipo === 'linea' ? '' : ' · sigue presionando y mueve para agrandar o girar'));
 }
 function anclarForma(t) { const p = t.raw[t.raw.length - 1]; t.forma0 = JSON.parse(JSON.stringify(t.forma)); t.ancla = { x: p.x, y: p.y }; }
@@ -972,7 +998,6 @@ function editarForma(t, p) { // la forma sigue al lápiz mientras se mantiene pr
     else if (f.tipo === 'rect') { f.hw = f0.hw * k; f.hh = f0.hh * k; f.ang = ajustarAng(f0.ang + th); }
     t.forma = f;
   }
-  medidaForma(t.forma);
 }
 function medidaForma(f) { // en hojas a escala se ve la medida real mientras se ajusta
   if (!doc || doc.tipo === 'boceto' || doc.tipo === 'perspectiva') return;
@@ -986,7 +1011,7 @@ function perfeccionarForma(t) { // dedo sobre la pantalla mientras se mantiene l
   else if (f.tipo === 'rect') { const m = (f.hw + f.hh) / 2; f.hw = f.hh = m; }
   else if (f.tipo === 'linea') { const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy), p = Math.PI / 12, an = Math.round(Math.atan2(dy, dx) / p) * p; f.b = { x: f.a.x + Math.cos(an) * L, y: f.a.y + Math.sin(an) * L }; }
   else if (f.tipo === 'poli') { for (let i = 1; i < f.v.length; i++) f.v[i] = enderezarFin(f.v[i - 1], f.v[i], true); }
-  anclarForma(t); dibujarForma(t);
+  anclarForma(t); dibujarFormaPrevia(t); pedirComp();
   avisar({ circulo: 'Círculo perfecto', rect: 'Cuadrado', linea: 'Ángulo exacto', poli: 'Ángulos exactos' }[f.tipo] || 'Forma perfecta');
 }
 // simplifica un recorrido a sus vértices (Ramer–Douglas–Peucker)
@@ -1051,15 +1076,39 @@ function enderezarFin(a, b, exacto) { // ángulos de 0/45/90° cuando está cerc
   if (exacto || Math.abs(an - obj) < 0.07) return { x: a.x + Math.cos(obj) * L, y: a.y + Math.sin(obj) * L };
   return { x: b.x, y: b.y };
 }
-function dibujarForma(t) {
-  const f = t.forma, bb = bbTrazo(t), r = bbEntero([bb[0] - 4, bb[1] - 4, bb[2] + 4, bb[3] + 4]);
+// Mientras se mantiene presionado y se ajusta la forma, se muestra una VISTA PREVIA liviana (una sola línea
+// vectorial por cuadro): así agrandar y girar va fluido. El pincel real se dibuja una sola vez al soltar.
+function medidasTrazo(t) { let s = 0, a = 0; for (const p of t.pts) { s += p.s; a += p.a; } return { s: s / t.pts.length, a: a / t.pts.length }; }
+function dibujarFormaPrevia(t) {
+  const prev = t.bbPrev || bbTrazo(t), r = bbEntero([prev[0] - 4, prev[1] - 4, prev[2] + 4, prev[3] + 4]);
   if (r) trazoCtx.clearRect(r[0], r[1], r[2], r[3]);
-  let s = 0, a = 0; for (const p of t.pts) { s += p.s; a += p.a; } s /= t.pts.length; a /= t.pts.length;
+  const { s, a } = medidasTrazo(t), pts = puntosForma(t), c = trazoCtx, pin = t.pin;
+  const caminos = [pts].concat((t.esp || []).map(fn => pts.map(([x, y]) => { const q = fn({ x, y }); return [q.x, q.y]; })));
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-over';
+  c.globalAlpha = pin.tip === 'grano' ? Math.min(1, a * 2.2) : pin.tip === 'suave' ? 0.5 : Math.min(1, pin.alfa || 1);
+  c.strokeStyle = t.borrar ? '#000000' : aj.color; c.lineWidth = Math.max(1, pin.tip === 'grano' ? s * 0.8 : s); c.lineCap = c.lineJoin = 'round';
+  const bb = [1e9, 1e9, -1e9, -1e9];
+  for (const cam of caminos) { c.beginPath(); cam.forEach(([x, y], i) => { i ? c.lineTo(x, y) : c.moveTo(x, y); bbAmpliar(bb, x, y, s + 4); }); c.stroke(); }
+  c.restore();
+  const u = prev.slice(); bbAmpliar(u, bb[0], bb[1], 0); bbAmpliar(u, bb[2], bb[3], 0);
+  t.bbPrev = bb; t.motor.sucio = u; t.pred = null;
+  medidaForma(t.forma);
+}
+function dibujarForma(t) {
+  const f = t.forma, bb = bbTrazo(t);
+  if (t.bbPrev) { bbAmpliar(bb, t.bbPrev[0], t.bbPrev[1], 0); bbAmpliar(bb, t.bbPrev[2], t.bbPrev[3], 0); t.bbPrev = null; }
+  const r = bbEntero([bb[0] - 4, bb[1] - 4, bb[2] + 4, bb[3] + 4]);
+  if (r) trazoCtx.clearRect(r[0], r[1], r[2], r[3]);
+  const { s, a } = medidasTrazo(t);
   const viejo = bb;
   t.motor = crearTrazo(trazoCtx, t.pin, t.borrar ? '#000000' : aj.color, aj.textura);
   if (t.motores) t.motores = t.motores.map(() => crearTrazo(trazoCtx, t.pin, t.borrar ? '#000000' : aj.color, aj.textura));
   bbAmpliar(t.motor.bb, viejo[0], viejo[1], 0); bbAmpliar(t.motor.bb, viejo[2], viejo[3], 0); // para limpiar bien
-  const pts = [];
+  for (const [x, y] of puntosForma(t)) puntoTodos(t, { x, y, s, a });
+  t.motor.sucio = bbTrazo(t); pedirComp();
+}
+function puntosForma(t) {
+  const f = t.forma, pts = [];
   if (f.tipo === 'linea') { const L = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y), n = Math.max(2, Math.ceil(L / 2)); for (let i = 0; i <= n; i++) pts.push([lerp(f.a.x, f.b.x, i / n), lerp(f.a.y, f.b.y, i / n)]); }
   else if (f.tipo === 'rect' || f.tipo === 'poli') {
     let c;
@@ -1069,8 +1118,7 @@ function dibujarForma(t) {
     pts.push(c[c.length - 1]);
   }
   else { const n = Math.max(24, Math.ceil(Math.PI * (f.rx + f.ry) / 2)), co = Math.cos(f.ang || 0), si = Math.sin(f.ang || 0), a0 = Math.atan2(t.pts[0].y - f.cy, t.pts[0].x - f.cx) - (f.ang || 0); for (let i = 0; i <= n; i++) { const an = a0 + i / n * 6.2832, x = Math.cos(an) * f.rx, y = Math.sin(an) * f.ry; pts.push([f.cx + x * co - y * si, f.cy + x * si + y * co]); } }
-  for (const [x, y] of pts) puntoTodos(t, { x, y, s, a });
-  t.motor.sucio = bbTrazo(t); pedirComp();
+  return pts;
 }
 
 // =====================================================================
@@ -1608,7 +1656,7 @@ function dibujarCursor() {
   if (!doc) return;
   const t = trazo, s = escalaVista();
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (t && t.motor && t.pred && t.motor.ult && !t.borrar) {
+  if (t && t.motor && t.pred && t.motor.ult && !t.borrar && !t.forma) {
     const a = mApl(M, t.motor.ult.x, t.motor.ult.y), b = mApl(M, t.pred.x, t.pred.y), w = Math.max(1, t.motor.ult.s * s);
     if (Math.hypot(b.x - a.x, b.y - a.y) < 80) {
       c.globalAlpha = Math.min(1, t.op * (t.pin.alfa || 1) * 1.2); c.strokeStyle = aj.color; c.lineWidth = w; c.lineCap = 'round';
@@ -1798,6 +1846,189 @@ const pintarOp = slider($('sOpacidad'), () => opcionesPincel(claveAjuste()).op, 
 });
 function actualizarSliders() { pintarTam(); pintarOp(); }
 
+
+// =====================================================================
+//  PINCELES IMPORTADOS: Procreate (.brush / .brushset), Photoshop (.abr) o una imagen (PNG/JPG)
+//  Se toma la FORMA de la punta y, si trae, el GRANO (textura). Quedan guardados en la tableta.
+// =====================================================================
+let dbPinP = null;
+function dbPin() { return dbPinP || (dbPinP = new Promise((res, rej) => { const r = indexedDB.open('oxen-pinceles', 1); r.onupgradeneeded = () => r.result.createObjectStore('p', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
+async function dbPinOp(modo, fn) { const d = await dbPin(); return new Promise((res, rej) => { const tx = d.transaction('p', modo), q = fn(tx.objectStore('p')); tx.oncomplete = () => res(q && q.result); tx.onerror = () => rej(tx.error); }); }
+
+// --- ZIP (los pinceles de Procreate son archivos zip) ---
+function leerZip(buf) {
+  const dv = new DataView(buf); let fin = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { fin = i; break; }
+  if (fin < 0) throw new Error('No es un archivo zip');
+  const n = dv.getUint16(fin + 10, true); let q = dv.getUint32(fin + 16, true); const ent = [];
+  for (let i = 0; i < n && dv.getUint32(q, true) === 0x02014b50; i++) {
+    const nl = dv.getUint16(q + 28, true), xl = dv.getUint16(q + 30, true), cl = dv.getUint16(q + 32, true);
+    ent.push({ nombre: new TextDecoder().decode(new Uint8Array(buf, q + 46, nl)), metodo: dv.getUint16(q + 10, true), csize: dv.getUint32(q + 20, true), loff: dv.getUint32(q + 42, true) });
+    q += 46 + nl + xl + cl;
+  }
+  return { ent, async leer(e) {
+    const ini = e.loff + 30 + dv.getUint16(e.loff + 26, true) + dv.getUint16(e.loff + 28, true), datos = new Uint8Array(buf, ini, e.csize);
+    if (e.metodo === 0) return datos.slice();
+    if (e.metodo !== 8 || !window.DecompressionStream) throw new Error('compresión no soportada');
+    return new Uint8Array(await new Response(new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  } };
+}
+// --- plist binaria (para leer el nombre y el espaciado del pincel de Procreate) ---
+function leerBplist(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), L = u8.length;
+  if (new TextDecoder().decode(u8.subarray(0, 6)) !== 'bplist') return null;
+  const oSz = u8[L - 26], rSz = u8[L - 25], num = Number(dv.getBigUint64(L - 24)), top = Number(dv.getBigUint64(L - 16)), tab = Number(dv.getBigUint64(L - 8));
+  const ent = (p, n) => { let v = 0; for (let i = 0; i < n; i++) v = v * 256 + u8[p + i]; return v; };
+  const off = i => ent(tab + i * oSz, oSz), memo = new Map();
+  const obj = i => {
+    if (memo.has(i)) return memo.get(i);
+    let p = off(i); const m = u8[p], t = m >> 4; let n = m & 15, v = null; p++;
+    const largo = () => { if (n !== 15) return; const k = 1 << (u8[p] & 15); n = ent(p + 1, k); p += 1 + k; };
+    if (t === 0) v = n === 8 ? false : n === 9 ? true : null;
+    else if (t === 1) { const k = 1 << n; v = k === 8 ? Number(dv.getBigInt64(p)) : ent(p, k); }
+    else if (t === 2) v = n === 2 ? dv.getFloat32(p) : dv.getFloat64(p);
+    else if (t === 5) { largo(); v = new TextDecoder('latin1').decode(u8.subarray(p, p + n)); }
+    else if (t === 6) { largo(); let str = ''; for (let k = 0; k < n; k++) str += String.fromCharCode(dv.getUint16(p + k * 2)); v = str; }
+    else if (t === 8) v = { uid: ent(p, n + 1) };
+    else if (t === 10) { largo(); v = []; memo.set(i, v); for (let k = 0; k < n; k++) v.push(obj(ent(p + k * rSz, rSz))); }
+    else if (t === 13) { largo(); v = {}; memo.set(i, v); for (let k = 0; k < n; k++) v[obj(ent(p + k * rSz, rSz))] = obj(ent(p + (n + k) * rSz, rSz)); }
+    memo.set(i, v); return v;
+  };
+  return obj(top);
+}
+function datosProcreate(u8) {
+  try {
+    const a = leerBplist(u8); if (!a || !a.$objects) return {};
+    const objs = a.$objects, root = objs[(a.$top.root || a.$top[Object.keys(a.$top)[0]]).uid], val = k => { const v = root[k]; return v && v.uid != null ? objs[v.uid] : v; };
+    const nombre = val('name'), esp = val('plotSpacing'), rot = val('shapeRotation') ?? val('shapeAzimuth');
+    return { nombre: typeof nombre === 'string' && nombre !== '$null' ? nombre : null, esp: typeof esp === 'number' ? esp : null, azar: !!val('shapeRandomise') };
+  } catch (e) { return {}; }
+}
+// --- Photoshop .abr (puntas "muestreadas", versiones 1, 2, 6 y 10) ---
+function leerAbr(buf) {
+  const dv = new DataView(buf), out = []; let p = 0;
+  const u16 = () => { const v = dv.getUint16(p); p += 2; return v; }, u32 = () => { const v = dv.getUint32(p); p += 4; return v; }, i32 = () => { const v = dv.getInt32(p); p += 4; return v; };
+  const imagen = (w, h, prof, comp) => {
+    if (w <= 0 || h <= 0 || w * h > 25e6) return null;
+    const bpp = prof >> 3 || 1, px = new Uint8Array(w * h);
+    if (!comp) { for (let i = 0; i < w * h; i++) px[i] = dv.getUint8(p + i * bpp); p += w * h * bpp; }
+    else { const filas = []; for (let y = 0; y < h; y++) filas.push(u16()); let o = 0;
+      for (let y = 0; y < h; y++) { const finFila = p + filas[y]; let x = 0;
+        while (p < finFila) { let n = dv.getInt8(p++);
+          if (n >= 0) { for (let k = 0; k <= n; k++) { if (x < w * bpp && x % bpp === 0) px[o + x / bpp] = dv.getUint8(p); x++; p++; } }
+          else if (n !== -128) { const v = dv.getUint8(p++); for (let k = 0; k < 1 - n; k++) { if (x < w * bpp && x % bpp === 0) px[o + x / bpp] = v; x++; } } }
+        p = finFila; o += w; } }
+    return { w, h, px };
+  };
+  const ver = u16();
+  if (ver === 1 || ver === 2) {
+    const cant = u16();
+    for (let b = 0; b < cant && p < buf.byteLength; b++) {
+      const tipo = u16(), tam = u32(), sig = p + tam;
+      if (tipo === 2) { u32(); u16(); let nombre = null;
+        if (ver === 2) { const nl = u32(); let str = ''; for (let k = 0; k < nl; k++) { const ch = u16(); if (ch) str += String.fromCharCode(ch); } nombre = str; }
+        p += 1; p += 8; const top = i32(), left = i32(), bot = i32(), right = i32(), prof = u16(), comp = dv.getUint8(p++);
+        const im = imagen(right - left, bot - top, prof, comp); if (im) out.push(Object.assign(im, { nombre })); }
+      p = sig;
+    }
+  } else if (ver === 6 || ver === 7 || ver === 10) {
+    const sub = u16();
+    while (p + 12 <= buf.byteLength) {
+      if (u32() !== 0x3842494d) break; const clave = String.fromCharCode(...new Uint8Array(buf, p, 4)); p += 4; const tam = u32(), finSec = p + tam;
+      if (clave === 'samp') {
+        while (p + 4 < finSec) { let t = u32(); const sig = p + t + ((4 - t % 4) % 4);
+          try { p += sub === 1 ? 47 : 301; const top = i32(), left = i32(), bot = i32(), right = i32(), prof = u16(), comp = dv.getUint8(p++); const im = imagen(right - left, bot - top, prof, comp); if (im) out.push(im); } catch (e) {}
+          p = sig; }
+      }
+      p = finSec + (tam % 2);
+    }
+  } else throw new Error('Versión de .abr no reconocida (' + ver + ')');
+  return out;
+}
+// --- máscara: lo que pinta (alfa) a partir de cualquier imagen ---
+function aMascara(fuente, w, h, modo, maxLado = 256) {
+  const k = Math.min(1, maxLado / Math.max(w, h)), W = Math.max(1, Math.round(w * k)), H = Math.max(1, Math.round(h * k));
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d', { willReadFrequently: true });
+  c.imageSmoothingQuality = 'high'; c.drawImage(fuente, 0, 0, W, H);
+  const im = c.getImageData(0, 0, W, H), d = im.data, lum = i => (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11);
+  if (modo === 'auto') { // con transparencia → el alfa; opaca → lo oscuro sobre fondo claro o lo claro sobre fondo oscuro
+    let transp = 0, borde = 0, nb = 0; for (let i = 3; i < d.length; i += 4) if (d[i] < 240) transp++;
+    for (let x = 0; x < W; x++) for (const y of [0, H - 1]) { borde += lum((y * W + x) * 4); nb++; }
+    modo = transp > d.length / 4 * 0.05 ? 'alfa' : borde / nb > 128 ? 'oscuro' : 'claro';
+  }
+  for (let i = 0; i < d.length; i += 4) {
+    const a = modo === 'alfa' ? d[i + 3] : modo === 'oscuro' ? 255 - lum(i) : lum(i);
+    d[i] = d[i + 1] = d[i + 2] = 0; d[i + 3] = a;
+  }
+  c.putImageData(im, 0, 0); return cv;
+}
+const bitmapDe = async u8 => createImageBitmap(new Blob([u8]));
+async function importarArchivo(f) {
+  const buf = await f.arrayBuffer(), u8 = new Uint8Array(buf), base = f.name.replace(/\.[^.]+$/, ''), res = [];
+  if (u8[0] === 0x50 && u8[1] === 0x4b) { // Procreate
+    const z = leerZip(buf), formas = z.ent.filter(e => /(^|\/)shape\.png$/i.test(e.nombre));
+    if (!formas.length) throw new Error('El archivo no tiene puntas (Shape.png)');
+    for (const e of formas.slice(0, 120)) {
+      const dir = e.nombre.slice(0, e.nombre.length - 'shape.png'.length), busca = n => z.ent.find(x => x.nombre.toLowerCase() === (dir + n).toLowerCase());
+      const fb = await bitmapDe(await z.leer(e)), forma = aMascara(fb, fb.width, fb.height, 'claro');
+      let grano = null; const ge = busca('Grain.png'); if (ge) { const gb = await bitmapDe(await z.leer(ge)); grano = aMascara(gb, gb.width, gb.height, 'claro', 384); }
+      let info = {}; const ae = busca('Brush.archive'); if (ae) info = datosProcreate(await z.leer(ae));
+      res.push({ nombre: info.nombre || (formas.length > 1 ? base + ' ' + (res.length + 1) : base), forma, grano, esp: info.esp != null ? clamp(info.esp * 0.6, 0.03, 1.5) : 0.1, rot: info.azar ? 'azar' : 'trazo', origen: 'Procreate' });
+    }
+  } else if (/\.abr$/i.test(f.name) || [1, 2, 6, 7, 10].includes(new DataView(buf).getUint16(0))) { // Photoshop
+    const lista = leerAbr(buf); if (!lista.length) throw new Error('El .abr no trae puntas de imagen');
+    lista.slice(0, 120).forEach((im, i) => {
+      const cv = document.createElement('canvas'); cv.width = im.w; cv.height = im.h; const c = cv.getContext('2d'), d = c.createImageData(im.w, im.h);
+      for (let k = 0; k < im.px.length; k++) d.data[k * 4 + 3] = im.px[k]; c.putImageData(d, 0, 0);
+      res.push({ nombre: im.nombre || base + ' ' + (i + 1), forma: aMascara(cv, im.w, im.h, 'alfa'), grano: null, esp: 0.15, rot: 'no', origen: 'Photoshop' });
+    });
+  } else { // imagen suelta: la punta es lo dibujado
+    const b = await createImageBitmap(f); res.push({ nombre: base, forma: aMascara(b, b.width, b.height, 'auto'), grano: null, esp: 0.15, rot: 'no', origen: 'Imagen' });
+  }
+  return res;
+}
+function pinDeRegistro(r, forma, grano) {
+  return { id: r.id, cat: 'Importados', nombre: r.nombre, tip: 'sello', forma, grano, esp: r.esp, rot: r.rot, min: 3, max: 200, alfa: 1, pTam: 0.55, pAlfa: 0.35, origen: r.origen };
+}
+const blobDe = cv => new Promise(res => cv.toBlob(res, 'image/png'));
+async function guardarImportados(lista) {
+  const nuevos = [];
+  for (const b of lista) {
+    const r = { id: 'imp_' + nuevoId(), nombre: b.nombre, esp: b.esp, rot: b.rot, origen: b.origen, forma: await blobDe(b.forma), grano: b.grano ? await blobDe(b.grano) : null };
+    await dbPinOp('readwrite', s => s.put(r));
+    const pin = pinDeRegistro(r, b.forma, b.grano); PINCELES.push(pin); nuevos.push(pin);
+  }
+  return nuevos;
+}
+async function cargarImportados() {
+  try {
+    const regs = await dbPinOp('readonly', s => s.getAll()) || [];
+    for (const r of regs) {
+      if (PINCELES.some(p => p.id === r.id)) continue;
+      const fb = await createImageBitmap(r.forma), forma = document.createElement('canvas'); forma.width = fb.width; forma.height = fb.height; forma.getContext('2d').drawImage(fb, 0, 0);
+      let grano = null; if (r.grano) { const gb = await createImageBitmap(r.grano); grano = document.createElement('canvas'); grano.width = gb.width; grano.height = gb.height; grano.getContext('2d').drawImage(gb, 0, 0); }
+      PINCELES.push(pinDeRegistro(r, forma, grano));
+    }
+    rehacerListaImportados();
+  } catch (e) { console.warn('pinceles importados', e); }
+}
+function rehacerListaImportados() { const d = listasPin.get('Importados'); if (d) { d.remove(); listasPin.delete('Importados'); } if (panelAbierto('pPinceles')) pintarPinceles(); }
+async function borrarImportado(id) {
+  await dbPinOp('readwrite', s => s.delete(id)); const i = PINCELES.findIndex(p => p.id === id); if (i >= 0) PINCELES.splice(i, 1);
+  if (aj.pincel === id) aj.pincel = 'hb'; guardarAjustes(); rehacerListaImportados(); avisar('Pincel eliminado');
+}
+$('fPinceles').onchange = async e => {
+  const fs = [...e.target.files]; e.target.value = ''; if (!fs.length) return;
+  avisar('Importando pinceles…'); let total = [], errores = [];
+  for (const f of fs) { try { total = total.concat(await importarArchivo(f)); } catch (err) { errores.push(f.name + ': ' + (err.message || err)); } }
+  if (total.length) {
+    const nuevos = await guardarImportados(total);
+    catActual = 'Importados'; if (herramienta !== 'borrador') { aj.pincel = nuevos[0].id; guardarAjustes(); elegirHerramienta('pincel'); }
+    rehacerListaImportados();
+  }
+  avisar(total.length ? `${total.length} pincel${total.length > 1 ? 'es' : ''} importado${total.length > 1 ? 's' : ''}` + (errores.length ? ' · algunos archivos no se pudieron leer' : '') : 'No se pudo importar: ' + (errores[0] || 'formato no reconocido'));
+};
+
 // ---------- panel de pinceles ----------
 let catActual = null;
 const cachePrev = new Map();
@@ -1806,6 +2037,10 @@ function previaPincel(pin) { // se dibuja una sola vez y se reutiliza
   if (cachePrev.has(k)) return cachePrev.get(k);
   const w = 260, h = 46, cv = document.createElement('canvas'); cv.width = w * DPR; cv.height = h * DPR;
   const c = cv.getContext('2d'); c.fillStyle = '#fbfbf8'; c.fillRect(0, 0, cv.width, cv.height);
+  if (pin.tip === 'textura') { // las texturas se muestran como muestra de material
+    c.fillStyle = Texturas.patron(c, pin.texId || aj.textura.id, '#2b2b2b', 0.45 * DPR); c.fillRect(6 * DPR, 5 * DPR, (w - 12) * DPR, (h - 10) * DPR);
+    cachePrev.set(k, cv); return cv;
+  }
   const tmp = document.createElement('canvas'); tmp.width = w * DPR; tmp.height = h * DPR;
   const tc = tmp.getContext('2d'), t = crearTrazo(tc, pin, pin.cat === 'Borradores' ? '#9a9a9a' : '#1d1d1f', aj.textura);
   const tam = Math.min(pin.mm ? Math.max(1, pin.mm * 5) : lerp(pin.min, pin.max, 0.35), h * 0.45) * DPR;
@@ -1823,10 +2058,16 @@ let previasTex = null;       // textura con la que se dibujó la vista previa de
 function listaCategoria(cat) {
   let div = listasPin.get(cat); if (div) return div;
   div = document.createElement('div'); div.className = 'pin-grupo'; div.dataset.cat = cat;
+  if (cat === 'Importados') {
+    const imp = document.createElement('button'); imp.className = 'btn-importar'; imp.innerHTML = '<b>＋ Importar pinceles</b><small>Procreate (.brush, .brushset), Photoshop (.abr) o una imagen PNG/JPG</small>';
+    imp.onclick = () => $('fPinceles').click(); div.appendChild(imp);
+    if (!PINCELES.some(p => p.cat === cat)) { const n = document.createElement('p'); n.className = 'nota'; n.textContent = 'Aún no importaste pinceles. Pásalos a la tableta (Drive, WhatsApp, cable) y elígelos aquí.'; div.appendChild(n); }
+  }
   for (const p of PINCELES.filter(p => p.cat === cat)) {
     const b = document.createElement('button'); b.className = 'pin-item'; b.dataset.id = p.id;
-    b.innerHTML = `<span>${p.nombre}</span><canvas width="${260 * DPR}" height="${46 * DPR}"></canvas>`;
-    b.onclick = () => { if (herramienta === 'borrador') aj.borrador = p.id; else aj.pincel = p.id; guardarAjustes(); actualizarSliders(); marcarPincelActivo(); };
+    b.innerHTML = `<span>${escapar(p.nombre)}${p.origen ? ` <small style="opacity:.55">· ${p.origen}</small>` : ''}</span>${p.origen ? '<i class="pin-borrar" title="Eliminar">×</i>' : ''}<canvas width="${260 * DPR}" height="${46 * DPR}"></canvas>`;
+    b.onclick = ev => {
+      if (ev.target.closest('.pin-borrar')) return confirmar('Eliminar pincel', '¿Quitar “' + p.nombre + '” de tus pinceles?', 'Eliminar', () => borrarImportado(p.id)); if (herramienta === 'borrador') aj.borrador = p.id; else aj.pincel = p.id; guardarAjustes(); actualizarSliders(); marcarPincelActivo(); };
     div.appendChild(b);
   }
   listasPin.set(cat, div); $('pinLista').appendChild(div);
@@ -1998,7 +2239,7 @@ function hsvHex(h, s, v) {
   return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
 }
 function ponerColor(hex, desdeGotero) {
-  aj.color = hex.toLowerCase(); $('colorActual').style.background = aj.color;
+  aj.color = hex.toLowerCase(); $('gotaColor').style.background = $('colorActual').style.background = aj.color;
   if (!desdeGotero) { const r = aj.recientes.filter(c => c !== aj.color); r.unshift(aj.color); aj.recientes = r.slice(0, 9); }
   guardarAjustes();
   if (panelAbierto('pColor')) pintarColorPanel(true);
@@ -2025,8 +2266,8 @@ function arrastre(el, fn) {
   el.addEventListener('pointermove', e => act && fn(e));
   el.addEventListener('pointerup', () => { if (act) { act = false; ponerColor(aj.color); } });
 }
-arrastre($('cvSV'), e => { const r = $('cvSV').getBoundingClientRect(); hsv[1] = clamp((e.clientX - r.left) / r.width, 0, 1); hsv[2] = clamp(1 - (e.clientY - r.top) / r.height, 0, 1); aj.color = hsvHex(...hsv); $('colorActual').style.background = aj.color; pintarColorPanel(true); });
-arrastre($('cvHue'), e => { const r = $('cvHue').getBoundingClientRect(); hsv[0] = clamp((e.clientX - r.left) / r.width, 0, 0.999) * 360; aj.color = hsvHex(...hsv); $('colorActual').style.background = aj.color; pintarColorPanel(true); });
+arrastre($('cvSV'), e => { const r = $('cvSV').getBoundingClientRect(); hsv[1] = clamp((e.clientX - r.left) / r.width, 0, 1); hsv[2] = clamp(1 - (e.clientY - r.top) / r.height, 0, 1); aj.color = hsvHex(...hsv); $('gotaColor').style.background = $('colorActual').style.background = aj.color; pintarColorPanel(true); });
+arrastre($('cvHue'), e => { const r = $('cvHue').getBoundingClientRect(); hsv[0] = clamp((e.clientX - r.left) / r.width, 0, 0.999) * 360; aj.color = hsvHex(...hsv); $('gotaColor').style.background = $('colorActual').style.background = aj.color; pintarColorPanel(true); });
 $('colorHex').addEventListener('change', e => { let v = e.target.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { ponerColor(v); pintarColorPanel(); } });
 
 // ---------- guías ----------
@@ -2507,6 +2748,9 @@ function arrastrable(btn, clase, html, alSoltar) {
   btn.addEventListener('pointerup', fin); btn.addEventListener('pointercancel', fin);
   btn.addEventListener('click', e => { if (btn._arr && performance.now() - btn._arr < 800) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 }
+// también desde la gota de color de la barra lateral (lejos de la esquina, donde la tableta abre su menú del lápiz)
+arrastrable($('bGota'), 'arrastre-color', () => `<div style="width:100%;height:100%;border-radius:50%;background:${aj.color}"></div>`, d => rellenarEn(d));
+$('bGota').addEventListener('click', () => avisar('Arrastra este color hasta un ambiente cerrado para rellenarlo'));
 arrastrable($('bColor'), 'arrastre-color', () => `<div style="width:100%;height:100%;border-radius:50%;background:${aj.color}"></div>`, d => rellenarEn(d));
 arrastrable($('bPin'), 'arrastre-pin', () => '<svg viewBox="0 0 24 24" style="width:100%;height:100%;fill:currentColor;stroke:#fff;stroke-width:1.2"><path d="M12 22s-7-6.6-7-11.5a7 7 0 0 1 14 0C19 15.4 12 22 12 22z"/></svg>', d => { if (flot) aplicarFlot(); nuevoPin(d); });
 
@@ -2660,7 +2904,8 @@ addEventListener('visibilitychange', () => { if (!document.hidden) buscarActuali
 // =====================================================================
 addEventListener('resize', () => { tamSup(); });
 tamSup();
-$('colorActual').style.background = aj.color;
+cargarImportados(); // pinceles importados guardados en la tableta
+$('gotaColor').style.background = $('colorActual').style.background = aj.color;
 history.replaceState({ pd: 'galeria' }, '');
 mostrarGaleria().then(() => {
   // tras actualizar, vuelve a abrir el boceto en el que estabas
