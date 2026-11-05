@@ -34,6 +34,32 @@ const Simbolos = (() => {
     { id: 'muro', nombre: 'Muro (15 cm)', cat: 'Aberturas', tipo: 'abertura', def: 3.0, draw(c, w) { R(c, 0, -0.075, w, 0.15); } },
     { id: 'muro25', nombre: 'Muro (25 cm)', cat: 'Aberturas', tipo: 'abertura', def: 3.0, draw(c, w) { R(c, 0, -0.125, w, 0.25); } },
 
+    // ---------------- Estructura (planta) ----------------
+    // e = el objeto: e.sw × e.sh = sección en metros (columna: lados; viga/placa: ancho × peralte)
+    { id: 'columna', nombre: 'Columna', cat: 'Estructura', tipo: 'fijo', estructura: true, w: 0.25, h: 0.25, sw: 0.25, sh: 0.25, draw(c, w, h, t, k, e) {
+      const a = e && e.sw || 0.25, b = e && e.sh || 0.25; c.fillRect(-a / 2, -b / 2, a, b); c.strokeRect(-a / 2, -b / 2, a, b);
+      if (t) { c.save(); c.font = `600 ${(e && e.pxmm || 6) * 2.4 / k}px sans-serif`; c.textBaseline = 'bottom'; c.fillText(t, a / 2 + 0.05, -b / 2 - 0.03); c.restore(); }
+    } },
+    { id: 'columnaC', nombre: 'Columna circular', cat: 'Estructura', tipo: 'fijo', estructura: true, circular: true, w: 0.3, h: 0.3, sw: 0.3, sh: 0.3, draw(c, w, h, t, k, e) {
+      const d = e && e.sw || 0.3; C(c, 0, 0, d / 2, true);
+      if (t) { c.save(); c.font = `600 ${(e && e.pxmm || 6) * 2.4 / k}px sans-serif`; c.textBaseline = 'bottom'; c.fillText(t, d / 2 + 0.05, -d / 2); c.restore(); }
+    } },
+    { id: 'placa', nombre: 'Placa / muro de concreto', cat: 'Estructura', tipo: 'abertura', estructura: true, def: 1.5, sw: 0.25, sh: 0, draw(c, w, h, t, k, e) {
+      const b = e && e.sw || 0.25; c.fillRect(0, -b / 2, w, b); c.strokeRect(0, -b / 2, w, b);
+    } },
+    { id: 'viga', nombre: 'Viga', cat: 'Estructura', tipo: 'abertura', estructura: true, def: 4.0, sw: 0.25, sh: 0.40, draw(c, w, h, t, k, e) {
+      // en planta la viga va por encima del corte: dos líneas discontinuas y su rótulo
+      const b = e && e.sw || 0.25, s = 1 / k; c.save(); c.setLineDash([7 * s, 4 * s]);
+      L(c, [[0, -b / 2], [w, -b / 2]]); L(c, [[0, b / 2], [w, b / 2]]); c.restore();
+      if (t) { c.save(); c.font = `600 ${(e && e.pxmm || 6) * 2.4 / k}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'bottom';
+        const fl = Math.cos(Math.atan2(c.getTransform().b, c.getTransform().a)) < -0.01; // que el texto no quede de cabeza
+        if (fl) { c.translate(w / 2, 0); c.rotate(Math.PI); c.translate(-w / 2, 0); }
+        c.fillText(t, w / 2, -b / 2 - 3 * s); c.restore(); }
+    } },
+    { id: 'zapata', nombre: 'Zapata (cimiento)', cat: 'Estructura', tipo: 'fijo', estructura: true, w: 1.2, h: 1.2, sw: 1.2, sh: 1.2, draw(c, w, h, t, k, e) {
+      const a = e && e.sw || 1.2, b = e && e.sh || 1.2, s = 1 / k; c.save(); c.setLineDash([6 * s, 4 * s]); c.strokeRect(-a / 2, -b / 2, a, b); c.restore();
+      if (t) { c.save(); c.font = `600 ${(e && e.pxmm || 6) * 2.4 / k}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.fillText(t, 0, b / 2 + 3 * s); c.restore(); }
+    } },
     // ---------------- Mobiliario (planta) ----------------
     { id: 'cama2', nombre: 'Cama 2 plazas', cat: 'Mobiliario', tipo: 'fijo', w: 1.5, h: 1.9, draw(c, w, h) {
       RR(c, -w / 2, -h / 2, w, h, 0.04); RR(c, -w / 2 + 0.08, -h / 2 + 0.08, w / 2 - 0.12, 0.38, 0.06); RR(c, 0.04, -h / 2 + 0.08, w / 2 - 0.12, 0.38, 0.06);
@@ -137,11 +163,11 @@ const Simbolos = (() => {
 
   // Dibuja el símbolo: origen en (x,y), girado 'ang'. k = píxeles por metro (o por unidad de papel).
   // w = ancho para aberturas. Devuelve la caja (para deshacer).
-  function dibujar(ctx, sim, x, y, ang, k, w, color, lwPx, texto, flip) {
+  function dibujar(ctx, sim, x, y, ang, k, w, color, lwPx, texto, flip, e) {
     ctx.save();
     ctx.translate(x, y); ctx.rotate(ang); ctx.scale(k, flip ? -k : k);
     ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = lwPx / k; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    sim.draw(ctx, w != null ? w : sim.w, sim.h, texto, k);
+    sim.draw(ctx, w != null ? w : sim.w, sim.h, texto, k, e);
     ctx.restore();
   }
   return { lista, CATS, de, dibujar };

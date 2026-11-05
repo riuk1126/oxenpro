@@ -183,11 +183,13 @@ function trazoPunto(t, p) {
 //  ESTADO
 // =====================================================================
 const AJ_DEF = {
-  pincel: 'hb', borrador: 'bduro', color: '#1d1d1f', recientes: [], porPincel: {}, estab: 0.35,
+  pincel: 'hb', borrador: 'bduro', color: '#1d1d1f', recientes: [], porPincel: {}, estab: 0.12,
   textura: { id: 'ladrillo', escala: 1, modo: 'textura' }, presion: 1, soloLapiz: null, zurdo: false,
 };
 let aj = AJ_DEF;
 try { aj = Object.assign({}, AJ_DEF, JSON.parse(localStorage.getItem('oxen-ajustes') || '{}')); } catch (e) {}
+// la estabilización alta hace que la línea vaya "detrás" del lápiz: el valor viejo por defecto (35%) pasa a 12%
+if (!aj.v142) { if (aj.estab === 0.35) aj.estab = 0.12; aj.v142 = true; try { localStorage.setItem('oxen-ajustes', JSON.stringify(aj)); } catch (e) {} }
 function guardarAjustes() { try { localStorage.setItem('oxen-ajustes', JSON.stringify(aj)); } catch (e) {} }
 
 let doc = null;          // dibujo abierto
@@ -354,11 +356,21 @@ function pintarPapel() {
 // =====================================================================
 let trazo = null;          // trazo en curso
 const toques = new Map();  // dedos sobre la pantalla
-let gesto = null, lapizAbajo = false, paneo = null, arrastreVP = null;
+let gesto = null, lapizAbajo = false, lapizId = null, paneo = null, arrastreVP = null;
 let espacio = false;
 
+// Algunas tabletas Android entregan el lápiz como "touch" (dedo). Se reconoce igual: punta muy fina,
+// inclinación o una presión que de verdad varía. Así la presión funciona en todos los tipos de hoja.
+let presionVista = 0, estadoPresion = null; // última presión real leída (para el indicador de Ajustes)
+function esLapiz(e) {
+  if (e.pointerType === 'pen') return true;
+  if (e.pointerType !== 'touch') return false;
+  return (e.width > 0 && e.width <= 3 && e.height <= 3) || !!(e.tiltX || e.tiltY) || (typeof e.altitudeAngle === 'number' && e.altitudeAngle < 1.5);
+}
 function presionDe(e) {
-  if (e.pointerType === 'pen') { const p = e.pressure > 0 ? e.pressure : 0.5; return Math.pow(p, aj.presion); }
+  if (esLapiz(e) && e.pressure > 0 && e.pressure !== 0.5 || e.pointerType === 'pen') {
+    const p = e.pressure > 0 ? e.pressure : 0.5; presionVista = p; return Math.pow(p, aj.presion);
+  }
   return e.pointerType === 'mouse' ? 0.65 : 0.6;
 }
 function inclinacionDe(e) {
@@ -381,9 +393,9 @@ escenario.addEventListener('pointerdown', e => {
   }
   if (document.querySelector('.panel:not(.oculto)')) { cerrarPaneles(); if (e.pointerType !== 'touch') return; toques.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, ignorar: true }); return; }
 
-  if (e.pointerType === 'pen') {
+  if (e.pointerType === 'pen' || esLapiz(e) && !toques.size) {
     if (aj.soloLapiz === null) { aj.soloLapiz = true; guardarAjustes(); $('chkSoloLapiz').checked = true; avisar('Lápiz detectado: el dedo ahora mueve el lienzo'); }
-    lapizAbajo = true;
+    lapizAbajo = true; lapizId = e.pointerId;
     if (gesto) terminarGesto(false);
     paneo = null;
     iniciarTrazo(e);
@@ -395,7 +407,7 @@ escenario.addEventListener('pointerdown', e => {
     return;
   }
   // ---- dedo ----
-  if (lapizAbajo) return; // palma apoyada mientras se dibuja con lápiz
+  if (lapizAbajo) { if (trazo && trazo.forma) perfeccionarForma(trazo); return; } // palma apoyada mientras se dibuja con lápiz
   toques.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
   if (toques.size === 1) {
     gestoTap = { t: performance.now(), max: 1, movido: false };
@@ -435,11 +447,11 @@ escenario.addEventListener('pointermove', e => {
 function finPuntero(e) {
   if (!doc) return;
   if (arrastreVP && arrastreVP.id === e.pointerId) { arrastreVP = null; marcarCambio(); return; }
-  if (e.pointerType === 'pen') lapizAbajo = false;
+  if (e.pointerType === 'pen' || e.pointerId === lapizId) { lapizAbajo = false; lapizId = null; }
   if (e.pointerType !== 'touch') { hover = e.pointerType === 'mouse' ? { x: e.clientX, y: e.clientY } : null; pedirCursor(); }
   if (trazo && trazo.id === e.pointerId) { if (e.type === 'pointercancel' && trazo.tipo === 'touch') cancelarTrazo(); else terminarTrazo(e); }
   if (paneo && paneo.id === e.pointerId) paneo = null;
-  if (e.pointerType === 'touch') {
+  if (e.pointerType === 'touch' && toques.has(e.pointerId)) {
     toques.delete(e.pointerId);
     if (toques.size < 2 && gesto) terminarGesto(true);
     if (toques.size === 0) {
@@ -498,6 +510,7 @@ function tamPincel(pin, o, pxmm) { return pin.mm ? pin.mm * (pxmm || PXMM) * ler
 function puntoDesde(e, t) {
   const d = aDoc(e.clientX, e.clientY), pin = t.pin, o = t.opc;
   let pr = presionDe(e);
+  if (esLapiz(e)) { t.lapiz = true; const q = e.pressure; if (q > 0) { t.prMin = Math.min(t.prMin ?? 1, q); t.prMax = Math.max(t.prMax ?? 0, q); } }
   t.prS = t.prS == null ? pr : lerp(t.prS, pr, 0.55); pr = t.prS;
   let s = tamPincel(pin, o, doc.pxmm) * (1 - pin.pTam + pin.pTam * pr);
   let a = (pin.alfa || 1) * (1 - (pin.pAlfa || 0) + (pin.pAlfa || 0) * pr);
@@ -569,11 +582,11 @@ function moverTrazo(e, soloPrediccion) {
       }
       agregarPunto(t, p);
     }
-    if (t.forma && t.forma.tipo === 'linea') { const p = t.raw[t.raw.length - 1]; t.forma.b = enderezarFin(t.forma.a, { x: p.x, y: p.y }); dibujarForma(t); }
+    if (t.forma && lista.length) { const p = t.raw[t.raw.length - 1]; editarForma(t, { x: p.x, y: p.y }); dibujarForma(t); }
     reiniciarQuickShape(t, e);
   }
   // tinta adelantada: dibuja hacia donde va el lápiz para que se sienta sin retraso
-  if (!t.lazo && !t.forma && !t.dir && e.getPredictedEvents && ['linea', 'grano', 'bisel', 'guion'].includes(t.pin.tip)) {
+  if (!t.lazo && !t.forma && !t.dir && e.getPredictedEvents && ['linea', 'grano', 'bisel', 'guion', 'textura'].includes(t.pin.tip)) {
     const pe = e.getPredictedEvents(); t.pred = pe.length ? aDoc(pe[pe.length - 1].clientX, pe[pe.length - 1].clientY) : null;
   }
   pedirComp();
@@ -611,6 +624,7 @@ function terminarTrazo(e) {
   if (t.arq) return terminarArq(t, e);
   if (t.gotero) { ponerColor(aj.color); if (herrPrevia !== 'gotero') elegirHerramienta(herrPrevia); return; }
   if (t.lazo) { aplicarLazo(t); return; }
+  if (t.lapiz) estadoPresion = (t.prMax - t.prMin > 0.04) ? 'ok' : 'plana';
   // toque corto sobre una puerta o mueble con el lápiz: se selecciona (no deja un punto)
   if (!t.borrar && performance.now() - t.t0 < 350 && t.largo * escalaVista() < 6 && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 8) {
     const o = simEn(t.inicio);
@@ -702,11 +716,87 @@ function reiniciarQuickShape(t, e) {
   if (t.forma) return;
   if (Math.hypot(e.clientX - t.qsX, e.clientY - t.qsY) > 5) armarQuickShape(t, e);
 }
+// Como en Procreate: al reconocer la forma, si se sigue presionando y se mueve el lápiz, la forma se
+// agranda/achica y gira (la línea mueve su extremo). Tocar la pantalla con un dedo mientras tanto la
+// vuelve perfecta: elipse → círculo, rectángulo → cuadrado, línea → ángulo exacto de 15°.
+const NOMBRE_FORMA = { linea: 'Línea recta', elipse: 'Elipse', circulo: 'Círculo', rect: 'Rectángulo', poli: 'Polilínea', tri: 'Triángulo' };
 function intentarForma(t) {
   if (trazo !== t || t.forma || t.dir || t.pts.length < 6 || t.largo * escalaVista() < 40) return;
-  const f = detectarForma(t.pts); if (!f) return;
-  t.forma = f; dibujarForma(t);
-  avisar({ linea: 'Línea recta', elipse: 'Elipse', circulo: 'Círculo', rect: 'Rectángulo' }[f.tipo]);
+  let f = detectarForma(t.pts); if (!f) return;
+  if (f.tipo === 'rect') f = { tipo: 'rect', cx: (f.x0 + f.x1) / 2, cy: (f.y0 + f.y1) / 2, hw: (f.x1 - f.x0) / 2, hh: (f.y1 - f.y0) / 2, ang: 0 };
+  else if (f.tipo === 'elipse' || f.tipo === 'circulo') f.ang = 0;
+  t.forma = f; anclarForma(t); dibujarForma(t);
+  avisar(NOMBRE_FORMA[f.tipo] + (f.tipo === 'linea' ? '' : ' · sigue presionando y mueve para agrandar o girar'));
+}
+function anclarForma(t) { const p = t.raw[t.raw.length - 1]; t.forma0 = JSON.parse(JSON.stringify(t.forma)); t.ancla = { x: p.x, y: p.y }; }
+function centroForma(f) {
+  if (f.tipo === 'poli') { let x = 0, y = 0; for (const p of f.v) { x += p.x; y += p.y; } return { x: x / f.v.length, y: y / f.v.length }; }
+  return { x: f.cx, y: f.cy };
+}
+const ajustarAng = an => { const p = Math.PI / 12, o = Math.round(an / p) * p; return Math.abs(an - o) < 0.05 ? o : an; };
+function editarForma(t, p) { // la forma sigue al lápiz mientras se mantiene presionado
+  const f0 = t.forma0;
+  if (f0.tipo === 'linea') { t.forma.b = enderezarFin(t.forma.a, p); }
+  else {
+    const c = centroForma(f0), v0x = t.ancla.x - c.x, v0y = t.ancla.y - c.y, d0 = Math.hypot(v0x, v0y);
+    if (d0 < 2) return;
+    const k = Math.max(0.05, Math.hypot(p.x - c.x, p.y - c.y) / d0);
+    let th = Math.atan2(p.y - c.y, p.x - c.x) - Math.atan2(v0y, v0x);
+    const f = JSON.parse(JSON.stringify(f0));
+    if (f.tipo === 'poli') {
+      th = ajustarAng(th); const co = Math.cos(th) * k, si = Math.sin(th) * k;
+      f.v = f0.v.map(q => ({ x: c.x + (q.x - c.x) * co - (q.y - c.y) * si, y: c.y + (q.x - c.x) * si + (q.y - c.y) * co }));
+    } else if (f.tipo === 'circulo') { f.rx = f0.rx * k; f.ry = f0.ry * k; }
+    else if (f.tipo === 'elipse') { f.rx = f0.rx * k; f.ry = f0.ry * k; f.ang = ajustarAng(f0.ang + th); }
+    else if (f.tipo === 'rect') { f.hw = f0.hw * k; f.hh = f0.hh * k; f.ang = ajustarAng(f0.ang + th); }
+    t.forma = f;
+  }
+  medidaForma(t.forma);
+}
+function medidaForma(f) { // en hojas a escala se ve la medida real mientras se ajusta
+  if (!doc || doc.tipo === 'boceto' || doc.tipo === 'perspectiva') return;
+  if (f.tipo === 'linea') avisarSuave(fmtM(metros(Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y))) + ' m');
+  else if (f.tipo === 'circulo') avisarSuave('Ø ' + fmtM(metros(f.rx * 2)) + ' m');
+  else if (f.tipo === 'rect') avisarSuave(fmtM(metros(f.hw * 2)) + ' × ' + fmtM(metros(f.hh * 2)) + ' m');
+}
+function perfeccionarForma(t) { // dedo sobre la pantalla mientras se mantiene la forma
+  const f = t.forma; if (!f) return;
+  if (f.tipo === 'elipse') { const r = (f.rx + f.ry) / 2; f.tipo = 'circulo'; f.rx = f.ry = r; f.ang = 0; }
+  else if (f.tipo === 'rect') { const m = (f.hw + f.hh) / 2; f.hw = f.hh = m; }
+  else if (f.tipo === 'linea') { const dx = f.b.x - f.a.x, dy = f.b.y - f.a.y, L = Math.hypot(dx, dy), p = Math.PI / 12, an = Math.round(Math.atan2(dy, dx) / p) * p; f.b = { x: f.a.x + Math.cos(an) * L, y: f.a.y + Math.sin(an) * L }; }
+  else if (f.tipo === 'poli') { for (let i = 1; i < f.v.length; i++) f.v[i] = enderezarFin(f.v[i - 1], f.v[i], true); }
+  anclarForma(t); dibujarForma(t);
+  avisar({ circulo: 'Círculo perfecto', rect: 'Cuadrado', linea: 'Ángulo exacto', poli: 'Ángulos exactos' }[f.tipo] || 'Forma perfecta');
+}
+// simplifica un recorrido a sus vértices (Ramer–Douglas–Peucker)
+function simplificar(pts, eps) {
+  if (pts.length < 3) return pts.slice();
+  const a = pts[0], b = pts[pts.length - 1], L = Math.hypot(b.x - a.x, b.y - a.y);
+  let dm = 0, im = 0;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = pts[i], d = L < 1e-6 ? Math.hypot(p.x - a.x, p.y - a.y) : Math.abs((b.x - a.x) * (a.y - p.y) - (a.x - p.x) * (b.y - a.y)) / L;
+    if (d > dm) { dm = d; im = i; }
+  }
+  if (dm <= eps) return [a, b];
+  const izq = simplificar(pts.slice(0, im + 1), eps), der = simplificar(pts.slice(im), eps);
+  return izq.slice(0, -1).concat(der);
+}
+function detectarPoli(pts, L) {
+  const v = simplificar(pts, Math.max(3, 0.035 * L)); if (v.length < 3 || v.length > 9) return null;
+  for (let i = 1; i < v.length; i++) { // cada tramo debe ser recto y no muy corto
+    const a = v[i - 1], b = v[i], l = Math.hypot(b.x - a.x, b.y - a.y); if (l < 0.06 * L) return null;
+    const i0 = pts.indexOf(a), i1 = pts.indexOf(b);
+    for (let j = i0; j <= i1; j++) { const p = pts[j]; if (Math.abs((b.x - a.x) * (a.y - p.y) - (a.x - p.x) * (b.y - a.y)) / l > 0.07 * l + 2) return null; }
+  }
+  for (let i = 1; i < v.length - 1; i++) { // esquinas marcadas (no una curva)
+    const a = v[i - 1], b = v[i], c = v[i + 1], g = Math.abs(Math.atan2((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x), (b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y)));
+    if (g < 0.4) return null;
+  }
+  const out = v.map(p => ({ x: p.x, y: p.y })), ini = out[0], fin = out[out.length - 1];
+  const cerrado = Math.hypot(fin.x - ini.x, fin.y - ini.y) < 0.12 * L;
+  if (cerrado) { out.pop(); if (out.length < 3) return null; }
+  for (let i = 1; i < out.length; i++) out[i] = enderezarFin(out[i - 1], out[i]);
+  return { tipo: 'poli', v: out, cerrado };
 }
 function detectarForma(pts) {
   const n = pts.length, a = pts[0], b = pts[n - 1];
@@ -718,6 +808,7 @@ function detectarForma(pts) {
     for (const p of pts) dev = Math.max(dev, Math.abs((p.x - a.x) * uy - (p.y - a.y) * ux));
     if (dev < 0.08 * cuerda + 3) return { tipo: 'linea', a: { x: a.x, y: a.y }, b: enderezarFin(a, b) };
   }
+  const pl = detectarPoli(pts, L); if (pl) return pl; // triángulos, muros en L, contornos de varios lados
   const rx = (x1 - x0) / 2, ry = (y1 - y0) / 2;
   if (cuerda < 0.25 * L && rx > 6 && ry > 6) {
     const cx = x0 + rx, cy = y0 + ry, m = Math.min(rx, ry);
@@ -734,9 +825,9 @@ function detectarForma(pts) {
   }
   return null;
 }
-function enderezarFin(a, b) { // ángulos de 0/45/90° cuando está cerca
-  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy), an = Math.atan2(dy, dx), paso = Math.PI / 4, obj = Math.round(an / paso) * paso;
-  if (Math.abs(an - obj) < 0.07) return { x: a.x + Math.cos(obj) * L, y: a.y + Math.sin(obj) * L };
+function enderezarFin(a, b, exacto) { // ángulos de 0/45/90° cuando está cerca (exacto: siempre a 15°)
+  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy), an = Math.atan2(dy, dx), paso = exacto ? Math.PI / 12 : Math.PI / 4, obj = Math.round(an / paso) * paso;
+  if (exacto || Math.abs(an - obj) < 0.07) return { x: a.x + Math.cos(obj) * L, y: a.y + Math.sin(obj) * L };
   return { x: b.x, y: b.y };
 }
 function dibujarForma(t) {
@@ -748,8 +839,14 @@ function dibujarForma(t) {
   bbAmpliar(t.motor.bb, viejo[0], viejo[1], 0); bbAmpliar(t.motor.bb, viejo[2], viejo[3], 0); // para limpiar bien
   const pts = [];
   if (f.tipo === 'linea') { const L = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y), n = Math.max(2, Math.ceil(L / 2)); for (let i = 0; i <= n; i++) pts.push([lerp(f.a.x, f.b.x, i / n), lerp(f.a.y, f.b.y, i / n)]); }
-  else if (f.tipo === 'rect') { const c = [[f.x0, f.y0], [f.x1, f.y0], [f.x1, f.y1], [f.x0, f.y1], [f.x0, f.y0]]; for (let k = 0; k < 4; k++) { const [p, q] = [c[k], c[k + 1]], n = Math.max(2, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 2)); for (let i = 0; i < n; i++) pts.push([lerp(p[0], q[0], i / n), lerp(p[1], q[1], i / n)]); } pts.push(c[4]); }
-  else { const n = Math.max(24, Math.ceil(Math.PI * (f.rx + f.ry) / 2)), a0 = Math.atan2(t.pts[0].y - f.cy, t.pts[0].x - f.cx); for (let i = 0; i <= n; i++) { const an = a0 + i / n * 6.2832; pts.push([f.cx + Math.cos(an) * f.rx, f.cy + Math.sin(an) * f.ry]); } }
+  else if (f.tipo === 'rect' || f.tipo === 'poli') {
+    let c;
+    if (f.tipo === 'rect') { const co = Math.cos(f.ang || 0), si = Math.sin(f.ang || 0), P = (x, y) => [f.cx + x * co - y * si, f.cy + x * si + y * co]; c = [P(-f.hw, -f.hh), P(f.hw, -f.hh), P(f.hw, f.hh), P(-f.hw, f.hh)]; c.push(c[0]); }
+    else { c = f.v.map(p => [p.x, p.y]); if (f.cerrado) c.push(c[0]); }
+    for (let k = 0; k < c.length - 1; k++) { const [p, q] = [c[k], c[k + 1]], n = Math.max(2, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 2)); for (let i = 0; i < n; i++) pts.push([lerp(p[0], q[0], i / n), lerp(p[1], q[1], i / n)]); }
+    pts.push(c[c.length - 1]);
+  }
+  else { const n = Math.max(24, Math.ceil(Math.PI * (f.rx + f.ry) / 2)), co = Math.cos(f.ang || 0), si = Math.sin(f.ang || 0), a0 = Math.atan2(t.pts[0].y - f.cy, t.pts[0].x - f.cx) - (f.ang || 0); for (let i = 0; i <= n; i++) { const an = a0 + i / n * 6.2832, x = Math.cos(an) * f.rx, y = Math.sin(an) * f.ry; pts.push([f.cx + x * co - y * si, f.cy + x * si + y * co]); } }
   for (const [x, y] of pts) trazoPunto(t.motor, { x, y, s, a });
   t.motor.sucio = t.motor.bb.slice(); pedirComp();
 }
@@ -950,21 +1047,40 @@ function sobreSimbolo(e) { // ¿el toque cae sobre un símbolo o sobre la manija
   return !!(h && Math.hypot(h.x - d.x, h.y - d.y) * escalaVista() < 30 || simEn(d));
 }
 function kSim(sim) { return sim.tipo === 'papel' ? sim.mm * doc.pxmm : pxDeMetros(1); }
-function textoSim(o) { return o.texto || (o.sid === 'nivel' ? 'NPT +0.00' : o.sid === 'corte' ? 'A' : null); }
+const f2 = v => v.toFixed(2).replace(/^0\./, '.');
+function seccionSim(o) { const sim = Simbolos.de(o.sid); return { sw: o.sw || sim.sw, sh: o.sh != null ? o.sh : sim.sh }; }
+function textoSim(o) {
+  const sim = Simbolos.de(o.sid);
+  if (sim.id === 'viga') { const q = seccionSim(o); return (o.texto || 'V') + ` (${f2(q.sw)}×${f2(q.sh)})`; }
+  if (sim.estructura) return o.texto || null;
+  return o.texto || (o.sid === 'nivel' ? 'NPT +0.00' : o.sid === 'corte' ? 'A' : null);
+}
 function dibujarSim(c, o) {
   const sim = Simbolos.de(o.sid);
-  Simbolos.dibujar(c, sim, o.x, o.y, o.ang, kSim(sim), o.w, o.color || '#1d1d1f', Math.max(1, 0.25 * doc.pxmm), textoSim(o), o.flip);
+  Simbolos.dibujar(c, sim, o.x, o.y, o.ang, kSim(sim), o.w, o.color || '#1d1d1f', Math.max(1, 0.25 * doc.pxmm), textoSim(o), o.flip, Object.assign(seccionSim(o), { pxmm: doc.pxmm }));
+}
+// las vigas se pegan al centro de las columnas
+function imanColumna(d) {
+  if (!doc) return d; let mejor = null, dm = 1e9;
+  for (const o of doc.objetos) if (o.tipo === 'simbolo' && (o.sid === 'columna' || o.sid === 'columnaC')) {
+    const q = seccionSim(o), tol = pxDeMetros(Math.max(q.sw, q.sh)) / 2 + 14 / escalaVista(), dd = Math.hypot(o.x - d.x, o.y - d.y);
+    if (dd < tol && dd < dm) { dm = dd; mejor = { x: o.x, y: o.y }; }
+  }
+  return mejor || d;
 }
 function cajaSim(o) { // caja en unidades locales del símbolo
   const sim = Simbolos.de(o.sid), m = 0.15;
+  if (sim.estructura) { const q = seccionSim(o), mm = 0.08;
+    if (sim.tipo === 'abertura') return [-mm, -q.sw / 2 - mm - (sim.id === 'viga' ? 0.35 : 0), o.w + mm, q.sw / 2 + mm];
+    return [-q.sw / 2 - mm, -(sim.circular ? q.sw : q.sh) / 2 - mm, q.sw / 2 + mm, (sim.circular ? q.sw : q.sh) / 2 + mm]; }
   if (sim.tipo === 'abertura') return [-m, -Math.max(o.w, 0.3) - m, o.w + m, 0.25];
   if (sim.tipo === 'papel') return sim.id === 'nivel' ? [-0.5, -1.2, 3.3, 0.2] : sim.id === 'norte' ? [-0.6, -0.9, 0.6, 0.6] : [-0.7, -1.1, 1.3, 0.7];
   if (sim.base) return [-sim.w / 2 - m, -sim.h - m, sim.w / 2 + m, m];
   return [-sim.w / 2 - m, -sim.h / 2 - m, sim.w / 2 + m, sim.h / 2 + m];
 }
 function localSim(o, d) { const k = kSim(Simbolos.de(o.sid)), dx = d.x - o.x, dy = d.y - o.y, c = Math.cos(-o.ang), s = Math.sin(-o.ang); const x = (dx * c - dy * s) / k, y = (dx * s + dy * c) / k; return { x, y: o.flip ? -y : y }; }
-function simEn(d) {
-  for (let i = doc.objetos.length - 1; i >= 0; i--) { const o = doc.objetos[i]; if (o.tipo !== 'simbolo') continue;
+function simEn(d, filtro) {
+  for (let i = doc.objetos.length - 1; i >= 0; i--) { const o = doc.objetos[i]; if (o.tipo !== 'simbolo' || filtro && !filtro(o)) continue;
     const l = localSim(o, d), b = cajaSim(o), tol = 12 / escalaVista() / kSim(Simbolos.de(o.sid));
     if (l.x > b[0] - tol && l.x < b[2] + tol && l.y > b[1] - tol && l.y < b[3] + tol) return o; }
   return null;
@@ -987,7 +1103,10 @@ function ponerBarraSel() {
   }
   bar.classList.remove('oculto');
   $('selAncho').classList.toggle('oculto', sim.tipo !== 'abertura');
-  $('selTexto').classList.toggle('oculto', !(sim.id === 'nivel' || sim.id === 'corte'));
+  $('selTexto').classList.toggle('oculto', !(sim.id === 'nivel' || sim.id === 'corte' || sim.estructura));
+  $('selTexto').textContent = sim.estructura ? 'Nombre…' : 'Texto…';
+  $('selSeccion').classList.toggle('oculto', !sim.estructura);
+  $('selAncho').textContent = sim.estructura ? 'Largo…' : 'Ancho…';
   const w = bar.offsetWidth; bar.style.left = clamp(cx / n - w / 2, 8, innerWidth - w - 8) + 'px'; bar.style.top = clamp(maxY + 14, 60, innerHeight - 60) + 'px';
 }
 function cambiarSel(fn) { if (!selSim) return; const antes = snapObj(); fn(selSim); histObj(antes); ponerBarraSel(); }
@@ -996,8 +1115,18 @@ $('selGirar15').onclick = () => cambiarSel(o => { o.ang += Math.PI / 12; });
 $('selVoltear').onclick = () => cambiarSel(o => { o.flip = !o.flip; });
 $('selDup').onclick = () => { if (!selSim) return; const antes = snapObj(), c = Object.assign({}, selSim, { x: selSim.x + 6 * doc.pxmm, y: selSim.y + 6 * doc.pxmm }); delete c._bb; doc.objetos.push(c); selSim = c; histObj(antes); ponerBarraSel(); };
 $('selBorrar').onclick = () => { if (!selSim) return; const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(selSim), 1); selSim = null; histObj(antes); ponerBarraSel(); pedirSup(); };
-$('selAncho').onclick = () => { if (!selSim) return; const o = selSim; pedirTexto('Ancho del vano (m)', fmtM(o.w), v => { const n = parseFloat(String(v).replace(',', '.')); if (n > 0) cambiarSel(x => { x.w = n; }); }, 'decimal'); };
-$('selTexto').onclick = () => { if (!selSim) return; const o = selSim; pedirTexto(o.sid === 'nivel' ? 'Texto del nivel' : 'Letra del corte', textoSim(o), v => cambiarSel(x => { x.texto = v; })); };
+$('selAncho').onclick = () => { if (!selSim) return; const o = selSim; pedirTexto(Simbolos.de(o.sid).estructura ? 'Largo (m)' : 'Ancho del vano (m)', fmtM(o.w), v => { const n = parseFloat(String(v).replace(',', '.')); if (n > 0) cambiarSel(x => { x.w = n; }); }, 'decimal'); };
+$('selTexto').onclick = () => { if (!selSim) return; const o = selSim, est = Simbolos.de(o.sid).estructura;
+  pedirTexto(o.sid === 'nivel' ? 'Texto del nivel' : o.sid === 'corte' ? 'Letra del corte' : o.sid === 'viga' ? 'Nombre de la viga (ej. V-101)' : 'Nombre (ej. C-1)', est ? (o.texto || '') : textoSim(o), v => cambiarSel(x => { x.texto = v; })); };
+$('selSeccion').onclick = () => { if (!selSim) return; const o = selSim, sim = Simbolos.de(o.sid), q = seccionSim(o);
+  const tit = sim.circular ? 'Diámetro (m)' : sim.id === 'viga' ? 'Sección: ancho × peralte (m)' : sim.id === 'placa' ? 'Espesor (m)' : 'Sección (m), ej. 0.25 x 0.40';
+  const val = sim.circular || sim.id === 'placa' ? fmtM(q.sw) : fmtM(q.sw) + ' x ' + fmtM(q.sh);
+  pedirTexto(tit, val, v => {
+    const n = String(v).replace(/,/g, '.').match(/\d*\.?\d+/g); if (!n) return; const a = parseFloat(n[0]), b = n[1] ? parseFloat(n[1]) : a;
+    if (!(a > 0)) return;
+    cambiarSel(x => { x.sw = a; x.sh = sim.id === 'placa' ? 0 : b; });
+    aj.secciones = aj.secciones || {}; aj.secciones[sim.id] = { sw: a, sh: sim.id === 'placa' ? 0 : b }; guardarAjustes(); // la próxima sale igual
+  }); };
 
 function iniciarArq(e) {
   const d = aDoc(e.clientX, e.clientY);
@@ -1008,9 +1137,13 @@ function iniciarArq(e) {
     t.antes = snapObj();
     const h = selSim && manijaGiro(selSim);
     if (h && Math.hypot(h.x - d.x, h.y - d.y) * escalaVista() < 30) { t.modo = 'girar'; t.obj = selSim; }
-    else { const o = simEn(d); if (o) { t.modo = 'mover'; t.obj = o; t.ox = o.x - d.x; t.oy = o.y - d.y; t.eraSel = o === selSim; seleccionar(o); }
-      else if (selSim || herrAntesSim) { t.modo = 'soltar'; seleccionar(null); } // primer toque fuera: solo suelta la selección
-      else { t.modo = 'poner'; seleccionar(null); } }
+    else { let o = simEn(d);
+      // con la viga o la placa elegidas, arrastrar desde una columna traza la viga (para mover la columna: tócala primero)
+      const col = (aj.simbolo === 'viga' || aj.simbolo === 'placa') && simEn(d, x => x.sid === 'columna' || x.sid === 'columnaC');
+      if (col && col !== selSim && !(o && o === selSim)) { t.desdeCol = col; o = null; selSim = null; }
+      if (o) { t.modo = 'mover'; t.obj = o; t.ox = o.x - d.x; t.oy = o.y - d.y; t.eraSel = o === selSim; seleccionar(o); }
+      else if (!t.desdeCol && (selSim || herrAntesSim)) { t.modo = 'soltar'; seleccionar(null); } // primer toque fuera: solo suelta la selección
+      else { t.modo = 'poner'; seleccionar(null); if (aj.simbolo === 'viga' || aj.simbolo === 'placa') { t.a = imanColumna(d); t.b = t.a; } } }
     $('selBar').classList.add('oculto');
   }
   trazo = t;
@@ -1023,6 +1156,7 @@ function moverArq(e) {
   else if (t.arq === 'simbolo') {
     t.b = d;
     if (t.modo === 'soltar' && t.movido && !herrAntesSim) t.modo = 'poner';
+    if (t.modo === 'poner' && (aj.simbolo === 'viga' || aj.simbolo === 'placa')) t.b = imanColumna(d);
     if (t.modo === 'mover' && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); pedirSup(); }
     else if (t.modo === 'girar') { let an = Math.atan2(d.y - t.obj.y, d.x - t.obj.x) + (t.obj.flip ? -1 : 1) * Math.PI / 2; const p = Math.PI / 12, ob = Math.round(an / p) * p; if (Math.abs(an - ob) < 0.07) an = ob; t.obj.ang = an; renderObjetos(); pedirSup(); avisarSuave(Math.round(((an * 180 / Math.PI) % 360 + 360) % 360) + '°'); }
     else if (t.modo === 'poner') renderObjetos(null, nuevoSim(t));
@@ -1032,8 +1166,14 @@ function nuevoSim(t) {
   const sim = Simbolos.de(aj.simbolo || 'puerta'), dx = t.b.x - t.a.x, dy = t.b.y - t.a.y, L = Math.hypot(dx, dy), arr = L * escalaVista() > 14;
   let ang = arr ? Math.atan2(dy, dx) : 0; const p = Math.PI / 12, ob = Math.round(ang / p) * p; if (Math.abs(ang - ob) < 0.06) ang = ob;
   let w = null;
-  if (sim.tipo === 'abertura') { w = arr ? Math.max(0.3, Math.round(metros(L) * 20) / 20) : sim.def; if (arr) avisarSuave('Ancho ' + fmtM(w) + ' m'); }
-  return { tipo: 'simbolo', sid: sim.id, x: t.a.x, y: t.a.y, ang, w, flip: false, color: aj.color };
+  if (sim.tipo === 'abertura') {
+    const exacto = sim.estructura && t.desdeCol && imanColumna(t.b) !== t.b; // de columna a columna: medida exacta
+    w = arr ? (exacto ? metros(L) : Math.max(0.3, Math.round(metros(L) * 20) / 20)) : sim.def;
+    if (arr) avisarSuave((sim.estructura ? 'Largo ' : 'Ancho ') + fmtM(w) + ' m');
+  }
+  const o = { tipo: 'simbolo', sid: sim.id, x: t.a.x, y: t.a.y, ang, w, flip: false, color: aj.color };
+  if (sim.estructura) { const u = aj.secciones && aj.secciones[sim.id]; o.sw = u ? u.sw : sim.sw; o.sh = u ? u.sh : sim.sh; }
+  return o;
 }
 function terminarArq(t) {
   if (t.arq === 'cota') {
@@ -1047,6 +1187,7 @@ function terminarArq(t) {
     editarTexto(null, t.a);
   } else if (t.arq === 'simbolo') {
     if (t.modo === 'soltar') { seleccionar(null); if (herrAntesSim) { const h = herrAntesSim; herrAntesSim = null; elegirHerramienta(h); } }
+    else if (t.modo === 'poner' && t.desdeCol && !t.movido) seleccionar(t.desdeCol); // solo un toque: selecciona la columna
     else if (t.modo === 'poner') { const o = nuevoSim(t); doc.objetos.push(o); histObj(t.antes); seleccionar(o); }
     else if (t.movido || t.modo === 'girar') histObj(t.antes);
     ponerBarraSel();
@@ -1142,7 +1283,7 @@ function pintarSimbolos() {
     if (s.tipo === 'abertura') { w = Math.min(s.def, 3); k = S * 0.7 / Math.max(w, 1.2); x = S / 2 - w * k / 2; y = S * 0.62; }
     else if (s.tipo === 'papel') { k = S * (s.id === 'nivel' ? 0.2 : s.id === 'norte' ? 0.62 : 0.4); if (s.id === 'nivel') { x = S * 0.2; y = S * 0.62; } }
     else { k = S * 0.78 / Math.max(s.w, s.h); if (s.base) y = S * 0.9; }
-    Simbolos.dibujar(c, s, x, y, 0, k, w, '#2b2b2b', 1.4 * DPR, s.id === 'nivel' ? 'NPT +0.00' : null);
+    Simbolos.dibujar(c, s, x, y, 0, k, w, '#2b2b2b', 1.4 * DPR, s.id === 'nivel' ? 'NPT +0.00' : null, false, { sw: s.sw, sh: s.sh, pxmm: 0 });
     b.onclick = () => { aj.simbolo = s.id; guardarAjustes(); g.querySelectorAll('.tex-item').forEach(x => x.classList.toggle('activo', x === b)); herrAntesSim = null; if (herramienta !== 'simbolo') elegirHerramienta('simbolo'); seleccionar(null); avisarSuave(s.nombre + ': toca la hoja para ponerlo'); };
     g.appendChild(b);
   }
@@ -1337,7 +1478,13 @@ $('bRehacer').addEventListener('click', hacerRehacer);
 $('bCapas').addEventListener('click', e => { abrirPanel('pCapas', e.currentTarget); pintarCapas(); });
 $('bColor').addEventListener('click', e => { abrirPanel('pColor', e.currentTarget); pintarColorPanel(); });
 $('bGuias').addEventListener('click', e => { abrirPanel('pGuias', e.currentTarget); pintarGuiasPanel(); });
-$('bMenu').addEventListener('click', e => abrirPanel('pMenu', e.currentTarget));
+$('bMenu').addEventListener('click', e => { abrirPanel('pMenu', e.currentTarget); pintarEstadoPresion(); });
+function pintarEstadoPresion() {
+  const el = $('vPresionReal'); if (!el) return;
+  el.textContent = estadoPresion === 'ok' ? '✓ Presión del lápiz detectada: aprieta más para un trazo más grueso u oscuro.'
+    : estadoPresion === 'plana' ? 'El último trazo llegó sin cambios de presión. Prueba un lápiz o pincel con presión (Lápiz HB, Plumilla, Pincel de tinta).'
+    : 'Dibuja un trazo con el lápiz para comprobar la presión.';
+}
 $('bGaleria').addEventListener('click', () => { history.back(); });
 
 // ---------- deslizadores verticales ----------
@@ -1682,7 +1829,7 @@ const TIPOS = [
   { id: 'planta', n: 'Planta', d: 'Distribución a escala' }, { id: 'elevacion', n: 'Elevación / corte', d: 'Fachadas y secciones' },
   { id: 'perspectiva', n: 'Perspectiva', d: 'Guía de 2 puntos' },
 ];
-const LISTA_LEV = ['Largo y ancho de cada ambiente', 'Diagonales para verificar escuadra', 'Altura de piso a techo y de vigas', 'Espesor de muros y tipo (ladrillo, drywall, adobe)', 'Puertas y ventanas: ancho, alto y alféizar', 'Tomacorrientes, interruptores y puntos de luz', 'Puntos de agua y desagüe', 'Niveles de piso (NPT)', 'Ubicar el norte', 'Fotos de cada ambiente', 'Estado de acabados y humedad'];
+const LISTA_LEV = ['Largo y ancho de cada ambiente', 'Diagonales para verificar escuadra', 'Altura de piso a techo y de vigas', 'Espesor de muros y tipo (ladrillo, drywall, adobe)', 'Columnas y vigas: ubicación y sección (ancho × peralte)', 'Puertas y ventanas: ancho, alto y alféizar', 'Tomacorrientes, interruptores y puntos de luz', 'Puntos de agua y desagüe', 'Niveles de piso (NPT)', 'Ubicar el norte', 'Fotos de cada ambiente', 'Estado de acabados y humedad'];
 function dialogoNuevo() {
   let fmt = 'a4h', pap = 'blanco', tipo = 'boceto', esc = 50;
   const F = formatos();
@@ -1937,7 +2084,7 @@ const TUT = [
     svg: '<svg viewBox="0 0 400 170"><path d="M60 130 200 40l140 90" fill="none"/><path d="M90 110v40h220v-40" fill="none"/><path d="M170 150v-40h60v40" fill="none"/><path d="M20 150h360" stroke="#8ACF00" stroke-width="3"/></svg>' },
   { t: 'El lápiz dibuja, los dedos mueven', p: '<b>Lápiz</b>: dibuja con presión; inclínalo para sombrear. <b>1 dedo</b>: mueve la hoja. <b>2 dedos</b>: acerca, aleja y gira. <b>Toque con 2 dedos</b> = deshacer · <b>3 dedos</b> = rehacer.',
     svg: '<svg viewBox="0 0 400 170"><path d="M70 120c40-60 80-60 120-10s80 40 120-30" fill="none" stroke-width="3"/><circle cx="300" cy="60" r="10" fill="#8ACF00" stroke="none"/><path d="M300 60l40-40" stroke-width="6" stroke="#1d1d1f"/></svg>' },
-  { t: 'Líneas perfectas', p: 'Al final de un trazo <b>mantén el lápiz quieto</b> y se vuelve recta, círculo o rectángulo. En <b>Guías</b> activa cuadrícula, isometría o perspectiva de 1, 2 y 3 puntos: las líneas se alinean solas.',
+  { t: 'Líneas perfectas', p: 'Al final de un trazo <b>mantén el lápiz quieto</b> y se vuelve recta, círculo, rectángulo, triángulo o polilínea. <b>Sin soltar</b>, mueve el lápiz para agrandarla o girarla, y toca con un dedo para hacerla perfecta. En <b>Guías</b> activa cuadrícula, isometría o perspectiva de 1, 2 y 3 puntos: las líneas se alinean solas.',
     svg: '<svg viewBox="0 0 400 170"><path d="M200 70 20 30M200 70 380 30M200 70 20 150M200 70 380 150M200 70v100" stroke="#8ACF00" stroke-width="1.2"/><path d="M200 70 110 52v80l90 38 90-38V52z" fill="none" stroke-width="2.5"/></svg>' },
   { t: 'Pinceles y texturas', p: 'Toca otra vez el <b>pincel</b> para abrir la biblioteca: lápices, estilógrafos por grosor, líneas de eje y ocultas, marcadores, acuarela y vegetación. Con el <b>lazo</b> rellenas zonas con ladrillo, concreto, madera, piedra y más.',
     svg: '<svg viewBox="0 0 400 170"><rect x="40" y="35" width="140" height="100" fill="none"/><path d="M40 60h140M40 85h140M40 110h140M75 35v25M145 35v25M110 60v25M75 85v25M145 85v25M110 110v25" stroke-width="1.5"/><path d="M220 120c30-50 60-80 140-70" fill="none" stroke="#8a959e" stroke-width="16" stroke-linecap="round" opacity=".5"/></svg>' },
@@ -1994,6 +2141,25 @@ $('mTutorial').onclick = () => { cerrarPaneles(); mostrarTutorial(); };
     if (performance.now() - hechoT < 3000) { e.stopPropagation(); e.preventDefault(); }
     hecho = null;
   }, true);
+})();
+
+// =====================================================================
+//  RESALTADO AL PASAR EL LÁPIZ (como en Procreate): el botón se ilumina al pasar por encima y
+//  recién se activa al tocarlo. En tabletas el navegador no aplica :hover, por eso se hace aquí.
+// =====================================================================
+(() => {
+  let actual = null;
+  const quitar = () => { if (actual) { actual.classList.remove('pasa'); actual = null; } };
+  const SEL = 'button, .pin-item, .tex-item, .capa, .item, label.interruptor, .paleta button';
+  document.addEventListener('pointerover', e => {
+    if (e.pointerType === 'touch' || e.buttons) return;
+    const el = e.target.closest(SEL); if (el === actual) return;
+    quitar(); if (el && !el.disabled) { actual = el; el.classList.add('pasa'); }
+  }, true);
+  document.addEventListener('pointerout', e => { if (actual && !actual.contains(e.relatedTarget)) quitar(); }, true);
+  document.addEventListener('pointerdown', quitar, true);
+  document.addEventListener('pointerleave', quitar);
+  addEventListener('blur', quitar);
 })();
 
 // =====================================================================

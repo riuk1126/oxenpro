@@ -98,7 +98,7 @@
   <div id="aviso" class="oculto"></div>
   <div id="selBar" class="sel-bar oculto">
     <button id="selGirar15">↻ 15°</button><button id="selGirar">↻ 90°</button><button id="selVoltear">⇋ Voltear</button>
-    <button id="selAncho">Ancho…</button><button id="selTexto">Texto…</button><button id="selDup">Duplicar</button><button id="selBorrar" class="peligro">Eliminar</button>
+    <button id="selAncho">Ancho…</button><button id="selSeccion">Sección…</button><button id="selTexto">Texto…</button><button id="selDup">Duplicar</button><button id="selBorrar" class="peligro">Eliminar</button>
   </div>
   <div id="tip" class="tip oculto"></div>
 
@@ -193,9 +193,10 @@
     <button class="item" id="mTutorial">Ver tutorial</button>
     <hr>
     <div class="fila-ajuste"><label>Presión del lápiz</label><input type="range" id="rPresion" min="0.4" max="2.5" step="0.05"><span id="vPresion"></span></div>
+    <p class="nota" id="vPresionReal"></p>
     <label class="interruptor"><input type="checkbox" id="chkSoloLapiz"><span></span>Solo el lápiz dibuja (el dedo mueve)</label>
     <label class="interruptor"><input type="checkbox" id="chkZurdo"><span></span>Barra a la derecha (zurdo)</label>
-    <p class="nota">Gestos: 2 dedos = mover, girar y acercar · toque con 2 dedos = deshacer · toque con 3 dedos = rehacer · mantén el trazo al final para enderezar líneas y figuras.</p>
+    <p class="nota">Gestos: 2 dedos = mover, girar y acercar · toque con 2 dedos = deshacer · toque con 3 dedos = rehacer · mantén el trazo al final para enderezar líneas y figuras; sin soltar, mueve el lápiz para agrandarlas o girarlas y toca con un dedo para hacerlas perfectas (círculo, cuadrado, ángulo exacto).</p>
     <hr>
     <button class="item" id="mActualizar"><svg style="width:18px;height:18px;vertical-align:-4px;margin-right:8px"><use href="#i-actualizar"/></svg>Buscar actualizaciones</button>
     <p class="nota version">OXEN PRO <span id="verTxt"></span> · <span id="actEstado">al día</span></p>
