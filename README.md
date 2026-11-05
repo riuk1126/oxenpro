@@ -20,4 +20,4 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Relleno** (ícono de lazo): dibuja un contorno y se rellena con la textura o el color elegido.
 
 ## Sacar un APK nuevo
-Cambia `"version"` en `package.json` (por ejemplo `1.0.1`) y crea la etiqueta `v1.0.1`.
+Cambia `"version"` en `package.json` (por ejemplo `1.0.1`) y sube el cambio con `[apk]` en el mensaje, o en **Actions → Construir ProDraft → Run workflow**.
