@@ -9,30 +9,74 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // =====================================================================
 //  PINCELES
 // =====================================================================
-const CATS = ['Lápices', 'Tintas', 'Marcadores', 'Color', 'Texturas', 'Borradores'];
+const CATS = ['Lápices', 'Tintas', 'Técnicas', 'Marcadores', 'Color', 'Vegetación', 'Texturas', 'Borradores'];
 const PINCELES = [
+  // --- Lápices ---
+  { id: 'construccion', cat: 'Lápices', nombre: 'Lápiz de construcción', tip: 'grano', grano: 'fino', min: 1, max: 6, esp: 0.14, alfa: 0.14, pTam: 0.2, pAlfa: 0.7 },
+  { id: '2h', cat: 'Lápices', nombre: 'Lápiz 2H', tip: 'grano', grano: 'fino', min: 1, max: 7, esp: 0.13, alfa: 0.22, pTam: 0.35, pAlfa: 1, incl: true },
   { id: 'hb', cat: 'Lápices', nombre: 'Lápiz HB', tip: 'grano', grano: 'fino', min: 1.5, max: 10, esp: 0.12, alfa: 0.34, pTam: 0.45, pAlfa: 1, incl: true },
+  { id: '4b', cat: 'Lápices', nombre: 'Lápiz 4B', tip: 'grano', grano: 'fino', min: 2.5, max: 14, esp: 0.11, alfa: 0.45, pTam: 0.5, pAlfa: 1, incl: true },
   { id: '6b', cat: 'Lápices', nombre: 'Lápiz 6B', tip: 'grano', grano: 'fino', min: 3, max: 18, esp: 0.11, alfa: 0.55, pTam: 0.5, pAlfa: 1, incl: true },
   { id: 'porta', cat: 'Lápices', nombre: 'Portaminas 0.5', tip: 'grano', grano: 'fino', min: 1, max: 4.5, esp: 0.14, alfa: 0.8, pTam: 0.25, pAlfa: 0.75 },
+  { id: 'esbozo', cat: 'Lápices', nombre: 'Lápiz de esbozo', tip: 'grano', grano: 'fino', min: 2, max: 12, esp: 0.12, alfa: 0.4, pTam: 0.6, pAlfa: 1, incl: true, jit: 0.08 },
+  { id: 'barra', cat: 'Lápices', nombre: 'Grafito en barra', tip: 'grano', grano: 'grueso', min: 10, max: 80, esp: 0.08, alfa: 0.3, pTam: 0.3, pAlfa: 1, incl: true },
   { id: 'carbon', cat: 'Lápices', nombre: 'Carboncillo', tip: 'grano', grano: 'grueso', min: 6, max: 56, esp: 0.09, alfa: 0.45, pTam: 0.5, pAlfa: 1, incl: true },
+  { id: 'conte', cat: 'Lápices', nombre: 'Conté / sanguina', tip: 'grano', grano: 'grueso', min: 4, max: 28, esp: 0.1, alfa: 0.62, pTam: 0.4, pAlfa: 1, incl: true },
   { id: 'lcolor', cat: 'Lápices', nombre: 'Lápiz de color', tip: 'grano', grano: 'fino', min: 3, max: 16, esp: 0.11, alfa: 0.3, pTam: 0.3, pAlfa: 1, incl: true },
-  { id: 'esti', cat: 'Tintas', nombre: 'Estilógrafo', tip: 'linea', min: 0.8, max: 7, pTam: 0.12 },
+  // --- Tintas ---
+  { id: 'e01', cat: 'Tintas', nombre: 'Estilógrafo 0.1', tip: 'linea', mm: 0.1, pTam: 0 },
+  { id: 'e02', cat: 'Tintas', nombre: 'Estilógrafo 0.2', tip: 'linea', mm: 0.2, pTam: 0 },
+  { id: 'e03', cat: 'Tintas', nombre: 'Estilógrafo 0.3', tip: 'linea', mm: 0.3, pTam: 0 },
+  { id: 'e05', cat: 'Tintas', nombre: 'Estilógrafo 0.5', tip: 'linea', mm: 0.5, pTam: 0 },
+  { id: 'e08', cat: 'Tintas', nombre: 'Estilógrafo 0.8', tip: 'linea', mm: 0.8, pTam: 0 },
+  { id: 'esti', cat: 'Tintas', nombre: 'Estilógrafo libre', tip: 'linea', min: 0.8, max: 7, pTam: 0.12 },
   { id: 'fino', cat: 'Tintas', nombre: 'Rotulador fino', tip: 'linea', min: 1.5, max: 10, pTam: 0.25 },
+  { id: 'boli', cat: 'Tintas', nombre: 'Bolígrafo', tip: 'grano', grano: 'fino', min: 1, max: 4, esp: 0.15, alfa: 0.9, pTam: 0.3, pAlfa: 0.4 },
   { id: 'pluma', cat: 'Tintas', nombre: 'Plumilla', tip: 'linea', min: 0.6, max: 12, pTam: 1 },
   { id: 'ptinta', cat: 'Tintas', nombre: 'Pincel de tinta', tip: 'linea', min: 2, max: 46, pTam: 1 },
+  { id: 'seca', cat: 'Tintas', nombre: 'Pincel seco', tip: 'grano', grano: 'grueso', min: 4, max: 40, esp: 0.08, alfa: 0.9, pTam: 0.6, pAlfa: 0.5 },
+  // --- Técnicas (líneas normalizadas) ---
+  { id: 'eje', cat: 'Técnicas', nombre: 'Línea de eje', tip: 'guion', mm: 0.2, patron: [12, 2, 1.5, 2], pTam: 0 },
+  { id: 'oculta', cat: 'Técnicas', nombre: 'Línea oculta', tip: 'guion', mm: 0.25, patron: [4, 2.2], pTam: 0 },
+  { id: 'punteada', cat: 'Técnicas', nombre: 'Línea punteada', tip: 'guion', mm: 0.35, patron: [0.01, 1.6], redondo: true, pTam: 0 },
+  { id: 'lcorte', cat: 'Técnicas', nombre: 'Línea de corte', tip: 'guion', mm: 0.7, patron: [10, 2, 2, 2], pTam: 0 },
+  { id: 'limite', cat: 'Técnicas', nombre: 'Límite de propiedad', tip: 'guion', mm: 0.4, patron: [12, 1.5, 1.5, 1.5, 1.5, 1.5], pTam: 0 },
+  { id: 'contorno', cat: 'Técnicas', nombre: 'Contorno grueso 0.7', tip: 'linea', mm: 0.7, pTam: 0 },
+  { id: 'muroP', cat: 'Técnicas', nombre: 'Muro cortado 1.0', tip: 'linea', mm: 1.0, pTam: 0 },
+  // --- Marcadores ---
   { id: 'bisel', cat: 'Marcadores', nombre: 'Marcador biselado', tip: 'bisel', min: 6, max: 46, esp: 0.05, alfa: 1, pTam: 0.15, op: 0.55, mezcla: 'multiply', ang: -0.6, ratio: 0.32 },
   { id: 'mredondo', cat: 'Marcadores', nombre: 'Marcador redondo', tip: 'linea', min: 3, max: 28, pTam: 0.12, op: 0.5, mezcla: 'multiply' },
+  { id: 'mpincel', cat: 'Marcadores', nombre: 'Marcador punta pincel', tip: 'linea', min: 1.5, max: 34, pTam: 1, op: 0.55, mezcla: 'multiply' },
+  { id: 'mfino', cat: 'Marcadores', nombre: 'Marcador fino', tip: 'linea', min: 1.5, max: 7, pTam: 0.1, op: 0.65, mezcla: 'multiply' },
   { id: 'msombra', cat: 'Marcadores', nombre: 'Marcador de sombra', tip: 'bisel', min: 16, max: 90, esp: 0.05, alfa: 1, pTam: 0.1, op: 0.28, mezcla: 'multiply', ang: -0.6, ratio: 0.36 },
+  { id: 'resaltador', cat: 'Marcadores', nombre: 'Resaltador', tip: 'bisel', min: 12, max: 50, esp: 0.05, alfa: 1, pTam: 0, op: 0.38, mezcla: 'multiply', ang: 0, ratio: 0.28 },
+  // --- Color y render ---
   { id: 'acuarela', cat: 'Color', nombre: 'Acuarela', tip: 'suave', dureza: 0.35, min: 10, max: 110, esp: 0.07, alfa: 0.11, pTam: 0.45, pAlfa: 0.6, op: 0.8, mezcla: 'multiply', jit: 0.18 },
+  { id: 'lavado', cat: 'Color', nombre: 'Lavado plano', tip: 'linea', min: 10, max: 140, pTam: 0.2, op: 0.32, mezcla: 'multiply' },
   { id: 'aero', cat: 'Color', nombre: 'Aerógrafo', tip: 'suave', dureza: 0, min: 12, max: 240, esp: 0.06, alfa: 0.05, pTam: 0, pAlfa: 1 },
   { id: 'gouache', cat: 'Color', nombre: 'Gouache', tip: 'linea', min: 4, max: 70, pTam: 0.5, op: 0.95 },
+  { id: 'pastel', cat: 'Color', nombre: 'Pastel seco', tip: 'grano', grano: 'grueso', min: 8, max: 60, esp: 0.08, alfa: 0.4, pTam: 0.3, pAlfa: 1, incl: true },
+  { id: 'tiza', cat: 'Color', nombre: 'Tiza (papel oscuro)', tip: 'grano', grano: 'grueso', min: 4, max: 36, esp: 0.09, alfa: 0.7, pTam: 0.3, pAlfa: 0.8 },
   { id: 'sombra', cat: 'Color', nombre: 'Sombra suave', tip: 'suave', dureza: 0.1, min: 20, max: 200, esp: 0.06, alfa: 0.06, pTam: 0.2, pAlfa: 1, mezcla: 'multiply' },
+  { id: 'luz', cat: 'Color', nombre: 'Luz / brillo', tip: 'suave', dureza: 0.15, min: 10, max: 160, esp: 0.06, alfa: 0.08, pTam: 0.3, pAlfa: 1 },
+  // --- Vegetación y entorno ---
+  { id: 'follaje', cat: 'Vegetación', nombre: 'Follaje', tip: 'disperso', forma: 'hoja', n: 5, min: 14, max: 90, esp: 0.35, alfa: 0.75, pTam: 0.4, pAlfa: 0.5 },
+  { id: 'feston', cat: 'Vegetación', nombre: 'Contorno de árbol', tip: 'feston', min: 6, max: 50, pTam: 0.2, grosor: 0.25 },
+  { id: 'copa', cat: 'Vegetación', nombre: 'Copa de árbol', tip: 'disperso', forma: 'nube', n: 3, min: 16, max: 120, esp: 0.4, alfa: 0.9, pTam: 0.3, pAlfa: 0.3 },
+  { id: 'pastoP', cat: 'Vegetación', nombre: 'Pasto', tip: 'disperso', forma: 'pasto', n: 7, min: 10, max: 60, esp: 0.3, alfa: 0.85, pTam: 0.3, pAlfa: 0.4 },
+  { id: 'puntillado', cat: 'Vegetación', nombre: 'Puntillado', tip: 'disperso', forma: 'punto', n: 9, min: 10, max: 120, esp: 0.3, alfa: 0.9, pTam: 0.3, pAlfa: 0.6 },
+  { id: 'gravaP', cat: 'Vegetación', nombre: 'Grava / piedras', tip: 'disperso', forma: 'grava', n: 4, min: 14, max: 90, esp: 0.4, alfa: 0.9, pTam: 0.3, pAlfa: 0.3 },
+  { id: 'agua', cat: 'Vegetación', nombre: 'Ondas de agua', tip: 'disperso', forma: 'onda', n: 2, min: 16, max: 90, esp: 0.6, alfa: 0.85, pTam: 0.2, pAlfa: 0.3 },
+  // --- Texturas ---
   { id: 'textura', cat: 'Texturas', nombre: 'Pincel de textura', tip: 'textura', min: 10, max: 160, pTam: 0.2 },
+  // --- Borradores ---
   { id: 'bduro', cat: 'Borradores', nombre: 'Borrador duro', tip: 'linea', min: 2, max: 90, pTam: 0.2 },
+  { id: 'bfino', cat: 'Borradores', nombre: 'Borrador de precisión', tip: 'linea', min: 0.6, max: 10, pTam: 0.1 },
   { id: 'bsuave', cat: 'Borradores', nombre: 'Borrador suave', tip: 'suave', dureza: 0.2, min: 10, max: 200, esp: 0.06, alfa: 0.25, pTam: 0.2, pAlfa: 1 },
   { id: 'bgrano', cat: 'Borradores', nombre: 'Borrador de grano', tip: 'grano', grano: 'fino', min: 4, max: 60, esp: 0.1, alfa: 0.5, pTam: 0.3, pAlfa: 1 },
 ];
-const pincel = id => PINCELES.find(p => p.id === id) || PINCELES[0];
+const pincel = id => PINCELES.find(p => p.id === id) || PINCELES[2];
+const PXMM = 2480 / 297; // píxeles por milímetro de papel (≈212 ppp)
 
 // ---------- punta suave coloreada ----------
 const puntas = new Map();
@@ -52,8 +96,9 @@ function hexRgb(h) { const n = parseInt(h.slice(1), 16); return `${n >> 16 & 255
 
 // ---------- motor de trazo (dibuja en cualquier contexto) ----------
 function crearTrazo(ctx, pin, color, tex) {
-  const t = { ctx, pin, color, ult: null, falta: 0, bb: [1e9, 1e9, -1e9, -1e9] };
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  const t = { ctx, pin, color, ult: null, falta: 0, bb: [1e9, 1e9, -1e9, -1e9], sucio: [1e9, 1e9, -1e9, -1e9], dIdx: 0, dResto: -1, anc: null };
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.lineCap = pin.tip === 'guion' && !pin.redondo ? 'butt' : 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   if (pin.tip === 'grano') t.estilo = Texturas.patronGrano(ctx, pin.grano, color);
   else if (pin.tip === 'textura') t.estilo = Texturas.patron(ctx, tex.id, color, tex.escala);
   else if (pin.tip === 'suave') t.punta = puntaSuave(color, pin.dureza || 0);
@@ -64,6 +109,15 @@ function bbAmpliar(bb, x, y, r) {
   if (x - r < bb[0]) bb[0] = x - r; if (y - r < bb[1]) bb[1] = y - r;
   if (x + r > bb[2]) bb[2] = x + r; if (y + r > bb[3]) bb[3] = y + r;
 }
+function forma(c, f, x, y, s, a) { // figuras de los pinceles dispersos
+  const r = Math.random;
+  if (f === 'hoja') { c.globalAlpha = a * (0.5 + r() * 0.5); c.beginPath(); c.ellipse(x, y, s * (0.1 + r() * 0.07), s * (0.045 + r() * 0.03), r() * 6.28, 0, 6.2832); c.fill(); }
+  else if (f === 'punto') { c.globalAlpha = a; c.beginPath(); c.arc(x, y, Math.max(0.5, s * (0.012 + r() * 0.02)), 0, 6.2832); c.fill(); }
+  else if (f === 'pasto') { c.globalAlpha = a; const h = s * (0.25 + r() * 0.35), an = (r() - 0.5) * 0.9; c.lineWidth = Math.max(0.7, s * 0.02); c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + Math.sin(an) * h * 0.3, y - h * 0.6, x + Math.sin(an) * h, y - Math.cos(an) * h); c.stroke(); }
+  else if (f === 'nube') { c.globalAlpha = a; c.lineWidth = Math.max(0.8, s * 0.025); const rr = s * (0.14 + r() * 0.12); c.beginPath(); c.arc(x, y, rr, r() * 3, r() * 3 + 3.6 + r() * 2); c.stroke(); }
+  else if (f === 'grava') { c.globalAlpha = a; c.lineWidth = Math.max(0.8, s * 0.02); const rr = s * (0.05 + r() * 0.07), m = 5 + (r() * 3 | 0), a0 = r() * 6.28; c.beginPath(); for (let k = 0; k < m; k++) { const aa = a0 + k / m * 6.2832, q = rr * (0.7 + r() * 0.5); k ? c.lineTo(x + Math.cos(aa) * q, y + Math.sin(aa) * q * 0.8) : c.moveTo(x + Math.cos(aa) * q, y + Math.sin(aa) * q * 0.8); } c.closePath(); c.stroke(); }
+  else if (f === 'onda') { c.globalAlpha = a; c.lineWidth = Math.max(0.8, s * 0.025); const w = s * (0.25 + r() * 0.2); c.beginPath(); c.moveTo(x - w, y); c.quadraticCurveTo(x - w / 2, y - w * 0.35, x, y); c.quadraticCurveTo(x + w / 2, y + w * 0.35, x + w, y); c.stroke(); }
+}
 function dab(t, x, y, s, a) {
   const c = t.ctx, pin = t.pin;
   if (pin.jit) { const j = pin.jit; x += (Math.random() - 0.5) * s * j; y += (Math.random() - 0.5) * s * j; s *= 1 + (Math.random() - 0.5) * j; }
@@ -73,16 +127,42 @@ function dab(t, x, y, s, a) {
   else if (pin.tip === 'bisel') {
     const an = pin.ang, co = Math.cos(an), si = Math.sin(an), h = s * pin.ratio;
     c.setTransform(co, si, -si, co, x, y); c.fillRect(-s / 2, -h / 2, s, h); c.setTransform(1, 0, 0, 1, 0, 0);
+  } else if (pin.tip === 'disperso') {
+    for (let k = 0; k < pin.n; k++) { const an = Math.random() * 6.2832, d = Math.sqrt(Math.random()) * s / 2; forma(c, pin.forma, x + Math.cos(an) * d, y + Math.sin(an) * d, s, a); }
   }
 }
 function trazoPunto(t, p) {
-  const pin = t.pin;
-  bbAmpliar(t.bb, p.x, p.y, p.s * (pin.jit ? 0.9 : 0.6) + 2);
-  const q = t.ult;
+  const pin = t.pin, q = t.ult, c = t.ctx;
+  const m = p.s * (pin.jit || pin.tip === 'disperso' || pin.tip === 'feston' ? 1.1 : 0.6) + 3;
+  bbAmpliar(t.bb, p.x, p.y, m); bbAmpliar(t.sucio, p.x, p.y, m);
+  if (q) bbAmpliar(t.sucio, q.x, q.y, m);
   if (pin.tip === 'linea' || pin.tip === 'textura') {
-    const c = t.ctx; c.globalAlpha = 1;
+    c.globalAlpha = 1;
     c.lineWidth = q ? (q.s + p.s) / 2 : p.s;
     c.beginPath(); c.moveTo(q ? q.x : p.x, q ? q.y : p.y); c.lineTo(p.x + (q ? 0 : 0.01), p.y); c.stroke();
+  } else if (pin.tip === 'guion') {
+    // líneas normalizadas (eje, oculta…): el patrón sigue el recorrido sin cortarse
+    const u = Math.max(1, p.s) * 2.2, pat = pin.patron.map(v => v * u);
+    if (t.dResto < 0) { t.dIdx = 0; t.dResto = pat[0]; }
+    if (!q) { if (pin.redondo) { c.lineWidth = p.s; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x + 0.01, p.y); c.stroke(); } t.ult = p; return; }
+    const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy); let pos = 0;
+    c.lineWidth = p.s; c.globalAlpha = 1;
+    while (pos < d) {
+      const paso = Math.min(t.dResto, d - pos), on = t.dIdx % 2 === 0;
+      if (on) { c.beginPath(); c.moveTo(q.x + dx * pos / d, q.y + dy * pos / d); c.lineTo(q.x + dx * (pos + paso) / d + (pin.redondo ? 0.01 : 0), q.y + dy * (pos + paso) / d); c.stroke(); }
+      pos += paso; t.dResto -= paso;
+      if (t.dResto <= 1e-6) { t.dIdx = (t.dIdx + 1) % pat.length; t.dResto = pat[t.dIdx]; }
+    }
+  } else if (pin.tip === 'feston') {
+    // contorno festoneado (copas de árbol en planta)
+    if (!t.anc) { t.anc = { x: p.x, y: p.y }; t.ult = p; return; }
+    c.lineWidth = Math.max(1, p.s * pin.grosor * 0.4); c.globalAlpha = 1;
+    let d = Math.hypot(p.x - t.anc.x, p.y - t.anc.y);
+    while (d >= p.s) {
+      const ux = (p.x - t.anc.x) / d, uy = (p.y - t.anc.y) / d, bx = t.anc.x + ux * p.s, by = t.anc.y + uy * p.s, an = Math.atan2(uy, ux);
+      c.beginPath(); c.arc((t.anc.x + bx) / 2, (t.anc.y + by) / 2, p.s / 2, an + Math.PI, an); c.stroke();
+      t.anc = { x: bx, y: by }; d = Math.hypot(p.x - bx, p.y - by);
+    }
   } else if (!q) {
     dab(t, p.x, p.y, p.s, p.a);
     t.falta = Math.max(0.4, p.s * pin.esp);
@@ -200,6 +280,8 @@ function aplicarHist(e, atras) {
   if (e.t === 'px') { e.capa.ctx.putImageData(atras ? e.antes : e.despues, e.x, e.y); e.capa.sucia = true; }
   else if (e.t === 'nueva') { if (atras) quitarCapa(e.capa); else insertarCapa(e.capa, e.idx); }
   else if (e.t === 'borrar') { if (atras) insertarCapa(e.capa, e.idx); else quitarCapa(e.capa); }
+  else if (e.t === 'obj') { doc.objetos = JSON.parse(atras ? e.antes : e.despues); renderObjetos(); }
+  else if (e.t === 'multi') { (atras ? e.items.slice().reverse() : e.items).forEach(x => aplicarHist(x, atras)); }
   else if (e.t === 'mover') { moverCapaA(atras ? e.a : e.de, atras ? e.de : e.a); }
   else if (e.t === 'combinar') {
     if (atras) { e.inf.ctx.putImageData(e.antesInf, 0, 0); e.inf.sucia = true; insertarCapa(e.sup, e.idx); }
@@ -322,6 +404,7 @@ escenario.addEventListener('pointermove', e => {
     if (t && t.ignorar) return;
   }
   if (trazo && trazo.id === e.pointerId) { moverTrazo(e); return; }
+  if (!trazo && e.buttons === 0 && (e.pointerType === 'pen' || e.pointerType === 'mouse')) { hover = { x: e.clientX, y: e.clientY, pen: e.pointerType === 'pen' }; pedirCursor(); }
   if (gesto && toques.size >= 2) { actualizarGesto(); return; }
   if (paneo && paneo.id === e.pointerId) {
     M = mMul([1, 0, 0, 1, e.clientX - paneo.x, e.clientY - paneo.y], M); paneo.x = e.clientX; paneo.y = e.clientY; aplicarVista();
@@ -332,6 +415,7 @@ function finPuntero(e) {
   if (!doc) return;
   if (arrastreVP && arrastreVP.id === e.pointerId) { arrastreVP = null; marcarCambio(); return; }
   if (e.pointerType === 'pen') lapizAbajo = false;
+  if (e.pointerType !== 'touch') { hover = e.pointerType === 'mouse' ? { x: e.clientX, y: e.clientY } : null; pedirCursor(); }
   if (trazo && trazo.id === e.pointerId) { if (e.type === 'pointercancel' && trazo.tipo === 'touch') cancelarTrazo(); else terminarTrazo(e); }
   if (paneo && paneo.id === e.pointerId) paneo = null;
   if (e.pointerType === 'touch') {
@@ -345,6 +429,10 @@ function finPuntero(e) {
   }
 }
 escenario.addEventListener('pointerup', finPuntero);
+// eventos crudos del lápiz: llegan antes que pointermove → menos retraso
+const RAW = 'onpointerrawupdate' in window;
+if (RAW) escenario.addEventListener('pointerrawupdate', e => { if (doc && trazo && trazo.id === e.pointerId && !trazo.gotero && !trazo.arq) moverTrazo(e); });
+escenario.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') { hover = null; pedirCursor(); } });
 escenario.addEventListener('pointercancel', finPuntero);
 escenario.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -384,19 +472,27 @@ function terminarGesto(seguir) {
 function opcionesPincel(id) { return aj.porPincel[id] || (aj.porPincel[id] = { tam: 0.4, op: 1 }); }
 function claveAjuste() { return herramienta === 'borrador' ? 'e:' + aj.borrador : herramienta === 'relleno' ? 'relleno' : aj.pincel; }
 function pincelActual() { return pincel(herramienta === 'borrador' ? aj.borrador : aj.pincel); }
+function tamPincel(pin, o, pxmm) { return pin.mm ? pin.mm * (pxmm || PXMM) * lerp(0.6, 1.8, o.tam) : lerp(pin.min, pin.max, o.tam * o.tam); }
 
 function puntoDesde(e, t) {
   const d = aDoc(e.clientX, e.clientY), pin = t.pin, o = t.opc;
   let pr = presionDe(e);
   t.prS = t.prS == null ? pr : lerp(t.prS, pr, 0.55); pr = t.prS;
-  let s = lerp(pin.min, pin.max, o.tam * o.tam) * (1 - pin.pTam + pin.pTam * pr);
+  let s = tamPincel(pin, o, doc.pxmm) * (1 - pin.pTam + pin.pTam * pr);
   let a = (pin.alfa || 1) * (1 - (pin.pAlfa || 0) + (pin.pAlfa || 0) * pr);
   if (pin.incl) { const ti = inclinacionDe(e); if (ti > 0.45) { const k = (ti - 0.45) / 0.55; s *= 1 + k * 2.6; a *= 1 - k * 0.45; } }
   return { x: d.x, y: d.y, s: Math.max(0.35, s), a, pr };
 }
 
+function copiarRespaldo(capa) {
+  if (respaldo.width !== doc.w) respaldo.width = doc.w;
+  if (respaldo.height !== doc.h) respaldo.height = doc.h;
+  respCtx.globalCompositeOperation = 'copy'; respCtx.drawImage(capa.cv, 0, 0); respCtx.globalCompositeOperation = 'source-over';
+}
+
 function iniciarTrazo(e) {
   if (herramienta === 'gotero') { trazo = { id: e.pointerId, tipo: e.pointerType, gotero: true, t0: performance.now(), largo: 0 }; tomarColor(e); return; }
+  if (herramienta === 'cota' || herramienta === 'texto' || herramienta === 'simbolo') return iniciarArq(e);
   const capa = capaActiva();
   if (!capa.visible) { avisar('La capa está oculta'); return; }
   ubicarTrazoCv();
@@ -405,52 +501,61 @@ function iniciarTrazo(e) {
   if (herramienta === 'relleno') {
     t.lazo = true; t.modo = aj.textura.modo; t.opc = opcionesPincel('relleno');
     const d = aDoc(e.clientX, e.clientY); t.pts.push(d); t.bb = [d.x, d.y, d.x, d.y];
-    trazoCv.style.opacity = t.modo === 'borrar' ? 0.35 : t.opc.op; trazoCv.style.mixBlendMode = 'normal';
+    trazoCv.style.display = ''; trazoCv.style.opacity = t.modo === 'borrar' ? 0.35 : t.opc.op * capa.op;
     trazo = t; pedirSup(); return;
   }
+  trazoCv.style.display = 'none';
   t.pin = pincelActual(); t.opc = opcionesPincel(claveAjuste());
   t.op = t.opc.op * (borrar ? 1 : (t.pin.op || 1));
+  t.gco = borrar ? 'destination-out' : t.pin.mezcla === 'multiply' ? 'multiply' : 'source-over';
   t.motor = crearTrazo(trazoCtx, t.pin, borrar ? '#000000' : aj.color, aj.textura);
-  if (borrar) {
-    trazoCv.style.opacity = 0;
-    respaldo.width !== doc.w && (respaldo.width = doc.w); respaldo.height !== doc.h && (respaldo.height = doc.h);
-    respCtx.clearRect(0, 0, doc.w, doc.h); respCtx.drawImage(capa.cv, 0, 0);
-  } else {
-    trazoCv.style.opacity = t.op * capa.op; trazoCv.style.mixBlendMode = t.pin.mezcla === 'multiply' ? 'multiply' : 'normal';
-  }
+  copiarRespaldo(capa);
   const p = puntoDesde(e, t);
   t.f = { x: p.x, y: p.y }; t.inicio = p;
   t.asist = herramienta === 'pincel' && doc.guias.asist && doc.guias.modo !== 'ninguna';
   t.raw.push(p);
   trazo = t;
   if (!t.asist) agregarPunto(t, p);
+  pedirComp();
   armarQuickShape(t, e);
 }
 
-function moverTrazo(e) {
+function moverTrazo(e, soloPrediccion) {
   const t = trazo;
+  if (t.arq) return moverArq(e);
   if (t.gotero) { tomarColor(e); return; }
-  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
-  const lista = evs && evs.length ? evs : [e];
-  if (t.lazo) {
-    for (const ev of lista) { const d = aDoc(ev.clientX, ev.clientY); const l = t.pts[t.pts.length - 1]; if (Math.hypot(d.x - l.x, d.y - l.y) > 1.5 / escalaVista()) { t.pts.push(d); bbAmpliar(t.bb, d.x, d.y, 0); } }
-    previaLazo(t); return;
-  }
-  for (const ev of lista) {
-    const p = puntoDesde(ev, t);
-    t.raw.push(p);
-    if (t.forma) continue;
-    if (t.asist && !t.dir) {
-      const dx = p.x - t.inicio.x, dy = p.y - t.inicio.y;
-      if (Math.hypot(dx, dy) * escalaVista() < 12) continue;
-      t.dir = direccionGuia(t.inicio, dx, dy);
-      agregarPunto(t, t.inicio);
+  if (!soloPrediccion) {
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+    // llegan por pointerrawupdate y por pointermove: se usan una sola vez (por su hora)
+    const lista = (evs && evs.length ? evs : [e]).filter(ev => {
+      const nuevo = ev.timeStamp > (t.ultTs || 0) || ev.timeStamp === t.ultTs && (ev.clientX !== t.ultX || ev.clientY !== t.ultY);
+      if (nuevo) { t.ultTs = ev.timeStamp; t.ultX = ev.clientX; t.ultY = ev.clientY; }
+      return nuevo;
+    });
+    if (t.lazo) {
+      for (const ev of lista) { const d = aDoc(ev.clientX, ev.clientY); const l = t.pts[t.pts.length - 1]; if (Math.hypot(d.x - l.x, d.y - l.y) > 1.5 / escalaVista()) { t.pts.push(d); bbAmpliar(t.bb, d.x, d.y, 0); } }
+      previaLazo(t); return;
     }
-    agregarPunto(t, p);
+    for (const ev of lista) {
+      const p = puntoDesde(ev, t);
+      t.raw.push(p);
+      if (t.forma) continue;
+      if (t.asist && !t.dir) {
+        const dx = p.x - t.inicio.x, dy = p.y - t.inicio.y;
+        if (Math.hypot(dx, dy) * escalaVista() < 12) continue;
+        t.dir = direccionGuia(t.inicio, dx, dy);
+        agregarPunto(t, t.inicio);
+      }
+      agregarPunto(t, p);
+    }
+    if (t.forma && t.forma.tipo === 'linea') { const p = t.raw[t.raw.length - 1]; t.forma.b = enderezarFin(t.forma.a, { x: p.x, y: p.y }); dibujarForma(t); }
+    reiniciarQuickShape(t, e);
   }
-  if (t.forma && t.forma.tipo === 'linea') { const p = t.raw[t.raw.length - 1]; t.forma.b = enderezarFin(t.forma.a, { x: p.x, y: p.y }); dibujarForma(t); }
-  reiniciarQuickShape(t, e);
-  if (t.borrar) pedirBorrador();
+  // tinta adelantada: dibuja hacia donde va el lápiz para que se sienta sin retraso
+  if (!t.lazo && !t.forma && !t.dir && e.getPredictedEvents && ['linea', 'grano', 'bisel', 'guion'].includes(t.pin.tip)) {
+    const pe = e.getPredictedEvents(); t.pred = pe.length ? aDoc(pe[pe.length - 1].clientX, pe[pe.length - 1].clientY) : null;
+  }
+  pedirComp();
 }
 
 function agregarPunto(t, p) {
@@ -464,9 +569,25 @@ function agregarPunto(t, p) {
   trazoPunto(t.motor, np);
 }
 
+// ---- composición por cuadro: solo se repinta la zona que cambió ----
+let rafComp = 0;
+function pedirComp() { if (!rafComp) rafComp = requestAnimationFrame(() => { rafComp = 0; componerTrazo(trazo); dibujarCursor(); }); }
+function componerTrazo(t) {
+  if (!t || !t.motor) return;
+  const r = bbEntero(t.motor.sucio); t.motor.sucio = [1e9, 1e9, -1e9, -1e9];
+  if (!r) return;
+  const c = t.capa.ctx;
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
+  c.globalAlpha = t.op; c.globalCompositeOperation = t.gco;
+  c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+}
+
 function terminarTrazo(e) {
   const t = trazo; trazo = null; clearTimeout(qsTimer);
   if (!t) return;
+  if (t.arq) return terminarArq(t, e);
   if (t.gotero) { ponerColor(aj.color); if (herrPrevia !== 'gotero') elegirHerramienta(herrPrevia); return; }
   if (t.lazo) { aplicarLazo(t); return; }
   // completar la estabilización: alcanzar el último punto real
@@ -475,42 +596,28 @@ function terminarTrazo(e) {
     for (let i = 1; i <= 6; i++) { const f = i / 6; trazoPunto(t.motor, { x: lerp(t.f.x, last.x, f), y: lerp(t.f.y, last.y, f), s: last.s, a: last.a }); }
   }
   if (t.asist && !t.dir && !t.pts.length) agregarPunto(t, t.inicio);
+  cancelAnimationFrame(rafComp); rafComp = 0;
+  componerTrazo(t); dibujarCursor();
   const r = bbEntero(t.motor.bb); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
-  const capa = t.capa, c = capa.ctx;
-  if (t.borrar) {
-    cancelAnimationFrame(rafBorr); rafBorr = 0;
-    const antes = respCtx.getImageData(r[0], r[1], r[2], r[3]);
-    c.save(); c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
-    c.globalCompositeOperation = 'destination-out'; c.globalAlpha = t.op; c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); c.restore();
-    histPx(capa, r, antes);
-  } else {
-    const antes = c.getImageData(r[0], r[1], r[2], r[3]);
-    c.save(); c.globalAlpha = t.op; c.globalCompositeOperation = t.pin.mezcla === 'multiply' ? 'multiply' : 'source-over';
-    c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); c.restore();
-    histPx(capa, r, antes);
-  }
+  const antes = respCtx.getImageData(r[0], r[1], r[2], r[3]);
+  histPx(t.capa, r, antes);
   trazoCtx.clearRect(r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4);
-  trazoCv.style.opacity = 0;
+  // cota automática en líneas rectas (levantamientos)
+  if (!t.borrar && doc.cotasAuto && (t.forma && t.forma.tipo === 'linea' || t.dir) && t.pts.length > 1) {
+    const a = t.forma ? t.forma.a : t.pts[0], b = t.forma ? t.forma.b : t.pts[t.pts.length - 1];
+    if (Math.hypot(b.x - a.x, b.y - a.y) > 8 * doc.pxmm) agregarCota(a, b, -6 * doc.pxmm, true, doc.pedirMedida);
+  }
 }
 
 function cancelarTrazo() {
   const t = trazo; trazo = null; clearTimeout(qsTimer); if (!t) return;
-  if (t.borrar) {
-    cancelAnimationFrame(rafBorr); rafBorr = 0;
+  if (t.arq) { cancelarArq(t); return; }
+  cancelAnimationFrame(rafComp); rafComp = 0;
+  if (t.motor) {
     const r = bbEntero(t.motor.bb);
     if (r) { const c = t.capa.ctx; c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); }
   }
-  trazoCtx.clearRect(0, 0, doc.w, doc.h); pedirSup();
-}
-
-// ---- vista previa del borrador (sobre la capa misma) ----
-let rafBorr = 0;
-function pedirBorrador() { if (!rafBorr) rafBorr = requestAnimationFrame(vistaBorrador); }
-function vistaBorrador() {
-  rafBorr = 0; const t = trazo; if (!t || !t.borrar) return;
-  const r = bbEntero(t.motor.bb); if (!r) return;
-  const c = t.capa.ctx; c.save(); c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
-  c.globalCompositeOperation = 'destination-out'; c.globalAlpha = t.op; c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); c.restore();
+  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none'; pedirSup(); dibujarCursor();
 }
 
 // ---- relleno con lazo ----
@@ -528,7 +635,7 @@ function previaLazo(t) {
   pedirSup();
 }
 function aplicarLazo(t) {
-  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.opacity = 0; pedirSup();
+  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none'; pedirSup();
   if (t.pts.length < 3) return;
   const r = bbEntero([t.bb[0] - 2, t.bb[1] - 2, t.bb[2] + 2, t.bb[3] + 2]); if (!r) return;
   const capa = t.capa, c = capa.ctx, antes = c.getImageData(r[0], r[1], r[2], r[3]);
@@ -613,7 +720,262 @@ function dibujarForma(t) {
   else if (f.tipo === 'rect') { const c = [[f.x0, f.y0], [f.x1, f.y0], [f.x1, f.y1], [f.x0, f.y1], [f.x0, f.y0]]; for (let k = 0; k < 4; k++) { const [p, q] = [c[k], c[k + 1]], n = Math.max(2, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 2)); for (let i = 0; i < n; i++) pts.push([lerp(p[0], q[0], i / n), lerp(p[1], q[1], i / n)]); } pts.push(c[4]); }
   else { const n = Math.max(24, Math.ceil(Math.PI * (f.rx + f.ry) / 2)), a0 = Math.atan2(t.pts[0].y - f.cy, t.pts[0].x - f.cx); for (let i = 0; i <= n; i++) { const an = a0 + i / n * 6.2832; pts.push([f.cx + Math.cos(an) * f.rx, f.cy + Math.sin(an) * f.ry]); } }
   for (const [x, y] of pts) trazoPunto(t.motor, { x, y, s, a });
-  if (t.borrar) pedirBorrador();
+  t.motor.sucio = t.motor.bb.slice(); pedirComp();
+}
+
+// =====================================================================
+//  ARQUITECTURA: cotas, textos, símbolos, rótulo (objetos editables)
+// =====================================================================
+const anotCv = document.createElement('canvas'); anotCv.id = 'anotCv';
+const anotCtx = anotCv.getContext('2d');
+const ESCALAS = [1, 5, 10, 20, 25, 50, 75, 100, 125, 200, 250, 500, 1000];
+const TAM_TEXTO = { p: 2.5, m: 3.5, g: 5, t: 7 };
+const metros = px => px / doc.pxmm * doc.escala / 1000;
+const pxDeMetros = m => m * 1000 / doc.escala * doc.pxmm;
+const fmtM = m => (Math.round(m * 100) / 100).toFixed(2);
+function snapObj() { return JSON.stringify(doc.objetos); }
+function histObj(antes) { pushHist({ t: 'obj', antes, despues: snapObj() }); renderObjetos(); }
+function papelOscuro() { return ['negro', 'gris', 'kraft'].includes(doc.papel); }
+
+function geomCota(o) {
+  const dx = o.b.x - o.a.x, dy = o.b.y - o.a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux, off = o.off || 0;
+  return { L, ux, uy, nx, ny, a2: { x: o.a.x + nx * off, y: o.a.y + ny * off }, b2: { x: o.b.x + nx * off, y: o.b.y + ny * off } };
+}
+function dibujarCota(c, o, previa) {
+  const g = geomCota(o), mm = doc.pxmm, lw = Math.max(1, 0.18 * mm), tick = 1.6 * mm;
+  c.save(); c.strokeStyle = c.fillStyle = o.color || '#1d1d1f'; c.lineWidth = lw; c.lineCap = 'round';
+  c.beginPath();
+  if (o.off) { // líneas de extensión
+    const s = Math.sign(o.off), e = 1.2 * mm;
+    c.moveTo(o.a.x + g.nx * s * 0.8 * mm, o.a.y + g.ny * s * 0.8 * mm); c.lineTo(g.a2.x + g.nx * s * e, g.a2.y + g.ny * s * e);
+    c.moveTo(o.b.x + g.nx * s * 0.8 * mm, o.b.y + g.ny * s * 0.8 * mm); c.lineTo(g.b2.x + g.nx * s * e, g.b2.y + g.ny * s * e);
+  }
+  c.moveTo(g.a2.x - g.ux * 1.5 * mm, g.a2.y - g.uy * 1.5 * mm); c.lineTo(g.b2.x + g.ux * 1.5 * mm, g.b2.y + g.uy * 1.5 * mm);
+  for (const p of [g.a2, g.b2]) { // marcas a 45°
+    const tx = (g.ux + g.nx) * 0.7071 * tick / 2, ty = (g.uy + g.ny) * 0.7071 * tick / 2;
+    c.moveTo(p.x - tx, p.y - ty); c.lineTo(p.x + tx, p.y + ty);
+  }
+  c.stroke();
+  const txt = o.texto != null && o.texto !== '' ? o.texto : fmtM(metros(g.L));
+  let an = Math.atan2(g.uy, g.ux); if (an > Math.PI / 2 + 0.01 || an < -Math.PI / 2 + 0.01) an += Math.PI;
+  const mx = (g.a2.x + g.b2.x) / 2, my = (g.a2.y + g.b2.y) / 2, fs = 2.6 * mm;
+  c.translate(mx, my); c.rotate(an);
+  c.font = `600 ${fs}px -apple-system,Roboto,"Segoe UI",sans-serif`; c.textAlign = 'center'; c.textBaseline = 'bottom';
+  c.lineWidth = fs * 0.28; c.strokeStyle = papelDe(doc.papel).color; c.lineJoin = 'round'; c.strokeText(txt, 0, -0.6 * mm);
+  c.fillText(txt, 0, -0.6 * mm);
+  if (o.texto && !previa) { c.fillStyle = 'rgba(138,207,0,.9)'; c.beginPath(); c.arc(c.measureText(txt).width / 2 + 1.2 * mm, -fs * 0.55, 0.6 * mm, 0, 6.2832); c.fill(); }
+  c.restore();
+}
+function lineasTexto(o) { return String(o.texto || '').split('\n'); }
+function dibujarTexto(c, o) {
+  const fs = (TAM_TEXTO[o.tam] || 3.5) * doc.pxmm, lh = fs * 1.25, lin = lineasTexto(o);
+  c.save(); c.font = `${o.tam === 't' ? 700 : 500} ${fs}px -apple-system,Roboto,"Segoe UI",sans-serif`; c.textBaseline = 'top'; c.fillStyle = o.color || '#1d1d1f';
+  let w = 0; for (const l of lin) w = Math.max(w, c.measureText(l).width);
+  const h = lh * lin.length, pad = fs * 0.35;
+  o._bb = [o.x - pad, o.y - pad, o.x + w + pad, o.y + h + pad];
+  if (o.caja) { c.strokeStyle = o.color || '#1d1d1f'; c.lineWidth = Math.max(1, 0.25 * doc.pxmm); c.strokeRect(o.x - pad, o.y - pad, w + pad * 2, h + pad * 2); }
+  lin.forEach((l, i) => c.fillText(l, o.x, o.y + i * lh));
+  c.restore();
+}
+function dibujarRotulo(c) {
+  const mm = doc.pxmm, W = 92 * mm, H = 34 * mm, x = doc.w - W - 8 * mm, y = doc.h - H - 8 * mm, inf = doc.info || {};
+  const col = papelOscuro() ? '#f2f2f3' : '#1d1d1f';
+  c.save(); c.strokeStyle = c.fillStyle = col; c.lineWidth = Math.max(1, 0.35 * mm);
+  c.fillStyle = papelDe(doc.papel).color; c.fillRect(x, y, W, H); c.fillStyle = col;
+  c.strokeRect(x, y, W, H);
+  const fil = [['PROYECTO', inf.proyecto], ['PLANO', inf.plano || ({ levantamiento: 'Levantamiento', planta: 'Planta', elevacion: 'Elevación / corte' }[doc.tipo] || '')], ['UBICACIÓN', inf.ubicacion], ['LEVANTÓ / DIBUJÓ', inf.autor]];
+  const fh = H / 5;
+  c.lineWidth = Math.max(1, 0.18 * mm); c.beginPath();
+  for (let i = 1; i < 5; i++) { c.moveTo(x, y + fh * i); c.lineTo(x + W, y + fh * i); }
+  c.moveTo(x + W * 0.5, y + fh * 4); c.lineTo(x + W * 0.5, y + H); c.stroke();
+  const et = (t, xx, yy) => { c.font = `600 ${1.8 * mm}px -apple-system,Roboto,sans-serif`; c.globalAlpha = 0.6; c.fillText(t, xx + 1.4 * mm, yy + 1.2 * mm); c.globalAlpha = 1; };
+  const va = (t, xx, yy, w) => { c.font = `600 ${2.9 * mm}px -apple-system,Roboto,sans-serif`; let s = String(t || ''); while (s && c.measureText(s).width > w - 3 * mm) s = s.slice(0, -1); c.fillText(s, xx + 1.4 * mm, yy + 3.6 * mm); };
+  c.textBaseline = 'top';
+  fil.forEach(([e, v], i) => { et(e, x, y + fh * i); va(v, x, y + fh * i, W); });
+  et('ESCALA', x, y + fh * 4); va('1/' + doc.escala, x, y + fh * 4, W / 2);
+  et('FECHA', x + W / 2, y + fh * 4); va(inf.fecha || new Date(doc.creado).toLocaleDateString('es-PE'), x + W / 2, y + fh * 4, W / 2);
+  // escala gráfica
+  const paso = [0.5, 1, 2, 5, 10, 20, 50].find(m => pxDeMetros(m) > 9 * mm) || 1, n = 4, sw = pxDeMetros(paso), sy = y - 7 * mm, bh = 1.6 * mm;
+  for (let i = 0; i < n; i++) { c.lineWidth = Math.max(1, 0.18 * mm); c.strokeRect(x + i * sw, sy, sw, bh); if (i % 2 === 0) c.fillRect(x + i * sw, sy, sw, bh); }
+  c.font = `500 ${2 * mm}px -apple-system,Roboto,sans-serif`; c.textBaseline = 'bottom'; c.textAlign = 'center';
+  for (let i = 0; i <= n; i++) c.fillText(String(Math.round(paso * i * 100) / 100), x + i * sw, sy - 0.6 * mm);
+  c.textAlign = 'left'; c.fillText('m', x + n * sw + 2 * mm, sy + bh + 0.4 * mm);
+  c.restore();
+}
+function renderObjetos(previa) {
+  if (!doc) return;
+  if (anotCv.width !== doc.w || anotCv.height !== doc.h) { anotCv.width = doc.w; anotCv.height = doc.h; anotCv.style.width = doc.w + 'px'; anotCv.style.height = doc.h + 'px'; }
+  const c = anotCtx; c.clearRect(0, 0, doc.w, doc.h);
+  if (doc.rotulo) dibujarRotulo(c);
+  for (const o of doc.objetos) { if (o.tipo === 'cota') dibujarCota(c, o); else if (o.tipo === 'texto') dibujarTexto(c, o); }
+  if (previa) dibujarCota(c, previa, true);
+  anotCv.style.display = doc.verAnot === false ? 'none' : '';
+}
+function objetoEn(d) {
+  const tol = 16 / escalaVista();
+  for (let i = doc.objetos.length - 1; i >= 0; i--) {
+    const o = doc.objetos[i];
+    if (o.tipo === 'texto' && o._bb && d.x >= o._bb[0] - tol / 2 && d.x <= o._bb[2] + tol / 2 && d.y >= o._bb[1] - tol / 2 && d.y <= o._bb[3] + tol / 2) return o;
+    if (o.tipo === 'cota') {
+      const g = geomCota(o), px = d.x - g.a2.x, py = d.y - g.a2.y, k = clamp((px * g.ux + py * g.uy) / g.L, 0, 1);
+      if (Math.hypot(d.x - (g.a2.x + g.ux * g.L * k), d.y - (g.a2.y + g.uy * g.L * k)) < tol + 3 * doc.pxmm) return o;
+    }
+  }
+  return null;
+}
+function imanCota(d) { // une cotas en cadena
+  const tol = 18 / escalaVista();
+  for (const o of doc.objetos) if (o.tipo === 'cota') for (const p of [o.a, o.b]) if (Math.hypot(p.x - d.x, p.y - d.y) < tol) return { x: p.x, y: p.y };
+  return d;
+}
+function agregarCota(a, b, off, auto, preguntar) {
+  const antes = snapObj();
+  const o = { tipo: 'cota', a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, off: off || 0, color: aj.color, id: Date.now() + Math.random() };
+  doc.objetos.push(o);
+  if (auto && deshacer.length && deshacer[deshacer.length - 1].t === 'px') { // un solo deshacer para línea + cota
+    const px = deshacer.pop(); bytesHist -= px.bytes || 0;
+    pushHist({ t: 'multi', items: [px, { t: 'obj', antes, despues: snapObj() }], bytes: px.bytes });
+    renderObjetos();
+  } else histObj(antes);
+  if (preguntar) editarCota(o, true);
+}
+
+// ---- herramientas cota / texto / símbolo ----
+function iniciarArq(e) {
+  const d = aDoc(e.clientX, e.clientY);
+  const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, arq: herramienta, sx: e.clientX, sy: e.clientY, a: d, b: d, movido: false };
+  if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; }
+  if (herramienta === 'texto') { t.obj = objetoEn(d); if (t.obj && t.obj.tipo !== 'texto') t.obj = null; if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
+  if (herramienta === 'simbolo') {
+    const capa = capaActiva(); if (!capa.visible) { avisar('La capa está oculta'); return; }
+    t.capa = capa; ubicarTrazoCv(); trazoCv.style.display = ''; trazoCv.style.opacity = capa.op; previaSimbolo(t);
+  }
+  trazo = t;
+}
+function moverArq(e) {
+  const t = trazo; const d = aDoc(e.clientX, e.clientY);
+  if (Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) t.movido = true;
+  if (t.arq === 'cota') { t.b = imanCota(enderezarFin(t.a, d)); if (t.movido) renderObjetos({ tipo: 'cota', a: t.a, b: t.b, color: aj.color }); }
+  else if (t.arq === 'texto' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
+  else if (t.arq === 'simbolo') { t.b = d; previaSimbolo(t); }
+}
+function terminarArq(t) {
+  if (t.arq === 'cota') {
+    if (!t.movido) { renderObjetos(); const o = objetoEn(t.a); if (o) (o.tipo === 'cota' ? editarCota(o) : editarTexto(o)); return; }
+    if (Math.hypot(t.b.x - t.a.x, t.b.y - t.a.y) < 2 * doc.pxmm) { renderObjetos(); return; }
+    agregarCota(t.a, t.b, 0, false, doc.pedirMedida);
+  } else if (t.arq === 'texto') {
+    if (t.obj && t.movido) { histObj(t.antes); return; }
+    if (t.obj) return editarTexto(t.obj);
+    const o = objetoEn(t.a); if (o && o.tipo === 'cota') return editarCota(o);
+    editarTexto(null, t.a);
+  } else if (t.arq === 'simbolo') {
+    const r = previaSimbolo(t); trazoCv.style.display = 'none';
+    if (!r) return;
+    const c = t.capa.ctx, antes = c.getImageData(r[0], r[1], r[2], r[3]);
+    c.save(); c.globalAlpha = 1; c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); c.restore();
+    histPx(t.capa, r, antes); trazoCtx.clearRect(r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4);
+  }
+}
+function cancelarArq(t) { if (t.arq === 'simbolo') { trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none'; } renderObjetos(); }
+
+// símbolo: posición, giro y ancho según el arrastre
+function previaSimbolo(t) {
+  const sim = Simbolos.de(aj.simbolo || 'puerta');
+  if (t.bbPrev) { const r = bbEntero(t.bbPrev); r && trazoCtx.clearRect(r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4); }
+  const dx = t.b.x - t.a.x, dy = t.b.y - t.a.y, L = Math.hypot(dx, dy), arr = L * escalaVista() > 14;
+  let ang = arr ? Math.atan2(dy, dx) : 0;
+  const paso = Math.PI / 12, obj = Math.round(ang / paso) * paso; if (Math.abs(ang - obj) < 0.06) ang = obj; // giros de 15°
+  let k, w = null;
+  if (sim.tipo === 'papel') k = sim.mm * doc.pxmm;
+  else k = pxDeMetros(1);
+  if (sim.tipo === 'abertura') {
+    w = arr ? Math.max(0.3, Math.round(metros(L) * 20) / 20) : sim.def;
+    avisarSuave('Ancho ' + fmtM(w) + ' m');
+  }
+  const lw = Math.max(1, 0.25 * doc.pxmm);
+  trazoCtx.setTransform(1, 0, 0, 1, 0, 0); trazoCtx.globalAlpha = 1; trazoCtx.globalCompositeOperation = 'source-over';
+  Simbolos.dibujar(trazoCtx, sim, t.a.x, t.a.y, ang, k, w, aj.color, lw, sim.id === 'nivel' ? (aj.textoNivel || 'NPT +0.00') : sim.id === 'corte' ? (aj.letraCorte || 'A') : null);
+  const ext = sim.tipo === 'abertura' ? Math.max(w * k, 3.5 * k) : sim.tipo === 'papel' ? (sim.id === 'nivel' ? 3.6 * k : 1.6 * k) : Math.hypot(sim.w, sim.h) * k;
+  t.bbPrev = [t.a.x - ext - 10, t.a.y - ext - 10, t.a.x + ext + 10, t.a.y + ext + 10];
+  return bbEntero(t.bbPrev);
+}
+let avisoSuaveT = 0;
+function avisarSuave(txt) { const a = $('aviso'); a.textContent = txt; a.classList.remove('oculto'); clearTimeout(avisoT); avisoT = setTimeout(() => a.classList.add('oculto'), 900); }
+
+// ---- diálogos de edición ----
+function editarCota(o, nueva) {
+  const g = geomCota(o), med = metros(g.L);
+  modal(`<h3>${nueva ? 'Medida de la cota' : 'Editar cota'}</h3>
+    <p>En el dibujo mide <b>${fmtM(med)} m</b> a escala 1/${doc.escala}.</p>
+    <div class="etq">Medida real (m)</div>
+    <input type="text" id="cVal" inputmode="decimal" value="${o.texto || fmtM(med)}" autocomplete="off">
+    <label class="interruptor"><input type="checkbox" id="cAjustar"><span></span>Ajustar la cota a esta medida (a escala)</label>
+    <div class="etq" style="margin-top:6px">Separación de la línea</div>
+    <div class="seg" id="cOff"><button data-v="-8">← Afuera</button><button data-v="0">Sobre la línea</button><button data-v="8">Adentro →</button></div>
+    <div class="modal-btns"><button class="rojo" id="cBor">Eliminar</button><span style="flex:1"></span><button id="mNo">Cerrar</button><button class="ok" id="mSi">Guardar</button></div>`, cerrar => {
+    const i = $('cVal'); setTimeout(() => { i.focus(); i.select(); }, 60);
+    let off = o.off || 0;
+    const marcarOff = () => $('cOff').querySelectorAll('button').forEach(b => b.classList.toggle('activo', Math.sign(+b.dataset.v) === Math.sign(off)));
+    marcarOff();
+    $('cOff').querySelectorAll('button').forEach(b => b.onclick = () => { off = +b.dataset.v * doc.pxmm; marcarOff(); });
+    $('mNo').onclick = () => { cerrar(); renderObjetos(); };
+    $('cBor').onclick = () => { const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); cerrar(); histObj(antes); };
+    const guardarC = () => {
+      const antes = snapObj(), v = parseFloat(String(i.value).replace(',', '.'));
+      o.off = off;
+      if (!isNaN(v) && v > 0) {
+        if ($('cAjustar').checked) { const L = pxDeMetros(v); o.b = { x: o.a.x + g.ux * L, y: o.a.y + g.uy * L }; o.texto = null; }
+        else o.texto = Math.abs(v - med) < 0.005 ? null : fmtM(v);
+      } else if (i.value.trim()) o.texto = i.value.trim();
+      cerrar(); histObj(antes);
+    };
+    $('mSi').onclick = guardarC; i.onkeydown = e => { if (e.key === 'Enter') guardarC(); };
+  });
+}
+function editarTexto(o, pos) {
+  const nuevo = !o;
+  o = o || { tipo: 'texto', x: pos.x, y: pos.y, texto: '', tam: 'm', caja: false, color: aj.color };
+  modal(`<h3>${nuevo ? 'Nueva nota' : 'Editar nota'}</h3>
+    <textarea id="tTxt" rows="3" placeholder="Ej.: Muro de adobe húmedo · Viga 25×40 · h = 2.60 m">${escapar(o.texto)}</textarea>
+    <div class="etq" style="margin-top:12px">Tamaño</div>
+    <div class="seg" id="tTam"><button data-v="p">Pequeño</button><button data-v="m">Normal</button><button data-v="g">Grande</button><button data-v="t">Título</button></div>
+    <label class="interruptor"><input type="checkbox" id="tCaja" ${o.caja ? 'checked' : ''}><span></span>Con recuadro</label>
+    <div class="modal-btns">${nuevo ? '' : '<button class="rojo" id="tBor">Eliminar</button>'}<span style="flex:1"></span><button id="mNo">Cancelar</button><button class="ok" id="mSi">Guardar</button></div>`, cerrar => {
+    const i = $('tTxt'); setTimeout(() => i.focus(), 60);
+    let tam = o.tam; const marcar = () => $('tTam').querySelectorAll('button').forEach(b => b.classList.toggle('activo', b.dataset.v === tam)); marcar();
+    $('tTam').querySelectorAll('button').forEach(b => b.onclick = () => { tam = b.dataset.v; marcar(); });
+    $('mNo').onclick = cerrar;
+    if (!nuevo) $('tBor').onclick = () => { const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); cerrar(); histObj(antes); };
+    $('mSi').onclick = () => {
+      const v = i.value.replace(/\s+$/, ''); cerrar(); if (!v && nuevo) return;
+      const antes = snapObj(); o.texto = v; o.tam = tam; o.caja = $('tCaja').checked;
+      if (!v) doc.objetos.splice(doc.objetos.indexOf(o), 1); else if (nuevo) doc.objetos.push(o);
+      histObj(antes);
+    };
+  });
+}
+
+// ---- panel de símbolos ----
+let catSim = null;
+function pintarSimbolos() {
+  if (!catSim) catSim = Simbolos.de(aj.simbolo || 'puerta').cat;
+  $('simCats').innerHTML = Simbolos.CATS.map(c => `<button data-c="${c}" class="${c === catSim ? 'activo' : ''}">${c}</button>`).join('');
+  $('simCats').querySelectorAll('button').forEach(b => b.onclick = () => { catSim = b.dataset.c; pintarSimbolos(); });
+  const g = $('simGrid'); g.innerHTML = '';
+  for (const s of Simbolos.lista.filter(s => s.cat === catSim)) {
+    const b = document.createElement('button'); b.className = 'tex-item' + (s.id === (aj.simbolo || 'puerta') ? ' activo' : '');
+    b.innerHTML = `<canvas width="${100 * DPR}" height="${100 * DPR}"></canvas><span>${s.nombre}</span>`;
+    const c = b.querySelector('canvas').getContext('2d'); c.fillStyle = '#fbfbf8'; c.fillRect(0, 0, 999, 999);
+    const S = 100 * DPR;
+    let k, x = S / 2, y = S / 2, w = null;
+    if (s.tipo === 'abertura') { w = Math.min(s.def, 3); k = S * 0.7 / Math.max(w, 1.2); x = S / 2 - w * k / 2; y = S * 0.62; }
+    else if (s.tipo === 'papel') { k = S * (s.id === 'nivel' ? 0.2 : s.id === 'norte' ? 0.62 : 0.4); if (s.id === 'nivel') { x = S * 0.2; y = S * 0.62; } }
+    else { k = S * 0.78 / Math.max(s.w, s.h); if (s.base) y = S * 0.9; }
+    Simbolos.dibujar(c, s, x, y, 0, k, w, '#2b2b2b', 1.4 * DPR, s.id === 'nivel' ? 'NPT +0.00' : null);
+    b.onclick = () => { aj.simbolo = s.id; guardarAjustes(); pintarSimbolos(); if (herramienta !== 'simbolo') elegirHerramienta('simbolo'); };
+    g.appendChild(b);
+  }
 }
 
 // =====================================================================
@@ -649,10 +1011,44 @@ function vpCercano(x, y) {
   return -1;
 }
 
+// ---- cursor del pincel (lápiz flotando) y tinta adelantada ----
+const cursorCv = $('cursorCv'), curCtx = cursorCv.getContext('2d');
+let hover = null, rafCur = 0, curPrev = null;
+function pedirCursor() { if (!rafCur) rafCur = requestAnimationFrame(() => { rafCur = 0; dibujarCursor(); }); }
+function dibujarCursor() {
+  const c = curCtx;
+  if (curPrev) { c.clearRect(curPrev[0], curPrev[1], curPrev[2], curPrev[3]); curPrev = null; }
+  if (!doc) return;
+  const t = trazo, s = escalaVista();
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (t && t.motor && t.pred && t.motor.ult && !t.borrar) {
+    const a = mApl(M, t.motor.ult.x, t.motor.ult.y), b = mApl(M, t.pred.x, t.pred.y), w = Math.max(1, t.motor.ult.s * s);
+    if (Math.hypot(b.x - a.x, b.y - a.y) < 80) {
+      c.globalAlpha = Math.min(1, t.op * (t.pin.alfa || 1) * 1.2); c.strokeStyle = aj.color; c.lineWidth = w; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.globalAlpha = 1;
+      curPrev = [(Math.min(a.x, b.x) - w - 2) * DPR, (Math.min(a.y, b.y) - w - 2) * DPR, (Math.abs(b.x - a.x) + 2 * w + 4) * DPR, (Math.abs(b.y - a.y) + 2 * w + 4) * DPR];
+    }
+    return;
+  }
+  if (t || !hover) return;
+  let r;
+  if (herramienta === 'pincel' || herramienta === 'borrador') { const pin = pincelActual(); r = Math.max(2, tamPincel(pin, opcionesPincel(claveAjuste()), doc.pxmm) * s / 2); }
+  const x = hover.x, y = hover.y;
+  c.lineWidth = 1;
+  if (r) {
+    c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.strokeStyle = 'rgba(0,0,0,.55)'; c.stroke();
+    c.beginPath(); c.arc(x, y, r + 1, 0, 6.2832); c.strokeStyle = 'rgba(255,255,255,.8)'; c.stroke();
+    if (r < 5) { c.fillStyle = herramienta === 'borrador' ? '#fff' : aj.color; c.beginPath(); c.arc(x, y, 1.5, 0, 6.2832); c.fill(); }
+  } else {
+    r = 9; c.strokeStyle = '#8ACF00'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x - r, y); c.lineTo(x + r, y); c.moveTo(x, y - r); c.lineTo(x, y + r); c.stroke();
+  }
+  curPrev = [(x - r - 4) * DPR, (y - r - 4) * DPR, (2 * r + 8) * DPR, (2 * r + 8) * DPR];
+}
+
 // ---- capa superpuesta en pantalla (guías, lazo, puntos de fuga) ----
 let rafSup = 0;
 function pedirSup() { if (!rafSup) rafSup = requestAnimationFrame(dibujarSup); }
-function tamSup() { sup.width = innerWidth * DPR; sup.height = innerHeight * DPR; sup.style.width = innerWidth + 'px'; sup.style.height = innerHeight + 'px'; pedirSup(); }
+function tamSup() { for (const cv of [sup, cursorCv]) { cv.width = innerWidth * DPR; cv.height = innerHeight * DPR; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; } curPrev = null; pedirSup(); }
 function dibujarSup() {
   rafSup = 0; const c = supCtx;
   c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, sup.width, sup.height);
@@ -722,6 +1118,7 @@ function marcarBotones() {
   $('bCapas').classList.toggle('activo', panelAbierto('pCapas'));
   $('bGuias').classList.toggle('activo', doc && doc.guias.modo !== 'ninguna' || panelAbierto('pGuias'));
   $('bMenu').classList.toggle('activo', panelAbierto('pMenu'));
+  $('bNotas').classList.toggle('activo', panelAbierto('pNotas'));
 }
 function abrirPanel(id, ancla) {
   const p = $(id), abierto = !p.classList.contains('oculto');
@@ -736,8 +1133,15 @@ document.querySelectorAll('.herr').forEach(b => b.addEventListener('click', () =
   const h = b.dataset.h;
   if (herramienta === h && h !== 'gotero') {
     if (h === 'relleno') { abrirPanel('pTexturas', b); pintarTexturas(); }
+    else if (h === 'simbolo') { abrirPanel('pSimbolos', b); pintarSimbolos(); }
+    else if (h === 'cota' || h === 'texto') { abrirPanel('pNotas', $('bNotas')); pintarNotas(); }
     else { abrirPanel('pPinceles', b); pintarPinceles(); }
-  } else { cerrarPaneles(); elegirHerramienta(h); }
+  } else {
+    cerrarPaneles(); elegirHerramienta(h);
+    if (h === 'simbolo' && !aj.simbolo) { abrirPanel('pSimbolos', b); pintarSimbolos(); }
+    if (h === 'cota') avisarSuave('Cota: arrastra de un punto a otro · escala 1/' + doc.escala);
+    if (h === 'texto') avisarSuave('Toca donde quieras escribir una nota');
+  }
 }));
 $('bGotero2').addEventListener('click', () => elegirHerramienta(herramienta === 'gotero' ? herrPrevia : 'gotero'));
 $('bDeshacer').addEventListener('click', hacerDeshacer);
@@ -762,10 +1166,10 @@ function slider(el, obtener, poner, burbuja) {
 }
 const pintarTam = slider($('sTamano'), () => opcionesPincel(claveAjuste()).tam, v => { opcionesPincel(claveAjuste()).tam = Math.max(0.01, v); }, () => {
   const pin = herramienta === 'relleno' ? null : pincelActual(), o = opcionesPincel(claveAjuste());
-  const d = pin ? lerp(pin.min, pin.max, o.tam * o.tam) * escalaVista() : 20;
+  const tp = pin ? tamPincel(pin, o, doc && doc.pxmm) : 0, d = pin ? tp * escalaVista() : 20;
   const pt = $('burbujaPunto'); const dd = clamp(d, 2, 200); pt.style.width = pt.style.height = dd + 'px';
   pt.style.background = herramienta === 'borrador' ? '#fff' : aj.color; pt.style.opacity = 1;
-  $('burbujaTxt').textContent = pin ? Math.round(lerp(pin.min, pin.max, o.tam * o.tam) * 10) / 10 + ' px' : '';
+  $('burbujaTxt').textContent = pin ? (pin.mm ? (tp / (doc ? doc.pxmm : PXMM)).toFixed(2) + ' mm' : Math.round(tp * 10) / 10 + ' px') : '';
 });
 const pintarOp = slider($('sOpacidad'), () => opcionesPincel(claveAjuste()).op, v => { opcionesPincel(claveAjuste()).op = Math.max(0.02, v); }, () => {
   const o = opcionesPincel(claveAjuste()), pt = $('burbujaPunto');
@@ -781,7 +1185,7 @@ function vistaPincel(cv, pin) {
   const c = cv.getContext('2d'); c.scale(DPR, DPR);
   const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
   const tc = tmp.getContext('2d'), t = crearTrazo(tc, pin, pin.cat === 'Borradores' ? '#9a9a9a' : '#1d1d1f', aj.textura);
-  const tam = Math.min(lerp(pin.min, pin.max, 0.35), h * 0.45);
+  const tam = Math.min(pin.mm ? Math.max(1, pin.mm * 5) : lerp(pin.min, pin.max, 0.35), h * 0.45);
   for (let i = 0; i <= 80; i++) {
     const f = i / 80, x = 14 + f * (w - 28), y = h / 2 + Math.sin(f * 6.2832) * h * 0.22;
     const pr = Math.sin(f * Math.PI);
@@ -996,7 +1400,7 @@ $('fImportar').onchange = async e => {
 
 // ---------- teclado (para probar en PC) ----------
 addEventListener('keydown', e => {
-  if (!doc || $('editor').classList.contains('oculto') || e.target.tagName === 'INPUT') return;
+  if (!doc || $('editor').classList.contains('oculto') || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || !$('modal').classList.contains('oculto')) return;
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? hacerRehacer() : hacerDeshacer(); }
   else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); hacerRehacer(); }
@@ -1005,6 +1409,9 @@ addEventListener('keydown', e => {
   else if (k === 'e') elegirHerramienta('borrador');
   else if (k === 'l') elegirHerramienta('relleno');
   else if (k === 'i') elegirHerramienta('gotero');
+  else if (k === 'c') elegirHerramienta('cota');
+  else if (k === 't') elegirHerramienta('texto');
+  else if (k === 's') elegirHerramienta('simbolo');
   else if (k === '[' || k === ']') { const o = opcionesPincel(claveAjuste()); o.tam = clamp(o.tam + (k === ']' ? 0.05 : -0.05), 0.01, 1); actualizarSliders(); }
 });
 addEventListener('keyup', e => { if (e.key === ' ') espacio = false; });
@@ -1042,17 +1449,26 @@ function formatos() {
 function opcionesHtml(lista, sel, extra) {
   return lista.map(o => `<button data-id="${o.id}" class="${o.id === sel ? 'activo' : ''}">${extra(o)}${o.n || o.nombre}</button>`).join('');
 }
+const TIPOS = [
+  { id: 'boceto', n: 'Boceto libre', d: 'Dibujo a mano alzada' }, { id: 'levantamiento', n: 'Levantamiento', d: 'Cotas, notas y lista' },
+  { id: 'planta', n: 'Planta', d: 'Distribución a escala' }, { id: 'elevacion', n: 'Elevación / corte', d: 'Fachadas y secciones' },
+  { id: 'perspectiva', n: 'Perspectiva', d: 'Guía de 2 puntos' },
+];
+const LISTA_LEV = ['Largo y ancho de cada ambiente', 'Diagonales para verificar escuadra', 'Altura de piso a techo y de vigas', 'Espesor de muros y tipo (ladrillo, drywall, adobe)', 'Puertas y ventanas: ancho, alto y alféizar', 'Tomacorrientes, interruptores y puntos de luz', 'Puntos de agua y desagüe', 'Niveles de piso (NPT)', 'Ubicar el norte', 'Fotos de cada ambiente', 'Estado de acabados y humedad'];
 function dialogoNuevo() {
-  let fmt = 'a4h', pap = 'blanco';
+  let fmt = 'a4h', pap = 'blanco', tipo = 'boceto', esc = 50;
   const F = formatos();
-  modal(`<h3>Nuevo boceto</h3>
+  modal(`<h3>Nueva hoja</h3>
+    <div class="etq">Tipo de hoja</div><div class="opciones" id="oTipo">${TIPOS.map(t => `<button data-id="${t.id}" class="${t.id === tipo ? 'activo' : ''}">${t.n}<small>${t.d}</small></button>`).join('')}</div>
+    <div id="oEscWrap" class="oculto"><div class="etq">Escala</div><div class="opciones" id="oEsc">${[20, 25, 50, 75, 100, 200].map(e => `<button data-id="${e}" class="${e === esc ? 'activo' : ''}">1/${e}</button>`).join('')}</div></div>
     <div class="etq">Tamaño</div><div class="opciones" id="oFmt">${opcionesHtml(F, fmt, o => { const k = 30 / Math.max(o.w, o.h); return `<span class="hoja" style="width:${o.w * k}px;height:${o.h * k}px"></span>`; })}</div>
     <div class="etq">Papel</div><div class="opciones" id="oPap">${opcionesHtml(PAPELES, pap, o => `<span class="hoja" style="width:26px;height:20px;background:${o.color}"></span>`)}</div>
     <div class="modal-btns"><button id="mNo">Cancelar</button><button class="ok" id="mSi">Crear</button></div>`, cerrar => {
     const sel = (id, fn) => $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.classList.toggle('activo', x === b)); fn(b.dataset.id); });
-    sel('oFmt', v => fmt = v); sel('oPap', v => pap = v);
+    sel('oFmt', v => fmt = v); sel('oPap', v => pap = v); sel('oEsc', v => esc = +v);
+    sel('oTipo', v => { tipo = v; $('oEscWrap').classList.toggle('oculto', v === 'boceto' || v === 'perspectiva'); });
     $('mNo').onclick = cerrar;
-    $('mSi').onclick = () => { cerrar(); const f = F.find(x => x.id === fmt); nuevoDibujo(f.w, f.h, pap); };
+    $('mSi').onclick = () => { cerrar(); const f = F.find(x => x.id === fmt); nuevoDibujo(f.w, f.h, pap, tipo, esc); };
   });
 }
 function dialogoPapel() {
@@ -1099,6 +1515,8 @@ async function guardar() {
     const thumb = await aBlob(mini, 'image/jpeg', 0.85);
     await dbPut({
       id: d.id, nombre: d.nombre, w: d.w, h: d.h, papel: d.papel, grano: d.grano, creado: d.creado, fecha: Date.now(), activa: d.activa, guias: d.guias, thumb,
+      tipo: d.tipo, escala: d.escala, pxmm: d.pxmm, objetos: d.objetos.map(o => { const { _bb, ...x } = o; return x; }), info: d.info, notas: d.notas, lista: d.lista,
+      rotulo: d.rotulo, cotasAuto: d.cotasAuto, pedirMedida: d.pedirMedida, verAnot: d.verAnot,
       capas: d.capas.map(c => ({ nombre: c.nombre, op: c.op, mezcla: c.mezcla, visible: c.visible, blob: c.blob })),
     });
   })().catch(err => { console.error(err); avisar('No se pudo guardar'); d.cambio = true; }).finally(() => { guardando = null; if (pendiente) { pendiente = false; guardar(); } });
@@ -1109,6 +1527,8 @@ function componer(k, d = doc) {
   const c = cv.getContext('2d'); c.imageSmoothingQuality = 'high';
   c.drawImage(papelCv, 0, 0, cv.width, cv.height);
   for (const l of d.capas) if (l.visible) { c.globalAlpha = l.op; c.globalCompositeOperation = l.mezcla === 'multiply' ? 'multiply' : 'source-over'; c.drawImage(l.cv, 0, 0, cv.width, cv.height); }
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  if (d === doc && d.verAnot !== false) c.drawImage(anotCv, 0, 0, cv.width, cv.height);
   return cv;
 }
 addEventListener('visibilitychange', () => { if (document.hidden) guardar(); });
@@ -1176,24 +1596,45 @@ function menuTarjeta(r) {
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 function prepararEditor() {
   deshacer.length = 0; rehacer.length = 0; bytesHist = 0;
-  trazoCv.width = doc.w; trazoCv.height = doc.h; trazoCv.style.width = doc.w + 'px'; trazoCv.style.height = doc.h + 'px'; trazoCv.style.opacity = 0;
+  trazoCv.width = doc.w; trazoCv.height = doc.h; trazoCv.style.width = doc.w + 'px'; trazoCv.style.height = doc.h + 'px'; trazoCv.style.display = 'none';
   respaldo.width = doc.w; respaldo.height = doc.h;
   docEl.style.width = doc.w + 'px'; docEl.style.height = doc.h + 'px';
   pintarPapel(); montarCapas(); ubicarTrazoCv();
+  docEl.appendChild(anotCv); renderObjetos();
   $('galeria').classList.add('oculto'); $('editor').classList.remove('oculto');
   if (history.state?.pd !== 'editor') history.pushState({ pd: 'editor' }, '');
   ajustarPantalla(); marcarBotones(); actualizarSliders(); pedirSup();
 }
-function nuevoDibujo(w, h, papel) {
-  const n = new Date();
-  doc = { id: nuevoId(), nombre: 'Boceto ' + n.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' }) + ' ' + n.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
+  r = r || {};
+  d.tipo = r.tipo || 'boceto'; d.escala = r.escala || 50; d.pxmm = r.pxmm || PXMM; d.objetos = r.objetos || [];
+  d.info = r.info || {}; d.notas = r.notas || ''; d.lista = r.lista || []; d.rotulo = !!r.rotulo;
+  d.cotasAuto = !!r.cotasAuto; d.pedirMedida = r.pedirMedida !== false; d.verAnot = r.verAnot !== false;
+}
+function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
+  const n = new Date(), tn = TIPOS.find(t => t.id === tipo).n;
+  doc = { id: nuevoId(), nombre: (tipo === 'boceto' ? 'Boceto' : tn) + ' ' + n.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' }) + ' ' + n.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
     w, h, papel, grano: true, creado: Date.now(), capas: [], activa: 0, guias: guiasPorDefecto(w, h) };
-  doc.capas.push(crearCapa('Boceto', w, h));
+  datosArq(doc, { tipo, escala: esc });
+  doc.info.fecha = n.toLocaleDateString('es-PE');
+  const unM = pxDeMetros(1);
+  if (tipo === 'levantamiento') {
+    ['Muros', 'Aberturas', 'Mobiliario', 'Instalaciones'].forEach(nm => doc.capas.push(crearCapa(nm, w, h))); doc.activa = 0;
+    doc.rotulo = true; doc.cotasAuto = true; doc.lista = LISTA_LEV.map(t => ({ t, ok: false }));
+    Object.assign(doc.guias, { modo: 'cuadricula', asist: true, tam: unM, op: 0.3 });
+  } else if (tipo === 'planta' || tipo === 'elevacion') {
+    ['Muros', 'Detalles', 'Color'].forEach(nm => doc.capas.push(crearCapa(nm, w, h)));
+    doc.rotulo = true; Object.assign(doc.guias, { modo: 'cuadricula', asist: true, tam: unM, op: 0.3 });
+  } else if (tipo === 'perspectiva') {
+    doc.capas.push(crearCapa('Trazo', w, h)); doc.capas.push(crearCapa('Color', w, h)); Object.assign(doc.guias, { modo: 'p2', asist: true });
+  } else doc.capas.push(crearCapa('Boceto', w, h));
   prepararEditor(); doc.cambio = true; guardar();
+  if (tipo === 'levantamiento') avisar('Levantamiento a 1/' + esc + ': usa la cota para medir');
 }
 async function abrirDibujo(id) {
   const r = await dbUno(id); if (!r) return;
   doc = { id: r.id, nombre: r.nombre, w: r.w, h: r.h, papel: r.papel, grano: r.grano, creado: r.creado, activa: r.activa || 0, guias: Object.assign(guiasPorDefecto(r.w, r.h), r.guias || {}), capas: [] };
+  datosArq(doc, r);
   for (const l of r.capas) {
     const c = crearCapa(l.nombre, r.w, r.h); c.op = l.op; c.mezcla = l.mezcla; c.visible = l.visible;
     if (l.blob) { try { const img = await createImageBitmap(l.blob); c.ctx.drawImage(img, 0, 0); img.close && img.close(); } catch (e) {} }
@@ -1212,6 +1653,100 @@ async function cerrarDibujo() {
 }
 addEventListener('popstate', () => { if (doc) cerrarDibujo(); });
 $('btnNuevo').onclick = dialogoNuevo;
+
+// =====================================================================
+//  NOTAS DE LA HOJA (datos, lista de levantamiento, notas libres)
+// =====================================================================
+let tabNotas = 'hoja';
+function pintarNotas() {
+  document.querySelectorAll('#segNotas button').forEach(b => b.classList.toggle('activo', b.dataset.v === tabNotas));
+  $('nHoja').classList.toggle('oculto', tabNotas !== 'hoja'); $('nLista').classList.toggle('oculto', tabNotas !== 'lista'); $('nNotas').classList.toggle('oculto', tabNotas !== 'notas');
+  $('nTipo').innerHTML = TIPOS.map(t => `<option value="${t.id}" ${t.id === doc.tipo ? 'selected' : ''}>${t.n}</option>`).join('');
+  $('nEscala').innerHTML = ESCALAS.map(e => `<option value="${e}" ${e === doc.escala ? 'selected' : ''}>1/${e}</option>`).join('');
+  document.querySelectorAll('#nHoja input[data-k]').forEach(i => { i.value = doc.info[i.dataset.k] || ''; });
+  $('nRotulo').checked = doc.rotulo; $('nCotaAuto').checked = doc.cotasAuto; $('nPedir').checked = doc.pedirMedida; $('nVerAnot').checked = doc.verAnot !== false;
+  if (document.activeElement !== $('nTexto')) $('nTexto').value = doc.notas || '';
+  const it = $('nItems'); it.innerHTML = doc.lista.length ? '' : '<p class="nota">Sin pendientes. Agrega lo que debes medir o revisar en obra.</p>';
+  doc.lista.forEach((x, i) => {
+    const d = document.createElement('div'); d.className = 'n-item' + (x.ok ? ' ok' : '');
+    d.innerHTML = `<input type="checkbox" ${x.ok ? 'checked' : ''}><span>${escapar(x.t)}</span><button title="Quitar">×</button>`;
+    d.querySelector('input').onchange = e => { x.ok = e.target.checked; marcarCambio(); pintarNotas(); };
+    d.querySelector('button').onclick = () => { doc.lista.splice(i, 1); marcarCambio(); pintarNotas(); };
+    it.appendChild(d);
+  });
+}
+document.querySelectorAll('#segNotas button').forEach(b => b.onclick = () => { tabNotas = b.dataset.v; pintarNotas(); });
+$('bNotas').addEventListener('click', e => { abrirPanel('pNotas', e.currentTarget); if (panelAbierto('pNotas')) pintarNotas(); });
+$('nTipo').onchange = e => { doc.tipo = e.target.value; marcarCambio(); renderObjetos(); };
+$('nEscala').onchange = e => { doc.escala = +e.target.value; marcarCambio(); renderObjetos(); avisar('Escala 1/' + doc.escala + ': las cotas se recalculan'); };
+document.querySelectorAll('#nHoja input[data-k]').forEach(i => i.addEventListener('input', () => { doc.info[i.dataset.k] = i.value; marcarCambio(); if (doc.rotulo) renderObjetos(); }));
+$('nRotulo').onchange = e => { doc.rotulo = e.target.checked; marcarCambio(); renderObjetos(); };
+$('nCotaAuto').onchange = e => { doc.cotasAuto = e.target.checked; marcarCambio(); };
+$('nPedir').onchange = e => { doc.pedirMedida = e.target.checked; marcarCambio(); };
+$('nVerAnot').onchange = e => { doc.verAnot = e.target.checked; marcarCambio(); renderObjetos(); };
+$('nTexto').addEventListener('input', e => { doc.notas = e.target.value; marcarCambio(); });
+const agregarItem = () => { const v = $('nNuevo').value.trim(); if (!v) return; doc.lista.push({ t: v, ok: false }); $('nNuevo').value = ''; marcarCambio(); pintarNotas(); };
+$('nAgregar').onclick = agregarItem; $('nNuevo').onkeydown = e => { if (e.key === 'Enter') agregarItem(); };
+
+// =====================================================================
+//  TUTORIAL DE BIENVENIDA
+// =====================================================================
+const TUT = [
+  { t: 'Bienvenido a OXEN PRO', p: 'Tu cuaderno de bocetos y levantamientos de arquitecto. Todo se guarda solo en la tableta y funciona sin internet.',
+    svg: '<svg viewBox="0 0 400 170"><path d="M60 130 200 40l140 90" fill="none"/><path d="M90 110v40h220v-40" fill="none"/><path d="M170 150v-40h60v40" fill="none"/><path d="M20 150h360" stroke="#8ACF00" stroke-width="3"/></svg>' },
+  { t: 'El lápiz dibuja, los dedos mueven', p: '<b>Lápiz</b>: dibuja con presión; inclínalo para sombrear. <b>1 dedo</b>: mueve la hoja. <b>2 dedos</b>: acerca, aleja y gira. <b>Toque con 2 dedos</b> = deshacer · <b>3 dedos</b> = rehacer.',
+    svg: '<svg viewBox="0 0 400 170"><path d="M70 120c40-60 80-60 120-10s80 40 120-30" fill="none" stroke-width="3"/><circle cx="300" cy="60" r="10" fill="#8ACF00" stroke="none"/><path d="M300 60l40-40" stroke-width="6" stroke="#1d1d1f"/></svg>' },
+  { t: 'Líneas perfectas', p: 'Al final de un trazo <b>mantén el lápiz quieto</b> y se vuelve recta, círculo o rectángulo. En <b>Guías</b> activa cuadrícula, isometría o perspectiva de 1, 2 y 3 puntos: las líneas se alinean solas.',
+    svg: '<svg viewBox="0 0 400 170"><path d="M200 70 20 30M200 70 380 30M200 70 20 150M200 70 380 150M200 70v100" stroke="#8ACF00" stroke-width="1.2"/><path d="M200 70 110 52v80l90 38 90-38V52z" fill="none" stroke-width="2.5"/></svg>' },
+  { t: 'Pinceles y texturas', p: 'Toca otra vez el <b>pincel</b> para abrir la biblioteca: lápices, estilógrafos por grosor, líneas de eje y ocultas, marcadores, acuarela y vegetación. Con el <b>lazo</b> rellenas zonas con ladrillo, concreto, madera, piedra y más.',
+    svg: '<svg viewBox="0 0 400 170"><rect x="40" y="35" width="140" height="100" fill="none"/><path d="M40 60h140M40 85h140M40 110h140M75 35v25M145 35v25M110 60v25M75 85v25M145 85v25M110 110v25" stroke-width="1.5"/><path d="M220 120c30-50 60-80 140-70" fill="none" stroke="#8a959e" stroke-width="16" stroke-linecap="round" opacity=".5"/></svg>' },
+  { t: 'Levantamientos con cotas', p: 'Crea una hoja de <b>Levantamiento</b> y elige la escala. Con la <b>cota</b> arrastra de un punto a otro: escribe la medida real y, si quieres, la línea se ajusta a escala. Pon <b>notas</b>, <b>puertas, ventanas, mobiliario e instalaciones</b> desde símbolos.',
+    svg: '<svg viewBox="0 0 400 170"><rect x="80" y="50" width="240" height="90" fill="none" stroke-width="5"/><path d="M80 30h240M80 24v12M320 24v12M76 34l8-8M316 34l8-8" stroke-width="1.5"/><text x="200" y="24" font-size="15" text-anchor="middle" font-family="sans-serif" fill="#1d1d1f" stroke="none">4.85</text><path d="M200 140v-40a40 40 0 0 1 40 40" fill="none" stroke-width="1.5"/></svg>' },
+  { t: 'Notas, lista y rótulo', p: 'En <b>Notas</b> completas los datos de la hoja (proyecto, ubicación, quién levantó), marcas la <b>lista de lo que falta medir</b> y escribes observaciones. El rótulo y la escala gráfica salen en la hoja y al exportar.',
+    svg: '<svg viewBox="0 0 400 170"><rect x="210" y="70" width="170" height="80" fill="none" stroke-width="2"/><path d="M210 90h170M210 110h170M210 130h170M295 130v20" stroke-width="1"/><path d="M40 45h20M70 45h110M40 75h20M70 75h90M40 105h20M70 105h100" stroke-width="2"/><path d="M42 40l5 6 9-11M42 70l5 6 9-11" stroke="#8ACF00" stroke-width="3" fill="none"/></svg>' },
+];
+let tutI = 0;
+function mostrarTutorial() {
+  tutI = 0; $('tutorial').classList.remove('oculto'); pintarTut();
+}
+function pintarTut() {
+  const p = TUT[tutI];
+  $('tutPasos').innerHTML = `<div class="tut-paso"><div class="tut-ilus">${p.svg}</div><h2>${p.t}</h2><p>${p.p}</p></div>`;
+  $('tutPuntos').innerHTML = TUT.map((_, i) => `<i class="${i === tutI ? 'on' : ''}"></i>`).join('');
+  $('tutSig').textContent = tutI === TUT.length - 1 ? '¡Empezar!' : 'Siguiente';
+  $('tutSaltar').style.visibility = tutI === TUT.length - 1 ? 'hidden' : '';
+}
+function cerrarTutorial() { $('tutorial').classList.add('oculto'); try { localStorage.setItem('oxen-tutorial', '1'); } catch (e) {} }
+$('tutSig').onclick = () => { if (tutI < TUT.length - 1) { tutI++; pintarTut(); } else cerrarTutorial(); };
+$('tutSaltar').onclick = cerrarTutorial;
+$('btnAyuda').onclick = mostrarTutorial;
+$('mTutorial').onclick = () => { cerrarPaneles(); mostrarTutorial(); };
+(() => { // deslizar entre pasos
+  let x0 = null; const el = $('tutorial');
+  el.addEventListener('pointerdown', e => { x0 = e.clientX; });
+  el.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) { if (dx < 0 && tutI < TUT.length - 1) tutI++; else if (dx > 0 && tutI > 0) tutI--; pintarTut(); } });
+})();
+
+// =====================================================================
+//  ETIQUETAS AL PASAR EL LÁPIZ (o el ratón) SOBRE LOS BOTONES
+// =====================================================================
+(() => {
+  const tip = $('tip'); let tT = 0, actual = null;
+  document.querySelectorAll('[title]').forEach(el => { el.dataset.tip = el.title; el.removeAttribute('title'); });
+  document.addEventListener('pointerover', e => {
+    if (e.pointerType === 'touch') return;
+    const el = e.target.closest('[data-tip]'); if (!el || el === actual) return;
+    actual = el; clearTimeout(tT);
+    tT = setTimeout(() => {
+      const r = el.getBoundingClientRect(); tip.textContent = el.dataset.tip; tip.classList.remove('oculto');
+      const w = tip.offsetWidth, lat = el.closest('#lateral');
+      if (lat) { tip.style.left = (document.body.classList.contains('zurdo') ? r.left - w - 8 : r.right + 8) + 'px'; tip.style.top = (r.top + r.height / 2 - 12) + 'px'; }
+      else { tip.style.left = clamp(r.left + r.width / 2 - w / 2, 6, innerWidth - w - 6) + 'px'; tip.style.top = (r.bottom + 6) + 'px'; }
+    }, 280);
+  });
+  document.addEventListener('pointerout', e => { const el = e.target.closest('[data-tip]'); if (el && !el.contains(e.relatedTarget)) { actual = null; clearTimeout(tT); tip.classList.add('oculto'); } });
+  document.addEventListener('pointerdown', () => { clearTimeout(tT); tip.classList.add('oculto'); }, true);
+})();
 
 // =====================================================================
 //  ACTUALIZACIONES (sin reinstalar)
@@ -1289,5 +1824,7 @@ mostrarGaleria().then(() => {
   let re = ''; try { re = sessionStorage.getItem('oxen-reabrir') || ''; sessionStorage.removeItem('oxen-reabrir'); } catch (e) {}
   if (re) { abrirDibujo(re).then(() => avisar('OXEN PRO actualizado ✓')); }
   setTimeout(() => buscarActualizacion(false), 2500);
+  let visto = null; try { visto = localStorage.getItem('oxen-tutorial'); } catch (e) {}
+  if (!visto && !re) mostrarTutorial();
 });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

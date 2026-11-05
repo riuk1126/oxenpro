@@ -32,6 +32,11 @@
     <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
     <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
     <symbol id="i-actualizar" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/></symbol>
+    <symbol id="i-cota" viewBox="0 0 24 24"><path d="M3 8v8M21 8v8M3 12h18"/><path d="M6.5 9.5 4 12l2.5 2.5M17.5 9.5 20 12l-2.5 2.5"/></symbol>
+    <symbol id="i-texto" viewBox="0 0 24 24"><path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6"/></symbol>
+    <symbol id="i-simbolo" viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20V8"/><path d="M6 8a12 12 0 0 1 12 12"/></symbol>
+    <symbol id="i-notas" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10h7M8.5 14h7M8.5 18h4"/></symbol>
+    <symbol id="i-ayuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6M12 17h.01"/></symbol>
     <symbol id="i-combinar" viewBox="0 0 24 24"><path d="M12 4v10M7 9l5 5 5-5M4 20h16"/></symbol>
   </defs>
 </svg>
@@ -41,6 +46,7 @@
   <header class="gal-cab">
     <div class="marca"><img src="icono.png" alt=""><span>OXEN<b class="pro">PRO</b></span></div>
     <div class="grupo">
+      <button id="btnAyuda" class="ib" title="Tutorial"><svg><use href="#i-ayuda"/></svg></button>
       <button id="btnActualizar" class="ib" title="Buscar actualizaciones"><svg><use href="#i-actualizar"/></svg></button>
       <button id="btnNuevo" class="btn-verde"><svg><use href="#i-mas"/></svg>Nuevo boceto</button>
     </div>
@@ -55,6 +61,7 @@
   <div id="escenario">
     <div id="doc"><canvas id="papel"></canvas><div id="capasDOM"></div></div>
     <canvas id="superpuesto"></canvas>
+    <canvas id="cursorCv"></canvas>
   </div>
 
   <header id="barra">
@@ -62,13 +69,18 @@
       <button class="ib" id="bGaleria" title="Galería"><svg><use href="#i-galeria"/></svg></button>
       <button class="ib" id="bMenu" title="Acciones"><svg><use href="#i-menu"/></svg></button>
       <button class="ib" id="bGuias" title="Guías y perspectiva"><svg><use href="#i-guias"/></svg></button>
+      <button class="ib" id="bNotas" title="Notas y datos de la hoja"><svg><use href="#i-notas"/></svg></button>
       <button class="act-pill oculto" id="bAct"><svg><use href="#i-actualizar"/></svg>Actualizar</button>
     </div>
     <div class="grupo">
       <button class="ib herr" data-h="pincel" id="bPincel" title="Pincel"><svg><use href="#i-pincel"/></svg></button>
       <button class="ib herr" data-h="borrador" id="bBorrador" title="Borrador"><svg><use href="#i-borrador"/></svg></button>
       <button class="ib herr" data-h="relleno" id="bRelleno" title="Relleno con textura"><svg><use href="#i-relleno"/></svg></button>
-      <button class="ib herr" data-h="gotero" id="bGotero" title="Gotero"><svg><use href="#i-gotero"/></svg></button>
+      <span class="sep"></span>
+      <button class="ib herr" data-h="cota" id="bCota" title="Cota a escala"><svg><use href="#i-cota"/></svg></button>
+      <button class="ib herr" data-h="texto" id="bTexto" title="Nota / texto"><svg><use href="#i-texto"/></svg></button>
+      <button class="ib herr" data-h="simbolo" id="bSimbolo" title="Símbolos: puertas, ventanas, mobiliario…"><svg><use href="#i-simbolo"/></svg></button>
+      <span class="sep"></span>
       <button class="ib" id="bCapas" title="Capas"><svg><use href="#i-capas"/></svg></button>
       <button class="color-btn" id="bColor" title="Color"><span id="colorActual"></span></button>
     </div>
@@ -84,6 +96,7 @@
 
   <div id="burbuja" class="oculto"><div id="burbujaPunto"></div><span id="burbujaTxt"></span></div>
   <div id="aviso" class="oculto"></div>
+  <div id="tip" class="tip oculto"></div>
 
   <!-- Paneles -->
   <div id="pPinceles" class="panel oculto">
@@ -134,6 +147,38 @@
     <p class="nota" id="guiaNota"></p>
   </div>
 
+
+  <div id="pSimbolos" class="panel oculto">
+    <div class="panel-cols">
+      <nav id="simCats" class="cats"></nav>
+      <div style="flex:1;min-width:0"><div id="simGrid" class="tex-grid" style="margin-top:0"></div></div>
+    </div>
+    <p class="nota">Toca para ponerlo. <b>Arrastra</b> para girarlo; en puertas, ventanas y muros arrastra <b>de jamba a jamba</b> y toma el ancho a escala.</p>
+  </div>
+
+  <div id="pNotas" class="panel oculto">
+    <div class="seg" id="segNotas"><button data-v="hoja">Hoja</button><button data-v="lista">Lista</button><button data-v="notas">Notas</button></div>
+    <div id="nHoja" class="n-sec">
+      <div class="fila-ajuste"><label>Tipo de hoja</label><select id="nTipo"></select></div>
+      <div class="fila-ajuste"><label>Escala</label><select id="nEscala"></select></div>
+      <div class="campo"><label>Proyecto</label><input type="text" id="nProyecto" data-k="proyecto" placeholder="Ej.: Vivienda Sr. Ramírez"></div>
+      <div class="campo"><label>Plano / ambiente</label><input type="text" id="nPlano" data-k="plano" placeholder="Ej.: Planta 1er piso"></div>
+      <div class="campo"><label>Ubicación</label><input type="text" id="nUbic" data-k="ubicacion" placeholder="Dirección, distrito"></div>
+      <div class="campo"><label>Levantó / dibujó</label><input type="text" id="nAutor" data-k="autor" placeholder="Tu nombre"></div>
+      <div class="campo"><label>Fecha</label><input type="text" id="nFecha" data-k="fecha"></div>
+      <label class="interruptor"><input type="checkbox" id="nRotulo"><span></span>Mostrar rótulo y escala gráfica</label>
+      <label class="interruptor"><input type="checkbox" id="nCotaAuto"><span></span>Cota automática al trazar líneas rectas</label>
+      <label class="interruptor"><input type="checkbox" id="nPedir"><span></span>Pedir la medida real al crear una cota</label>
+      <label class="interruptor"><input type="checkbox" id="nVerAnot"><span></span>Ver cotas y notas</label>
+    </div>
+    <div id="nLista" class="n-sec oculto">
+      <div id="nItems"></div>
+      <div class="campo fila"><input type="text" id="nNuevo" placeholder="Agregar pendiente…"><button class="btn-verde chico" id="nAgregar">Agregar</button></div>
+    </div>
+    <div id="nNotas" class="n-sec oculto">
+      <textarea id="nTexto" rows="12" placeholder="Medidas sueltas, observaciones, estado de acabados, pedido del cliente…"></textarea>
+    </div>
+  </div>
   <div id="pMenu" class="panel oculto">
     <button class="item" id="mImportar">Importar foto o plano…</button>
     <button class="item" id="mExportar">Exportar imagen PNG</button>
@@ -141,6 +186,7 @@
     <button class="item" id="mPapel">Cambiar papel…</button>
     <button class="item" id="mVoltear">Voltear vista horizontal</button>
     <button class="item" id="mAjustar">Ajustar a la pantalla</button>
+    <button class="item" id="mTutorial">Ver tutorial</button>
     <hr>
     <div class="fila-ajuste"><label>Presión del lápiz</label><input type="range" id="rPresion" min="0.4" max="2.5" step="0.05"><span id="vPresion"></span></div>
     <label class="interruptor"><input type="checkbox" id="chkSoloLapiz"><span></span>Solo el lápiz dibuja (el dedo mueve)</label>
@@ -154,11 +200,20 @@
   <input type="file" id="fImportar" accept="image/*" hidden>
 </section>
 
+
+<!-- ================= TUTORIAL ================= -->
+<div id="tutorial" class="tutorial oculto">
+  <div class="tut-caja">
+    <div id="tutPasos"></div>
+    <div class="tut-pie"><div id="tutPuntos" class="tut-puntos"></div><div class="tut-btns"><button id="tutSaltar">Saltar</button><button class="btn-verde" id="tutSig">Siguiente</button></div></div>
+  </div>
+</div>
 <!-- ================= DIÁLOGOS ================= -->
 <div id="modal" class="modal oculto"><div class="modal-caja" id="modalCaja"></div></div>
 
 <script>window.PD_VERSION='__PD_VERSION__';</script>
 <script src="texturas.js?v=__PD_VERSION__"></script>
+<script src="simbolos.js?v=__PD_VERSION__"></script>
 <script src="app.js?v=__PD_VERSION__"></script>
 </body>
 </html>

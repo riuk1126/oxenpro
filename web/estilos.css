@@ -40,7 +40,7 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke
 #superpuesto{position:absolute;left:0;top:0;pointer-events:none}
 
 #barra{position:absolute;left:0;right:0;top:0;height:calc(50px + var(--sa-t));padding:var(--sa-t) calc(10px + var(--sa-r)) 0 calc(10px + var(--sa-l));
-  display:flex;align-items:center;justify-content:space-between;background:rgba(14,14,15,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--linea);z-index:10}
+  display:flex;align-items:center;justify-content:space-between;background:#0e0e0f;border-bottom:1px solid var(--linea);z-index:10}
 .grupo{display:flex;align-items:center;gap:4px}
 .ib{width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:#d8d8dc}
 .ib:active{background:var(--gris3)}
@@ -50,7 +50,7 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke
 #colorActual{width:28px;height:28px;border-radius:50%;box-shadow:0 0 0 2px #0b0b0c,0 0 0 3.5px rgba(255,255,255,.75)}
 
 #lateral{position:absolute;left:calc(8px + var(--sa-l));top:50%;transform:translateY(-50%);width:44px;padding:10px 0;border-radius:14px;
-  background:rgba(14,14,15,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--linea);
+  background:#0e0e0f;border:1px solid var(--linea);
   display:flex;flex-direction:column;align-items:center;gap:8px;z-index:9}
 body.zurdo #lateral{left:auto;right:calc(8px + var(--sa-r))}
 .vslider{position:relative;width:26px;height:150px;border-radius:13px;background:var(--gris3);overflow:hidden;touch-action:none}
@@ -173,3 +173,52 @@ hr{border:0;border-top:1px solid var(--linea);margin:8px 0}
 #btnActualizar.girando svg{animation:girar 1s linear infinite}
 @keyframes girar{to{transform:rotate(360deg)}}
 .marca .pro{color:var(--verde);font-weight:800;margin-left:6px;font-size:.8em;letter-spacing:.04em}
+
+/* ---------- v1.3: fluidez, hover, arquitectura, tutorial ---------- */
+#cursorCv{position:absolute;left:0;top:0;pointer-events:none}
+.sep{width:1px;height:22px;background:var(--linea);margin:0 4px}
+.ib{transition:background .12s,transform .12s,color .12s}
+@media (hover:hover),(any-hover:hover){
+  .ib:hover{background:rgba(255,255,255,.08);color:#fff;transform:scale(1.08)}
+  .ib.activo:hover{color:var(--verde2)}
+  .pin-item:hover,.tex-item:hover,.capa:hover,.guia-modos button:hover,.opciones button:hover{border-color:rgba(138,207,0,.45)}
+  .cats button:hover,.item:hover,.seg button:hover{background:rgba(255,255,255,.06);color:var(--texto)}
+  .paleta button:hover{transform:scale(1.15)}
+  .color-btn:hover #colorActual{transform:scale(1.1)}
+  .btn-verde:hover{background:var(--verde2)}
+}
+#colorActual{transition:transform .12s}
+.tip{position:fixed;z-index:60;pointer-events:none;background:#f2f2f3;color:#0b0b0c;font-size:12px;font-weight:650;padding:5px 9px;border-radius:7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#pSimbolos{width:440px}
+#pSimbolos .tex-item canvas{background:#fbfbf8}
+#pNotas{width:380px;left:calc(10px + var(--sa-l));right:auto}
+.n-sec{margin-top:10px}
+.campo{display:flex;flex-direction:column;gap:4px;margin:8px 2px}
+.campo label{font-size:12px;color:var(--texto2)}
+.campo.fila{flex-direction:row}
+.campo input,#pNotas select,#nTexto,.modal-caja textarea{background:var(--gris2);border:1px solid var(--linea);color:var(--texto);border-radius:9px;padding:9px 10px;font:inherit;-webkit-user-select:text;user-select:text;width:100%}
+#pNotas select{width:auto;flex:1}
+.modal-caja textarea{resize:vertical;min-height:80px}
+#nTexto{resize:vertical;min-height:220px;line-height:1.45}
+.btn-verde.chico{padding:8px 14px;flex:none}
+.n-item{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--linea)}
+.n-item input{width:20px;height:20px;accent-color:var(--verde);flex:none}
+.n-item span{flex:1;line-height:1.35}
+.n-item.ok span{color:var(--texto2);text-decoration:line-through}
+.n-item button{color:var(--texto2);font-size:18px;width:28px}
+.tutorial{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px}
+.tut-caja{background:var(--gris1);border:1px solid var(--linea);border-radius:22px;width:560px;max-width:100%;overflow:hidden;box-shadow:var(--sombra)}
+.tut-paso{padding:28px 28px 8px;animation:entrar .35s ease}
+@keyframes entrar{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+.tut-ilus{height:170px;border-radius:14px;background:#fbfbf8;display:flex;align-items:center;justify-content:center;margin-bottom:20px;overflow:hidden}
+.tut-ilus svg{width:100%;height:100%;stroke:#1d1d1f;stroke-width:2}
+.tut-paso h2{margin:0 0 8px;font-size:22px;letter-spacing:-.02em}
+.tut-paso p{margin:0;color:var(--texto2);line-height:1.55;font-size:15px}
+.tut-paso b{color:var(--texto)}
+.tut-pie{display:flex;align-items:center;justify-content:space-between;padding:18px 28px 24px}
+.tut-puntos{display:flex;gap:6px}
+.tut-puntos i{width:7px;height:7px;border-radius:50%;background:var(--gris3);transition:.2s}
+.tut-puntos i.on{background:var(--verde);width:20px;border-radius:4px}
+.tut-btns{display:flex;gap:8px;align-items:center}
+.tut-btns > button:first-child{color:var(--texto2);padding:10px 14px}
+@media (max-width:700px){ .sep{display:none} #barra .ib{width:32px} .color-btn{width:34px} }

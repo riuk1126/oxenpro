@@ -143,13 +143,94 @@ const Texturas = (() => {
       }
       c.stroke();
     } },
+    { id: 'marmol', nombre: 'Mármol', S: 220, draw(c, S) {
+      const r = rng(31);
+      wrap(c, S, () => {
+        for (let k = 0; k < 7; k++) {
+          let x = r() * S, y = r() * S, a = r() * 6.28; c.lineWidth = 0.6 + r() * 1.4; c.beginPath(); c.moveTo(x, y);
+          for (let i = 0; i < 14; i++) { a += (r() - 0.5) * 0.9; x += Math.cos(a) * 9; y += Math.sin(a) * 9; c.lineTo(x, y); }
+          c.stroke();
+        }
+      });
+    } },
+    { id: 'grava', nombre: 'Grava', S: 150, draw(c, S) {
+      const r = rng(17), g = [];
+      for (let i = 0; i < 60; i++) { const x = r() * S, y = r() * S, s = 3 + r() * 5, m = 5 + Math.floor(r() * 3), a0 = r() * 6.28, pts = [];
+        for (let k = 0; k < m; k++) { const a = a0 + k / m * 6.28, rr = s * (0.7 + r() * 0.5); pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8]); } g.push(pts); }
+      wrap(c, S, () => { c.lineWidth = 1.4; c.lineJoin = 'round'; for (const p of g) { c.beginPath(); p.forEach(([x, y], k) => k ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); c.stroke(); } });
+    } },
+    { id: 'adoquin', nombre: 'Adoquín', S: 96, draw(c, S) {
+      c.lineWidth = 1.8; c.beginPath();
+      for (let y = 0; y <= S; y += 24) { c.moveTo(0, y); c.lineTo(S, y); }
+      for (let row = 0; row < 4; row++) { const off = row % 2 ? 0 : 24; for (let x = off; x <= S; x += 48) { c.moveTo(x, row * 24); c.lineTo(x, row * 24 + 24); } }
+      c.stroke();
+      c.lineWidth = 0.8; c.beginPath(); for (let y = 0; y < S; y += 24) for (let x = 0; x < S; x += 12) { c.moveTo(x + 4, y + 5); c.lineTo(x + 6, y + 6); } c.stroke();
+    } },
+    { id: 'cesped', nombre: 'Césped', S: 120, draw(c, S) {
+      const r = rng(23), b = [];
+      for (let i = 0; i < 90; i++) b.push([r() * S, r() * S, 4 + r() * 5, (r() - 0.5) * 0.8]);
+      wrap(c, S, () => { c.lineWidth = 1.1; c.lineCap = 'round'; c.beginPath(); for (const [x, y, h, a] of b) { c.moveTo(x, y); c.lineTo(x + Math.sin(a) * h, y - Math.cos(a) * h); } c.stroke(); });
+    } },
+    { id: 'terrazo', nombre: 'Terrazo', S: 160, draw(c, S) {
+      const r = rng(41), ch = [];
+      for (let i = 0; i < 70; i++) { const x = r() * S, y = r() * S, s = 1.5 + r() * 4.5, m = 3 + Math.floor(r() * 3), a0 = r() * 6.28, pts = [];
+        for (let k = 0; k < m; k++) { const a = a0 + k / m * 6.28 + r() * 0.5; pts.push([x + Math.cos(a) * s, y + Math.sin(a) * s]); } ch.push(pts); }
+      wrap(c, S, () => { for (const p of ch) { c.beginPath(); p.forEach(([x, y], k) => k ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); c.fill(); } });
+    } },
+    { id: 'terreno', nombre: 'Terreno natural', S: 96, draw(c, S) {
+      c.lineWidth = 1.8; c.beginPath();
+      for (let x = 0; x <= S; x += 24) { c.moveTo(x, 0); c.lineTo(x + 12, 12); c.moveTo(x + 4, 0); c.lineTo(x + 16, 12); c.moveTo(x + 8, 0); c.lineTo(x + 20, 12); }
+      for (let x = -12; x <= S; x += 24) { c.moveTo(x, 48); c.lineTo(x + 12, 60); c.moveTo(x + 4, 48); c.lineTo(x + 16, 60); c.moveTo(x + 8, 48); c.lineTo(x + 20, 60); }
+      c.stroke();
+    } },
+    { id: 'armado', nombre: 'Concreto armado', S: 160, draw(c, S) {
+      const r = rng(51), it = [];
+      for (let i = 0; i < 18; i++) it.push([r() * S, r() * S, 3 + r() * 5, r() * 6.28]);
+      for (let i = 0; i < 80; i++) it.push([r() * S, r() * S, 0, -1]);
+      c.lineWidth = 1.2; c.beginPath(); for (let k = -S; k <= 2 * S; k += 20) { c.moveTo(k, 0); c.lineTo(k - S, S); } c.stroke();
+      wrap(c, S, () => { c.lineWidth = 1.4; for (const [x, y, s, a] of it) { if (a < 0) { c.fillRect(x, y, 1.8, 1.8); continue; } c.beginPath(); for (let k = 0; k < 3; k++) { const aa = a + k * 2.09; c[k ? 'lineTo' : 'moveTo'](x + Math.cos(aa) * s, y + Math.sin(aa) * s); } c.closePath(); c.stroke(); } });
+    } },
+    { id: 'metal', nombre: 'Metal / acero', S: 48, draw(c, S) {
+      c.lineWidth = 1.6; c.beginPath();
+      for (let k = -S; k <= 2 * S; k += 16) { c.moveTo(k, 0); c.lineTo(k - S, S); c.moveTo(k + 4, 0); c.lineTo(k + 4 - S, S); }
+      c.stroke();
+    } },
+    { id: 'vidrio', nombre: 'Vidrio', S: 96, draw(c, S) {
+      c.lineWidth = 1.4; c.beginPath();
+      for (const [x, y] of [[14, 30], [20, 30], [62, 76], [68, 76]]) { c.moveTo(x, y); c.lineTo(x + 14, y - 14); }
+      c.stroke();
+    } },
+    { id: 'hexagonal', nombre: 'Mosaico hexagonal', S: 0, draw(c) {
+      const R = 14, h = R * Math.sqrt(3), W = 3 * R, H = h * 2; c.canvas.width = W * 2; c.canvas.height = H;
+      c.strokeStyle = '#000'; c.lineWidth = 1.6;
+      const hex = (cx, cy) => { c.beginPath(); for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; c[k ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * R, cy + Math.sin(a) * R); } c.closePath(); c.stroke(); };
+      for (let i = -1; i <= 3; i++) for (let j = -1; j <= 3; j++) hex(i * 1.5 * R, j * h + (i % 2 ? h / 2 : 0));
+    } },
+    { id: 'piedra_laja', nombre: 'Enchape de piedra', S: 192, draw(c, S) {
+      const r = rng(61); c.lineWidth = 1.8; c.lineJoin = 'round';
+      for (let y = 0; y < S; y += 32) {
+        let x = (y / 32) % 2 ? -20 : 0;
+        c.beginPath(); c.moveTo(0, y); c.lineTo(S, y); c.stroke();
+        while (x < S) { const w = 30 + r() * 40; c.beginPath(); c.moveTo(x + w, y); c.lineTo(x + w + (r() - 0.5) * 6, y + 32); c.stroke(); x += w; }
+      }
+    } },
+    { id: 'zigzag', nombre: 'Aislante rígido', S: 48, draw(c, S) {
+      c.lineWidth = 1.6; c.beginPath();
+      for (let y = 0; y < S; y += 12) { c.moveTo(0, y + 12); for (let x = 0; x <= S; x += 12) c.lineTo(x + 6, x % 24 ? y + 12 : y); }
+      c.stroke();
+    } },
+    { id: 'rayas', nombre: 'Rayado horizontal', S: 24, draw(c, S) { c.lineWidth = 1.4; c.beginPath(); for (let y = 0; y <= S; y += 8) { c.moveTo(0, y); c.lineTo(S, y); } c.stroke(); } },
+    { id: 'puntos_finos', nombre: 'Puntillado', S: 120, draw(c, S) {
+      const r = rng(71);
+      for (let i = 0; i < 420; i++) { const x = r() * S, y = r() * S; c.beginPath(); c.arc(x, y, 0.6 + r() * 0.9, 0, 6.283); c.fill(); }
+    } },
   ];
 
   const base = {};
   function tile(id) {
     if (base[id]) return base[id];
     const t = lista.find(x => x.id === id) || lista[0];
-    const cv = document.createElement('canvas'); cv.width = cv.height = t.S;
+    const cv = document.createElement('canvas'); cv.width = cv.height = t.S || 64;
     const c = cv.getContext('2d'); c.fillStyle = c.strokeStyle = '#000';
     t.draw(c, t.S);
     return (base[id] = cv);
