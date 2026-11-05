@@ -1,0 +1,8 @@
+{
+  "name": "prodraft",
+  "productName": "ProDraft",
+  "version": "1.0.0",
+  "description": "Bocetos para arquitectos",
+  "private": true,
+  "author": "Arquizo"
+}

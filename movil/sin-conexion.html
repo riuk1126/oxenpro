@@ -1,0 +1,6 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>ProDraft</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:-apple-system,Roboto,"Segoe UI",sans-serif;background:#0b0b0c;color:#f2f2f3;text-align:center;padding:24px;box-sizing:border-box}
+b{font-size:28px;letter-spacing:-.02em}p{color:#9b9ba1;font-size:16px;line-height:1.5;max-width:340px;margin:12px auto 24px}
+button{border:0;background:#8ACF00;color:#0b0b0c;font-size:16px;font-weight:650;padding:13px 26px;border-radius:999px}</style></head>
+<body><div><b>ProDraft</b><p>Conéctate a internet una vez para terminar de instalar ProDraft. Después podrás dibujar sin conexión.</p><button onclick="go()">Reintentar</button></div>
+<script>function go(){location.href='https://riuk1126.github.io/prodraft/'}addEventListener('online',go);setInterval(()=>{if(navigator.onLine)fetch('https://riuk1126.github.io/prodraft/manifest.json',{cache:'no-store',mode:'no-cors'}).then(go).catch(()=>{})},5000)</script></body></html>

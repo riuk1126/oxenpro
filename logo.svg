@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: CorelDRAW 2026 -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="86.6988mm" height="86.6987mm" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+viewBox="0 0 4541.92 4541.92"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ <defs>
+  <style type="text/css">
+   <![CDATA[
+    .fil1 {fill:black}
+    .fil0 {fill:#8ACF00}
+    .fil2 {fill:black;fill-rule:nonzero}
+   ]]>
+  </style>
+     <mask id="id0">
+  <linearGradient id="id1" gradientUnits="userSpaceOnUse" x1="336.22" y1="3320.35" x2="2469.59" y2="2805.88">
+   <stop offset="0" style="stop-opacity:1; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:0; stop-color:white"/>
+  </linearGradient>
+      <rect style="fill:url(#id1)" x="556.82" y="2421.51" width="2024.06" height="1233.94"/>
+     </mask>
+ </defs>
+ <g id="Capa_x0020_1">
+  <metadata id="CorelCorpID_0Corel-Layer"/>
+  <g>
+   <path class="fil0" d="M764.5 4541.92l3012.92 0c420.48,0 764.5,-344.02 764.5,-764.49l0 -3012.92c0,-420.48 -344.02,-764.5 -764.5,-764.5l-3012.92 0c-420.48,0 -764.5,344.02 -764.5,764.5l0 3012.92c0,420.48 344.02,764.49 764.5,764.49z"/>
+   <g>
+    <path class="fil1" d="M3979.86 891.71c-688.19,2223.82 -2195.61,1042.02 -3417.8,2758.51 688.19,-2223.83 2195.61,-1042.02 3417.8,-2758.51z"/>
+    <path class="fil1" style="mask:url(#id0)" d="M562.06 3650.22c0,0 672.97,-663.94 1346.51,-663.94l667.07 0 0 -559.52c-642.2,218.64 -1367.7,316.37 -2013.58,1223.47z"/>
+    <polygon class="fil2" points="3365.18,2964.7 3365.18,2238.23 3408.34,2238.23 3408.34,3007.85 1908.57,2986.27 "/>
+    <polygon class="fil2" points="3223.01,2822.52 3375.97,2822.52 3375.97,2980.88 3217.61,2980.88 3217.61,2822.52 "/>
+    <polygon class="fil2" points="3408.34,2986.27 3408.34,3508.05 3365.18,3508.05 3365.18,2986.27 "/>
+   </g>
+  </g>
+ </g>
+</svg>

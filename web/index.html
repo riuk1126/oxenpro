@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ProDraft</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icono.png">
+<link rel="stylesheet" href="estilos.css?v=__PD_VERSION__">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-galeria" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+    <symbol id="i-guias" viewBox="0 0 24 24"><path d="M2 12h20M12 12 3 21M12 12l9 9M12 12V3"/><circle cx="12" cy="12" r="1.6"/></symbol>
+    <symbol id="i-pincel" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5L10 19H5v-5z"/><path d="M12.5 6.5l5 5"/></symbol>
+    <symbol id="i-borrador" viewBox="0 0 24 24"><path d="M9 20h11M4.5 14.5l9-9a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 18H8z"/><path d="M8.5 10.5l5 5"/></symbol>
+    <symbol id="i-relleno" viewBox="0 0 24 24"><path d="M12 4c4.4 0 8 2.5 8 5.5S16.4 15 12 15c-1.3 0-2.6-.2-3.7-.6"/><path d="M12 4C7.6 4 4 6.5 4 9.5c0 1.6 1 3 2.6 4"/><path d="M6.6 13.5c-.6 1.6-.2 3.6 1.4 4.5 1.8 1 3.4.2 3.4-1.5 0-1.4-1.6-2-3-1.4"/></symbol>
+    <symbol id="i-gotero" viewBox="0 0 24 24"><path d="M14 6l4 4M15.5 4.5a2.1 2.1 0 0 1 3 0l1 1a2.1 2.1 0 0 1 0 3L17 11l-4-4z"/><path d="M13 7l-8 8-1 4 4-1 8-8"/></symbol>
+    <symbol id="i-capas" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 16.5l9 5 9-5"/></symbol>
+    <symbol id="i-deshacer" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+    <symbol id="i-rehacer" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></symbol>
+    <symbol id="i-ojo" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-ojo-no" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/></symbol>
+    <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-basura" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-arriba" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+    <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+    <symbol id="i-combinar" viewBox="0 0 24 24"><path d="M12 4v10M7 9l5 5 5-5M4 20h16"/></symbol>
+  </defs>
+</svg>
+
+<!-- ================= GALERÍA ================= -->
+<section id="galeria" class="pantalla">
+  <header class="gal-cab">
+    <div class="marca"><img src="icono.png" alt=""><span>ProDraft</span></div>
+    <button id="btnNuevo" class="btn-verde"><svg><use href="#i-mas"/></svg>Nuevo boceto</button>
+  </header>
+  <div id="galGrid" class="gal-grid"></div>
+  <p id="galVacia" class="gal-vacia">Aún no tienes bocetos. Toca <b>Nuevo boceto</b> para empezar.</p>
+</section>
+
+<!-- ================= LIENZO ================= -->
+<section id="editor" class="pantalla oculto">
+  <div id="escenario">
+    <div id="doc"><canvas id="papel"></canvas><div id="capasDOM"></div></div>
+    <canvas id="superpuesto"></canvas>
+  </div>
+
+  <header id="barra">
+    <div class="grupo">
+      <button class="ib" id="bGaleria" title="Galería"><svg><use href="#i-galeria"/></svg></button>
+      <button class="ib" id="bMenu" title="Acciones"><svg><use href="#i-menu"/></svg></button>
+      <button class="ib" id="bGuias" title="Guías y perspectiva"><svg><use href="#i-guias"/></svg></button>
+    </div>
+    <div class="grupo">
+      <button class="ib herr" data-h="pincel" id="bPincel" title="Pincel"><svg><use href="#i-pincel"/></svg></button>
+      <button class="ib herr" data-h="borrador" id="bBorrador" title="Borrador"><svg><use href="#i-borrador"/></svg></button>
+      <button class="ib herr" data-h="relleno" id="bRelleno" title="Relleno con textura"><svg><use href="#i-relleno"/></svg></button>
+      <button class="ib herr" data-h="gotero" id="bGotero" title="Gotero"><svg><use href="#i-gotero"/></svg></button>
+      <button class="ib" id="bCapas" title="Capas"><svg><use href="#i-capas"/></svg></button>
+      <button class="color-btn" id="bColor" title="Color"><span id="colorActual"></span></button>
+    </div>
+  </header>
+
+  <aside id="lateral">
+    <div class="vslider" id="sTamano" title="Tamaño"><div class="vs-relleno"></div><div class="vs-mango"></div></div>
+    <button class="ib chico" id="bGotero2" title="Gotero"><svg><use href="#i-gotero"/></svg></button>
+    <div class="vslider" id="sOpacidad" title="Opacidad"><div class="vs-relleno"></div><div class="vs-mango"></div></div>
+    <button class="ib chico" id="bDeshacer" title="Deshacer"><svg><use href="#i-deshacer"/></svg></button>
+    <button class="ib chico" id="bRehacer" title="Rehacer"><svg><use href="#i-rehacer"/></svg></button>
+  </aside>
+
+  <div id="burbuja" class="oculto"><div id="burbujaPunto"></div><span id="burbujaTxt"></span></div>
+  <div id="aviso" class="oculto"></div>
+
+  <!-- Paneles -->
+  <div id="pPinceles" class="panel oculto">
+    <div class="panel-cols">
+      <nav id="pinCats" class="cats"></nav>
+      <div id="pinLista" class="lista-pinceles"></div>
+    </div>
+    <div class="fila-ajuste"><label>Estabilización</label><input type="range" id="rEstab" min="0" max="0.95" step="0.01"><span id="vEstab"></span></div>
+  </div>
+
+  <div id="pTexturas" class="panel oculto">
+    <div class="seg" id="segRelleno">
+      <button data-v="textura">Textura</button><button data-v="solido">Color sólido</button><button data-v="borrar">Borrar zona</button>
+    </div>
+    <div id="texGrid" class="tex-grid"></div>
+    <div class="fila-ajuste"><label>Escala</label><input type="range" id="rEscala" min="0.3" max="3" step="0.05"><span id="vEscala"></span></div>
+    <p class="nota">Dibuja el contorno con el lápiz y se rellena al soltar. El pincel <b>Textura</b> también usa la textura elegida.</p>
+  </div>
+
+  <div id="pCapas" class="panel oculto">
+    <div class="panel-cab"><b>Capas</b><button class="ib chico" id="bCapaNueva" title="Nueva capa"><svg><use href="#i-mas"/></svg></button></div>
+    <div id="listaCapas"></div>
+    <div class="capa-acciones">
+      <button id="cDuplicar"><svg><use href="#i-copiar"/></svg>Duplicar</button>
+      <button id="cCombinar"><svg><use href="#i-combinar"/></svg>Combinar abajo</button>
+      <button id="cLimpiar">Limpiar</button>
+      <button id="cBorrar" class="peligro"><svg><use href="#i-basura"/></svg>Eliminar</button>
+    </div>
+    <div class="fila-ajuste"><label>Opacidad</label><input type="range" id="rCapaOp" min="0" max="1" step="0.01"><span id="vCapaOp"></span></div>
+    <div class="fila-ajuste"><label>Mezcla</label>
+      <div class="seg chico" id="segMezcla"><button data-v="normal">Normal</button><button data-v="multiply">Multiplicar</button></div>
+    </div>
+  </div>
+
+  <div id="pColor" class="panel oculto">
+    <canvas id="cvSV" width="260" height="170"></canvas>
+    <canvas id="cvHue" width="260" height="22"></canvas>
+    <div class="color-fila"><span id="colorPrev"></span><input id="colorHex" maxlength="7" spellcheck="false"></div>
+    <div id="paletas"></div>
+  </div>
+
+  <div id="pGuias" class="panel oculto">
+    <div class="panel-cab"><b>Guías de dibujo</b></div>
+    <div class="guia-modos" id="guiaModos"></div>
+    <label class="interruptor"><input type="checkbox" id="chkAsist"><span></span>Asistencia de trazo (las líneas se alinean solas)</label>
+    <div class="fila-ajuste"><label>Opacidad</label><input type="range" id="rGuiaOp" min="0.1" max="1" step="0.05"></div>
+    <div class="fila-ajuste"><label>Tamaño</label><input type="range" id="rGuiaTam" min="20" max="300" step="5"></div>
+    <p class="nota" id="guiaNota"></p>
+  </div>
+
+  <div id="pMenu" class="panel oculto">
+    <button class="item" id="mImportar">Importar foto o plano…</button>
+    <button class="item" id="mExportar">Exportar imagen PNG</button>
+    <button class="item" id="mExportarJpg">Exportar imagen JPG</button>
+    <button class="item" id="mPapel">Cambiar papel…</button>
+    <button class="item" id="mVoltear">Voltear vista horizontal</button>
+    <button class="item" id="mAjustar">Ajustar a la pantalla</button>
+    <hr>
+    <div class="fila-ajuste"><label>Presión del lápiz</label><input type="range" id="rPresion" min="0.4" max="2.5" step="0.05"><span id="vPresion"></span></div>
+    <label class="interruptor"><input type="checkbox" id="chkSoloLapiz"><span></span>Solo el lápiz dibuja (el dedo mueve)</label>
+    <label class="interruptor"><input type="checkbox" id="chkZurdo"><span></span>Barra a la derecha (zurdo)</label>
+    <p class="nota">Gestos: 2 dedos = mover, girar y acercar · toque con 2 dedos = deshacer · toque con 3 dedos = rehacer · mantén el trazo al final para enderezar líneas y figuras.</p>
+    <p class="nota version">ProDraft <span id="verTxt"></span></p>
+  </div>
+
+  <input type="file" id="fImportar" accept="image/*" hidden>
+</section>
+
+<!-- ================= DIÁLOGOS ================= -->
+<div id="modal" class="modal oculto"><div class="modal-caja" id="modalCaja"></div></div>
+
+<script>window.PD_VERSION='__PD_VERSION__';</script>
+<script src="texturas.js?v=__PD_VERSION__"></script>
+<script src="app.js?v=__PD_VERSION__"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "appId": "com.arquizo.prodraft",
+  "appName": "ProDraft",
+  "webDir": "www",
+  "server": {
+    "url": "https://riuk1126.github.io/prodraft/",
+    "androidScheme": "https",
+    "errorPath": "sin-conexion.html"
+  },
+  "android": { "backgroundColor": "#0b0b0c" }
+}

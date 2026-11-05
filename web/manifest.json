@@ -1,0 +1,14 @@
+{
+  "name": "ProDraft",
+  "short_name": "ProDraft",
+  "description": "Bocetos para arquitectos",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0b0b0c",
+  "theme_color": "#0b0b0c",
+  "icons": [
+    { "src": "icono.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icono-mask.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
