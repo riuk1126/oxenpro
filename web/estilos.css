@@ -239,3 +239,24 @@ hr{border:0;border-top:1px solid var(--linea);margin:8px 0}
 label.interruptor.pasa{color:#fff}
 .pin-item,.tex-item,.cats button,.item,.seg button,.sel-bar button{transition:background .1s,border-color .1s,color .1s}
 .modal-btns button.pasa{filter:brightness(1.25)}
+
+/* ---------- v1.6 ---------- */
+.transf-bar{left:50%;transform:translateX(-50%);bottom:calc(16px + var(--sa-b, 0px));top:auto!important}
+.sel-bar button.ok{background:var(--verde);color:#0b0b0c}
+.lista-acc{display:flex;flex-direction:column;gap:6px;margin:6px 0 4px}
+.lista-acc button{text-align:left;padding:12px 14px;border-radius:10px;background:var(--gris2);font-weight:600}
+.lista-acc button:disabled{opacity:.4}
+.lista-acc button.pasa{background:var(--gris3)}
+body.sinUI #barra,body.sinUI #lateral{display:none}
+#salirSinUI{position:fixed;top:calc(10px + var(--sa-t));right:calc(10px + var(--sa-r));z-index:20;width:40px;height:40px;border-radius:12px;background:rgba(22,22,24,.85);color:#fff;font-size:20px}
+.arrastre-color{position:fixed;z-index:70;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;pointer-events:none;box-shadow:0 0 0 3px #0b0b0c,0 0 0 5px rgba(255,255,255,.85),0 8px 20px rgba(0,0,0,.5)}
+.arrastre-pin{position:fixed;z-index:70;width:34px;height:34px;margin:-34px 0 0 -17px;pointer-events:none;color:#ff7a2f;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+.capa .c-bloq{opacity:.35}.capa .c-bloq.on{opacity:1;color:var(--verde)}
+.grupo-cab{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-top:6px;border-radius:10px;background:var(--gris2);font-weight:650;font-size:13px}
+.grupo-cab .g-nom{flex:1}.grupo-cab button{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center}
+.grupo-cab svg,.capa .c-bloq svg{width:18px;height:18px}
+.capa.en-grupo{margin-left:16px}
+#cvPresion{display:block;width:100%;height:120px;border-radius:10px;background:var(--gris2);touch-action:none;margin:4px 0}
+.pin-lista{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.pin-lista button{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:9px 10px;border-radius:10px;background:var(--gris2)}
+.pin-lista b{flex:none;width:22px;height:22px;border-radius:50%;background:#ff7a2f;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px}

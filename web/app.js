@@ -304,11 +304,13 @@ function aplicarHist(e, atras) {
   }
 }
 function hacerDeshacer() {
-  if (trazo) return; const e = deshacer.pop(); if (!e) return avisar('Nada que deshacer');
+  if (trazo) return;
+  if (flot) { cancelarFlot(); return avisar('Selección cancelada'); } const e = deshacer.pop(); if (!e) return avisar('Nada que deshacer');
   aplicarHist(e, true); rehacer.push(e); avisar('Deshacer'); marcarCambio(); refrescarCapasSiAbierto();
 }
 function hacerRehacer() {
-  if (trazo) return; const e = rehacer.pop(); if (!e) return avisar('Nada que rehacer');
+  if (trazo) return;
+  if (flot) aplicarFlot(); const e = rehacer.pop(); if (!e) return avisar('Nada que rehacer');
   aplicarHist(e, false); deshacer.push(e); avisar('Rehacer'); marcarCambio(); refrescarCapasSiAbierto();
 }
 function insertarCapa(c, idx) {
@@ -411,7 +413,7 @@ escenario.addEventListener('pointerdown', e => {
   toques.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
   if (toques.size === 1) {
     gestoTap = { t: performance.now(), max: 1, movido: false };
-    if (!soloLapiz() || herramienta === 'gotero' || herramienta === 'simbolo' && sobreSimbolo(e)) iniciarTrazo(e);
+    if (!soloLapiz() || herramienta === 'gotero' || herramienta === 'simbolo' && sobreSimbolo(e) || herramienta === 'seleccion' && flot && sobreFlot(e) || herramienta === 'pin' && pinEn(aDoc(e.clientX, e.clientY))) iniciarTrazo(e);
     else paneo = { id: e.pointerId, x: e.clientX, y: e.clientY };
   } else {
     gestoTap.max = Math.max(gestoTap.max, toques.size);
@@ -438,6 +440,10 @@ escenario.addEventListener('pointermove', e => {
   }
   if (trazo && trazo.id === e.pointerId) { moverTrazo(e); return; }
   if (!trazo && e.buttons === 0 && (e.pointerType === 'pen' || e.pointerType === 'mouse')) { hover = { x: e.clientX, y: e.clientY, pen: e.pointerType === 'pen' }; pedirCursor(); }
+  if (toques.size === 3 && e.pointerType === 'touch' && !gestoTap.menu3) {
+    const v = [...toques.values()], dy = v.reduce((m, q) => m + (q.y - q.y0), 0) / 3;
+    if (dy > 70) { gestoTap.menu3 = true; gestoTap.movido = true; menuCopiarPegar(); }
+  }
   if (gesto && toques.size >= 2) { actualizarGesto(); return; }
   if (paneo && paneo.id === e.pointerId) {
     M = mMul([1, 0, 0, 1, e.clientX - paneo.x, e.clientY - paneo.y], M); paneo.x = e.clientX; paneo.y = e.clientY; aplicarVista();
@@ -456,8 +462,8 @@ function finPuntero(e) {
     if (toques.size < 2 && gesto) terminarGesto(true);
     if (toques.size === 0) {
       const dt = performance.now() - gestoTap.t;
-      if (gestoTap.max >= 2 && !gestoTap.movido && dt < 380) { gestoTap.max >= 3 ? hacerRehacer() : hacerDeshacer(); }
-      gestoTap.max = 0;
+      if (gestoTap.max >= 2 && !gestoTap.movido && dt < 380) { gestoTap.max >= 4 ? alternarInterfaz() : gestoTap.max === 3 ? hacerRehacer() : hacerDeshacer(); }
+      gestoTap.max = 0; gestoTap.menu3 = false;
     }
   }
 }
@@ -479,16 +485,21 @@ escenario.addEventListener('wheel', e => {
 }, { passive: false });
 
 // ---- gestos de dos dedos ----
+// toque con 4 dedos = pantalla completa (esconde las barras)
+function alternarInterfaz() { const s = document.body.classList.toggle('sinUI'); $('salirSinUI').classList.toggle('oculto', !s); avisar(s ? 'Pantalla completa · toca con 4 dedos para volver' : 'Barras visibles'); }
+$('salirSinUI').onclick = alternarInterfaz;
 function iniciarGesto() {
   const [a, b] = [...toques.values()];
-  gesto = { M0: M.slice(), a0: { x: a.x, y: a.y }, b0: { x: b.x, y: b.y } };
+  gesto = { M0: M.slice(), a0: { x: a.x, y: a.y }, b0: { x: b.x, y: b.y }, t0: performance.now() };
 }
 function actualizarGesto() {
   const [a, b] = [...toques.values()];
   M = limitarEscala(mMul(similar(gesto.a0, gesto.b0, a, b), gesto.M0)); aplicarVista();
 }
 function terminarGesto(seguir) {
-  gesto = null;
+  const g = gesto; gesto = null;
+  // pellizco rápido hacia adentro = encajar la hoja en la pantalla (como en Procreate)
+  if (g && performance.now() - g.t0 < 320 && escalaVista() / Math.hypot(g.M0[0], g.M0[1]) < 0.8) { ajustarPantalla(); avisar('Hoja ajustada a la pantalla'); return; }
   // enderezar si quedó casi derecho
   const ang = Math.atan2(M[1], M[0]);
   let objetivo = Math.round(ang / (Math.PI / 2)) * (Math.PI / 2);
@@ -526,23 +537,25 @@ function copiarRespaldo(capa) {
 
 function iniciarTrazo(e) {
   if (herramienta === 'gotero') { trazo = { id: e.pointerId, tipo: e.pointerType, gotero: true, t0: performance.now(), largo: 0 }; tomarColor(e); return; }
-  if (herramienta === 'cota' || herramienta === 'texto' || herramienta === 'simbolo') return iniciarArq(e);
+  if (herramienta === 'cota' || herramienta === 'texto' || herramienta === 'simbolo' || herramienta === 'pin') return iniciarArq(e);
+  if (herramienta === 'seleccion' && flot) return iniciarTransf(e);
   const capa = capaActiva();
   if (!capa.visible) { avisar('La capa está oculta'); return; }
   ubicarTrazoCv();
   const borrar = herramienta === 'borrador';
   const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, capa, borrar, pts: [], raw: [], sx: e.clientX, sy: e.clientY };
-  if (herramienta === 'relleno') {
-    t.lazo = true; t.modo = aj.textura.modo; t.opc = opcionesPincel('relleno');
+  if (herramienta === 'relleno' || herramienta === 'seleccion') {
+    t.lazo = true; t.sel = herramienta === 'seleccion'; t.modo = aj.textura.modo; t.opc = opcionesPincel('relleno');
     const d = aDoc(e.clientX, e.clientY); t.pts.push(d); t.bb = [d.x, d.y, d.x, d.y];
-    trazoCv.style.display = ''; trazoCv.style.opacity = t.modo === 'borrar' ? 0.35 : t.opc.op * capa.op;
+    trazoCv.style.display = t.sel ? 'none' : ''; trazoCv.style.opacity = t.modo === 'borrar' ? 0.35 : t.opc.op * capa.op;
     trazo = t; pedirSup(); return;
   }
   trazoCv.style.display = 'none';
   t.pin = pincelActual(); t.opc = opcionesPincel(claveAjuste());
   t.op = t.opc.op * (borrar ? 1 : (t.pin.op || 1));
-  t.gco = borrar ? 'destination-out' : t.pin.mezcla === 'multiply' ? 'multiply' : 'source-over';
+  t.gco = borrar ? 'destination-out' : capa.bloq ? 'source-atop' : t.pin.mezcla === 'multiply' ? 'multiply' : 'source-over'; // capa bloqueada: solo pinta sobre lo ya dibujado
   t.motor = crearTrazo(trazoCtx, t.pin, borrar ? '#000000' : aj.color, aj.textura);
+  t.esp = espejos(); t.motores = t.esp.map(() => crearTrazo(trazoCtx, t.pin, borrar ? '#000000' : aj.color, aj.textura));
   copiarRespaldo(capa);
   const p = puntoDesde(e, t);
   t.f = { x: p.x, y: p.y }; t.inicio = p;
@@ -552,10 +565,26 @@ function iniciarTrazo(e) {
   if (!t.asist) agregarPunto(t, p);
   pedirComp();
   armarQuickShape(t, e);
+  // mantener el lápiz quieto al empezar = gotero (como en Procreate)
+  t.gotT = setTimeout(() => {
+    if (trazo !== t || t.forma || t.largo * escalaVista() > 6 || t.lejos) return;
+    cancelarTrazo(); tomarColor({ clientX: t.sx, clientY: t.sy }); ponerColor(aj.color); avisar('Color tomado');
+  }, 800);
 }
+// ---- simetría: cada punto se dibuja también reflejado ----
+function espejos() {
+  const m = doc && doc.guias.sim, W = doc && doc.w, H = doc && doc.h;
+  if (!m || m === 'no') return [];
+  const v = p => Object.assign({}, p, { x: W - p.x }), h = p => Object.assign({}, p, { y: H - p.y }), vh = p => Object.assign({}, p, { x: W - p.x, y: H - p.y });
+  return m === 'v' ? [v] : m === 'h' ? [h] : [v, h, vh];
+}
+function puntoTodos(t, p) { trazoPunto(t.motor, p); if (t.motores) t.motores.forEach((m, i) => trazoPunto(m, t.esp[i](p))); }
+function bbTrazo(t, campo = 'bb') { const b = t.motor[campo].slice(); if (t.motores) for (const m of t.motores) { bbAmpliar(b, m[campo][0], m[campo][1], 0); bbAmpliar(b, m[campo][2], m[campo][3], 0); } return b; }
 
 function moverTrazo(e, soloPrediccion) {
   const t = trazo;
+  if (!t.lejos && t.sx != null && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) { t.lejos = true; clearTimeout(t.gotT); }
+  if (t.transf) return moverTransf(e);
   if (t.arq) return moverArq(e);
   if (t.gotero) { tomarColor(e); return; }
   if (!soloPrediccion) {
@@ -600,7 +629,7 @@ function agregarPunto(t, p) {
   if (q) t.largo += Math.hypot(x - q.x, y - q.y);
   const np = { x, y, s: p.s, a: p.a, pr: p.pr };
   t.pts.push(np);
-  trazoPunto(t.motor, np);
+  puntoTodos(t, np);
 }
 
 // ---- composición por cuadro: solo se repinta la zona que cambió ----
@@ -608,7 +637,7 @@ let rafComp = 0;
 function pedirComp() { if (!rafComp) rafComp = requestAnimationFrame(() => { rafComp = 0; componerTrazo(trazo); dibujarCursor(); }); }
 function componerTrazo(t) {
   if (!t || !t.motor) return;
-  const r = bbEntero(t.motor.sucio); t.motor.sucio = [1e9, 1e9, -1e9, -1e9];
+  const r = bbEntero(bbTrazo(t, 'sucio')); t.motor.sucio = [1e9, 1e9, -1e9, -1e9]; if (t.motores) for (const m of t.motores) m.sucio = [1e9, 1e9, -1e9, -1e9];
   if (!r) return;
   const c = t.capa.ctx;
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
@@ -621,24 +650,28 @@ function componerTrazo(t) {
 function terminarTrazo(e) {
   const t = trazo; trazo = null; clearTimeout(qsTimer);
   if (!t) return;
+  clearTimeout(t.gotT);
+  if (t.transf) return terminarTransf(t);
   if (t.arq) return terminarArq(t, e);
   if (t.gotero) { ponerColor(aj.color); if (herrPrevia !== 'gotero') elegirHerramienta(herrPrevia); return; }
+  if (t.lazo && t.sel) { trazoCtx.clearRect(0, 0, doc.w, doc.h); pedirSup(); if (t.pts.length > 3) levantarSeleccion(t.capa, t.pts); return; }
   if (t.lazo) { aplicarLazo(t); return; }
   if (t.lapiz) estadoPresion = (t.prMax - t.prMin > 0.04) ? 'ok' : 'plana';
   // toque corto sobre una puerta o mueble con el lápiz: se selecciona (no deja un punto)
   if (!t.borrar && performance.now() - t.t0 < 350 && t.largo * escalaVista() < 6 && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 8) {
+    const pn = pinEn(t.inicio); if (pn) { trazo = t; cancelarTrazo(); editarPin(pn); return; }
     const o = simEn(t.inicio);
     if (o) { trazo = t; cancelarTrazo(); herrAntesSim = herramienta; elegirHerramienta('simbolo'); seleccionar(o); avisarSuave('Arrastra para mover · manija verde para girar · toca fuera para seguir dibujando'); return; }
   }
   // completar la estabilización: alcanzar el último punto real
   if (!t.forma && !t.dir && t.raw.length > 1 && aj.estab > 0.05) {
     const last = t.raw[t.raw.length - 1];
-    for (let i = 1; i <= 6; i++) { const f = i / 6; trazoPunto(t.motor, { x: lerp(t.f.x, last.x, f), y: lerp(t.f.y, last.y, f), s: last.s, a: last.a }); }
+    for (let i = 1; i <= 6; i++) { const f = i / 6; puntoTodos(t, { x: lerp(t.f.x, last.x, f), y: lerp(t.f.y, last.y, f), s: last.s, a: last.a }); }
   }
   if (t.asist && !t.dir && !t.pts.length) agregarPunto(t, t.inicio);
   cancelAnimationFrame(rafComp); rafComp = 0;
   componerTrazo(t); limpiarCursor();
-  const r = bbEntero(t.motor.bb); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
+  const r = bbEntero(bbTrazo(t)); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
   const antes = recorte(respaldo, r);
   if (!t.borrar) sumarTrazoALineas(t, r); else invalidarLineas(t.capa, r);
   histPx(t.capa, r, antes, true);
@@ -656,10 +689,12 @@ function terminarTrazo(e) {
 
 function cancelarTrazo() {
   const t = trazo; trazo = null; clearTimeout(qsTimer); if (!t) return;
+  clearTimeout(t.gotT);
+  if (t.transf) { cancelarTransf(t); return; }
   if (t.arq) { cancelarArq(t); return; }
   cancelAnimationFrame(rafComp); rafComp = 0;
   if (t.motor) {
-    const r = bbEntero(t.motor.bb);
+    const r = bbEntero(bbTrazo(t));
     if (r) { const c = t.capa.ctx; c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); }
   }
   trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none'; pedirSup(); limpiarCursor();
@@ -673,6 +708,7 @@ function estiloRelleno(ctx) {
 }
 function caminoLazo(ctx, pts) { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); }
 function previaLazo(t) {
+  if (t.sel) { pedirSup(); return; }
   const r = bbEntero([t.bb[0] - 4, t.bb[1] - 4, t.bb[2] + 4, t.bb[3] + 4]);
   if (r) trazoCtx.clearRect(r[0], r[1], r[2], r[3]);
   trazoCtx.globalAlpha = 1; trazoCtx.globalCompositeOperation = 'source-over';
@@ -686,9 +722,194 @@ function aplicarLazo(t) {
   const capa = t.capa, c = capa.ctx, antes = recorte(capa.cv, r);
   c.save();
   if (t.modo === 'borrar') { c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000'; }
-  else { c.globalAlpha = t.opc.op; c.fillStyle = estiloRelleno(c); }
+  else { c.globalAlpha = t.opc.op; c.fillStyle = estiloRelleno(c); if (capa.bloq) c.globalCompositeOperation = 'source-atop'; }
   caminoLazo(c, t.pts); c.fill(); c.restore();
   histPx(capa, r, antes);
+}
+
+
+// =====================================================================
+//  SELECCIÓN Y TRANSFORMAR (como en Procreate)
+//  Se encierra una parte con el lazo; queda "flotando" sobre la capa y se puede mover, escalar,
+//  girar, voltear, duplicar o borrar. Al tocar fuera o "Listo" se pega en la capa (un solo deshacer).
+// =====================================================================
+let flot = null; // { capa, cv, w, h, cx, cy, k, ang, fx, fy, corte:{x,y,cv} | null, bbPrev }
+const portapapeles = { cv: null, cx: 0, cy: 0 };
+function contenidoBB(cv) { // caja de lo dibujado en un canvas
+  const w = cv.width, h = cv.height, d = cv.getContext('2d').getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y += 2) { const f = y * w * 4; for (let x = 0; x < w; x += 2) if (d[f + x * 4 + 3] > 8) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+  return x1 < 0 ? null : bbEntero([x0 - 3, y0 - 3, x1 + 4, y1 + 4]);
+}
+function tieneTinta(cv) { const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; for (let i = 3; i < d.length; i += 16) if (d[i] > 8) return true; return false; }
+function levantarSeleccion(capa, pts) {
+  const bb = [1e9, 1e9, -1e9, -1e9]; for (const p of pts) bbAmpliar(bb, p.x, p.y, 2);
+  const r = bbEntero(bb); if (!r || r[2] < 3 || r[3] < 3) return;
+  const cv = document.createElement('canvas'); cv.width = r[2]; cv.height = r[3];
+  const c = cv.getContext('2d'); c.save(); c.translate(-r[0], -r[1]); caminoLazo(c, pts); c.clip(); c.drawImage(capa.cv, 0, 0); c.restore();
+  if (!tieneTinta(cv)) { avisar('No hay nada dibujado ahí en esta capa'); return; }
+  const corte = { x: r[0], y: r[1], cv: recorte(capa.cv, r) };
+  capa.ctx.save(); caminoLazo(capa.ctx, pts); capa.ctx.clip(); capa.ctx.clearRect(r[0], r[1], r[2], r[3]); capa.ctx.restore();
+  invalidarLineas(capa, r);
+  crearFlot(capa, cv, r[0] + r[2] / 2, r[1] + r[3] / 2, corte);
+}
+function seleccionarCapaEntera() {
+  const capa = capaActiva(), r = contenidoBB(capa.cv); if (!r) return avisar('La capa está vacía');
+  const cv = recorte(capa.cv, r), corte = { x: r[0], y: r[1], cv: recorte(capa.cv, r) };
+  capa.ctx.clearRect(r[0], r[1], r[2], r[3]); invalidarLineas(capa, r);
+  if (herramienta !== 'seleccion') elegirHerramienta('seleccion');
+  crearFlot(capa, cv, r[0] + r[2] / 2, r[1] + r[3] / 2, corte);
+}
+function crearFlot(capa, cv, cx, cy, corte) {
+  if (flot) aplicarFlot();
+  doc.activa = doc.capas.indexOf(capa); ubicarTrazoCv();
+  flot = { capa, cv, w: cv.width, h: cv.height, cx, cy, k: 1, ang: 0, fx: 1, fy: 1, corte, bbPrev: null, cx0: cx, cy0: cy };
+  if (herramienta !== 'seleccion') { herramienta = 'seleccion'; marcarBotones(); }
+  trazoCv.style.display = ''; trazoCv.style.opacity = capa.op;
+  renderFlot(); ponerBarraTransf();
+  avisarSuave('Arrastra para mover · esquinas: tamaño · manija: girar · toca fuera para soltar');
+}
+function esquinasFlot(f = flot, margen = 0) {
+  const co = Math.cos(f.ang), si = Math.sin(f.ang), hw = f.w / 2 * f.k + margen, hh = f.h / 2 * f.k + margen;
+  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => ({ x: f.cx + x * co - y * si, y: f.cy + x * si + y * co }));
+}
+function dibujarFlotEn(c, f = flot) {
+  c.save(); c.translate(f.cx, f.cy); c.rotate(f.ang); c.scale(f.k * f.fx, f.k * f.fy);
+  c.imageSmoothingQuality = 'high'; c.drawImage(f.cv, -f.w / 2, -f.h / 2); c.restore();
+}
+function renderFlot() {
+  if (!flot) return;
+  trazoCtx.setTransform(1, 0, 0, 1, 0, 0); trazoCtx.globalAlpha = 1; trazoCtx.globalCompositeOperation = 'source-over';
+  if (flot.bbPrev) trazoCtx.clearRect(flot.bbPrev[0], flot.bbPrev[1], flot.bbPrev[2], flot.bbPrev[3]);
+  dibujarFlotEn(trazoCtx);
+  const bb = [1e9, 1e9, -1e9, -1e9]; for (const p of esquinasFlot()) bbAmpliar(bb, p.x, p.y, 3);
+  flot.bbPrev = bbEntero(bb) || [0, 0, 0, 0];
+  pedirSup();
+}
+function aplicarFlot() {
+  const f = flot; if (!f) return; flot = null;
+  const capa = f.capa, sinCambio = f.k === 1 && f.ang === 0 && f.fx === 1 && f.fy === 1 && Math.abs(f.cx - f.cx0) < 0.5 && Math.abs(f.cy - f.cy0) < 0.5;
+  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none';
+  if (sinCambio && f.corte) { pegar(capa.ctx, f.corte.cv, f.corte.x, f.corte.y); capa.sucia = true; }
+  else {
+    const bb = [1e9, 1e9, -1e9, -1e9]; for (const p of esquinasFlot(f)) bbAmpliar(bb, p.x, p.y, 3);
+    if (f.corte) { bbAmpliar(bb, f.corte.x, f.corte.y, 0); bbAmpliar(bb, f.corte.x + f.corte.cv.width, f.corte.y + f.corte.cv.height, 0); }
+    const r = bbEntero(bb);
+    if (r) {
+      const antes = recorte(capa.cv, r); // cómo estaba ANTES de cortar (se repone lo cortado)
+      if (f.corte) antes.getContext('2d').drawImage(f.corte.cv, f.corte.x - r[0], f.corte.y - r[1]);
+      const c = capa.ctx; c.save(); if (capa.bloq) c.globalCompositeOperation = 'source-atop'; dibujarFlotEn(c, f); c.restore();
+      invalidarLineas(capa, r);
+      pushHist({ t: 'px', capa, x: r[0], y: r[1], antes, despues: recorte(capa.cv, r), bytes: r[2] * r[3] * 8 }); capa.sucia = true;
+    }
+  }
+  if (capa.ref && doc.capas.length > 1 && doc.activa === 0) { doc.activa = 1; ubicarTrazoCv(); }
+  ponerBarraTransf(); pedirSup(); refrescarCapasSiAbierto();
+}
+function cancelarFlot() {
+  const f = flot; if (!f) return; flot = null;
+  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none';
+  if (f.corte) { pegar(f.capa.ctx, f.corte.cv, f.corte.x, f.corte.y); f.capa.sucia = true; }
+  ponerBarraTransf(); pedirSup();
+}
+function borrarFlot() { // lo seleccionado se elimina (con deshacer)
+  const f = flot; if (!f) return; flot = null;
+  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none';
+  if (f.corte) { const r = [f.corte.x, f.corte.y, f.corte.cv.width, f.corte.cv.height]; pushHist({ t: 'px', capa: f.capa, x: r[0], y: r[1], antes: f.corte.cv, despues: recorte(f.capa.cv, r), bytes: r[2] * r[3] * 8 }); f.capa.sucia = true; }
+  ponerBarraTransf(); pedirSup(); avisar('Selección eliminada');
+}
+function flotComoImagen(f = flot) { // la selección tal como se ve (girada/escalada)
+  const bb = [1e9, 1e9, -1e9, -1e9]; for (const p of esquinasFlot(f)) bbAmpliar(bb, p.x, p.y, 2);
+  const w = Math.max(1, Math.ceil(bb[2] - bb[0])), h = Math.max(1, Math.ceil(bb[3] - bb[1]));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.translate(-bb[0], -bb[1]); dibujarFlotEn(c, f);
+  return { cv, cx: (bb[0] + bb[2]) / 2, cy: (bb[1] + bb[3]) / 2 };
+}
+function duplicarFlot() {
+  if (!flot) return; const img = flotComoImagen(), capa = flot.capa, d = 24 / escalaVista();
+  aplicarFlot(); crearFlot(capa, img.cv, img.cx + d, img.cy + d, null); avisar('Duplicado');
+}
+// ---- manijas y gestos de transformación ----
+function manijasFlot() {
+  const q = esquinasFlot().map(p => mApl(M, p.x, p.y)), cx = (q[0].x + q[1].x) / 2, cy = (q[0].y + q[1].y) / 2;
+  const mx = (q[0].x + q[1].x + q[2].x + q[3].x) / 4, my = (q[0].y + q[1].y + q[2].y + q[3].y) / 4, dx = cx - mx, dy = cy - my, dl = Math.hypot(dx, dy) || 1;
+  return { q, giro: { x: cx + dx / dl * 34, y: cy + dy / dl * 34 }, top: { x: cx, y: cy } };
+}
+function dentroFlot(x, y) { // punto de pantalla dentro de la caja
+  const q = manijasFlot().q; let dentro = false;
+  for (let i = 0, j = 3; i < 4; j = i++) { if ((q[i].y > y) !== (q[j].y > y) && x < (q[j].x - q[i].x) * (y - q[i].y) / (q[j].y - q[i].y) + q[i].x) dentro = !dentro; }
+  return dentro;
+}
+function sobreFlot(e) { const m = manijasFlot(), x = e.clientX, y = e.clientY; return Math.hypot(m.giro.x - x, m.giro.y - y) < 26 || m.q.some(p => Math.hypot(p.x - x, p.y - y) < 26) || dentroFlot(x, y); }
+function iniciarTransf(e) {
+  const m = manijasFlot(), x = e.clientX, y = e.clientY, d = aDoc(x, y);
+  const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, transf: true, sx: x, sy: y, d0: d, ini: { cx: flot.cx, cy: flot.cy, k: flot.k, ang: flot.ang } };
+  if (Math.hypot(m.giro.x - x, m.giro.y - y) < 26) t.modo = 'girar';
+  else if (m.q.some(p => Math.hypot(p.x - x, p.y - y) < 26)) t.modo = 'escalar';
+  else if (dentroFlot(x, y)) t.modo = 'mover';
+  else { aplicarFlot(); return; } // tocar fuera: se suelta la selección
+  trazo = t;
+}
+function moverTransf(e) {
+  const t = trazo, d = aDoc(e.clientX, e.clientY), f = flot; if (!f) return;
+  if (t.modo === 'mover') { f.cx = t.ini.cx + d.x - t.d0.x; f.cy = t.ini.cy + d.y - t.d0.y; }
+  else if (t.modo === 'escalar') {
+    const r0 = Math.hypot(t.d0.x - t.ini.cx, t.d0.y - t.ini.cy) || 1; f.k = Math.max(0.03, t.ini.k * Math.hypot(d.x - f.cx, d.y - f.cy) / r0);
+    if (Math.abs(f.k - 1) < 0.02) f.k = 1; avisarSuave(Math.round(f.k * 100) + ' %');
+  } else if (t.modo === 'girar') {
+    const a0 = Math.atan2(t.d0.y - f.cy, t.d0.x - f.cx); let an = t.ini.ang + Math.atan2(d.y - f.cy, d.x - f.cx) - a0;
+    const p = Math.PI / 12, o = Math.round(an / p) * p; if (Math.abs(an - o) < 0.05) an = o; f.ang = an;
+    avisarSuave(Math.round(((an * 180 / Math.PI) % 360 + 360) % 360) + '°');
+  }
+  renderFlot(); ponerBarraTransf();
+}
+function terminarTransf(t) { ponerBarraTransf(); }
+function cancelarTransf(t) { if (flot) { Object.assign(flot, t.ini); renderFlot(); } }
+function dibujarManijasFlot(c) {
+  const m = manijasFlot(); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  c.setLineDash([6, 5]); c.lineWidth = 1.5; c.strokeStyle = '#8ACF00'; c.beginPath(); m.q.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.closePath(); c.stroke(); c.setLineDash([]);
+  c.beginPath(); c.moveTo(m.top.x, m.top.y); c.lineTo(m.giro.x, m.giro.y); c.stroke();
+  for (const p of m.q) { c.beginPath(); c.rect(p.x - 7, p.y - 7, 14, 14); c.fillStyle = '#f2f2f3'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#0b0b0c'; c.stroke(); }
+  c.beginPath(); c.arc(m.giro.x, m.giro.y, 11, 0, 6.2832); c.fillStyle = '#8ACF00'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#0b0b0c'; c.stroke();
+  c.beginPath(); c.arc(m.giro.x, m.giro.y, 5, -2.4, 1.6); c.stroke();
+}
+function ponerBarraTransf() { $('transfBar').classList.toggle('oculto', !flot); }
+$('tfVoltH').onclick = () => { if (flot) { flot.fx *= -1; renderFlot(); } };
+$('tfVoltV').onclick = () => { if (flot) { flot.fy *= -1; renderFlot(); } };
+$('tfGirar').onclick = () => { if (flot) { flot.ang = (Math.round(flot.ang / (Math.PI / 2)) + 1) * Math.PI / 2; renderFlot(); } };
+$('tfDup').onclick = duplicarFlot;
+$('tfBorrar').onclick = borrarFlot;
+$('tfCancelar').onclick = cancelarFlot;
+$('tfListo').onclick = aplicarFlot;
+
+// ---- copiar y pegar ----
+function copiar(cortar) {
+  if (flot) { const img = flotComoImagen(); Object.assign(portapapeles, img); if (cortar) borrarFlot(); avisar(cortar ? 'Cortado' : 'Copiado'); return; }
+  const capa = capaActiva(), r = contenidoBB(capa.cv); if (!r) return avisar('La capa está vacía');
+  portapapeles.cv = recorte(capa.cv, r); portapapeles.cx = r[0] + r[2] / 2; portapapeles.cy = r[1] + r[3] / 2;
+  if (cortar) { const antes = recorte(capa.cv, r); capa.ctx.clearRect(r[0], r[1], r[2], r[3]); histPx(capa, r, antes); }
+  avisar(cortar ? 'Capa cortada' : 'Capa copiada');
+}
+function copiarTodo() {
+  const cv = document.createElement('canvas'); cv.width = doc.w; cv.height = doc.h; const c = cv.getContext('2d');
+  for (const l of doc.capas) if (l.visible) { c.globalAlpha = l.op; c.globalCompositeOperation = l.mezcla === 'multiply' ? 'multiply' : 'source-over'; c.drawImage(l.cv, 0, 0); }
+  const r = contenidoBB(cv); if (!r) return avisar('La hoja está vacía');
+  portapapeles.cv = recorte(cv, r); portapapeles.cx = r[0] + r[2] / 2; portapapeles.cy = r[1] + r[3] / 2; avisar('Todo copiado');
+}
+function pegarPortapapeles() {
+  if (!portapapeles.cv) return avisar('No hay nada copiado');
+  const capa = capaActiva(); if (!capa.visible) return avisar('La capa está oculta');
+  const d = 24 / escalaVista(); crearFlot(capa, recorte(portapapeles.cv, [0, 0, portapapeles.cv.width, portapapeles.cv.height]), portapapeles.cx + d, portapapeles.cy + d, null);
+}
+function menuCopiarPegar() {
+  modal(`<h3>Copiar y pegar</h3><div class="lista-acc">
+    <button id="cpCopiar">${flot ? 'Copiar selección' : 'Copiar capa'}</button><button id="cpCortar">${flot ? 'Cortar selección' : 'Cortar capa'}</button>
+    <button id="cpTodo">Copiar todo (capas visibles)</button><button id="cpPegar" ${portapapeles.cv ? '' : 'disabled'}>Pegar</button>
+    <button id="cpSelTodo">Seleccionar toda la capa</button></div>
+    <div class="modal-btns"><span style="flex:1"></span><button id="mNo">Cerrar</button></div>`, cerrar => {
+    $('cpCopiar').onclick = () => { cerrar(); copiar(false); }; $('cpCortar').onclick = () => { cerrar(); copiar(true); };
+    $('cpTodo').onclick = () => { cerrar(); copiarTodo(); }; $('cpPegar').onclick = () => { cerrar(); pegarPortapapeles(); };
+    $('cpSelTodo').onclick = () => { cerrar(); seleccionarCapaEntera(); }; $('mNo').onclick = cerrar;
+  });
 }
 
 // ---- gotero ----
@@ -831,11 +1052,12 @@ function enderezarFin(a, b, exacto) { // ángulos de 0/45/90° cuando está cerc
   return { x: b.x, y: b.y };
 }
 function dibujarForma(t) {
-  const f = t.forma, bb = t.motor.bb, r = bbEntero([bb[0] - 4, bb[1] - 4, bb[2] + 4, bb[3] + 4]);
+  const f = t.forma, bb = bbTrazo(t), r = bbEntero([bb[0] - 4, bb[1] - 4, bb[2] + 4, bb[3] + 4]);
   if (r) trazoCtx.clearRect(r[0], r[1], r[2], r[3]);
   let s = 0, a = 0; for (const p of t.pts) { s += p.s; a += p.a; } s /= t.pts.length; a /= t.pts.length;
-  const viejo = t.motor.bb;
+  const viejo = bb;
   t.motor = crearTrazo(trazoCtx, t.pin, t.borrar ? '#000000' : aj.color, aj.textura);
+  if (t.motores) t.motores = t.motores.map(() => crearTrazo(trazoCtx, t.pin, t.borrar ? '#000000' : aj.color, aj.textura));
   bbAmpliar(t.motor.bb, viejo[0], viejo[1], 0); bbAmpliar(t.motor.bb, viejo[2], viejo[3], 0); // para limpiar bien
   const pts = [];
   if (f.tipo === 'linea') { const L = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y), n = Math.max(2, Math.ceil(L / 2)); for (let i = 0; i <= n; i++) pts.push([lerp(f.a.x, f.b.x, i / n), lerp(f.a.y, f.b.y, i / n)]); }
@@ -847,8 +1069,8 @@ function dibujarForma(t) {
     pts.push(c[c.length - 1]);
   }
   else { const n = Math.max(24, Math.ceil(Math.PI * (f.rx + f.ry) / 2)), co = Math.cos(f.ang || 0), si = Math.sin(f.ang || 0), a0 = Math.atan2(t.pts[0].y - f.cy, t.pts[0].x - f.cx) - (f.ang || 0); for (let i = 0; i <= n; i++) { const an = a0 + i / n * 6.2832, x = Math.cos(an) * f.rx, y = Math.sin(an) * f.ry; pts.push([f.cx + x * co - y * si, f.cy + x * si + y * co]); } }
-  for (const [x, y] of pts) trazoPunto(t.motor, { x, y, s, a });
-  t.motor.sucio = t.motor.bb.slice(); pedirComp();
+  for (const [x, y] of pts) puntoTodos(t, { x, y, s, a });
+  t.motor.sucio = bbTrazo(t); pedirComp();
 }
 
 // =====================================================================
@@ -936,6 +1158,7 @@ function renderObjetos(previa, previaSim) {
   const c = anotCtx; c.clearRect(0, 0, doc.w, doc.h);
   if (doc.rotulo) dibujarRotulo(c);
   for (const o of doc.objetos) { if (o.tipo === 'cota') dibujarCota(c, o); else if (o.tipo === 'texto') dibujarTexto(c, o); else if (o.tipo === 'simbolo') dibujarSim(c, o); }
+  for (const o of doc.objetos) if (o.tipo === 'pin') dibujarPin(c, o); // las notas siempre encima
   if (previa) dibujarCota(c, previa, true);
   if (previaSim) dibujarSim(c, previaSim);
   anotCv.style.display = doc.verAnot === false ? 'none' : '';
@@ -1039,6 +1262,48 @@ function descartarCota(o) {
   renderObjetos(); marcarCambio();
 }
 
+
+// ---- notas con punto (pines numerados en el plano) ----
+const COLOR_PIN = '#ff7a2f';
+const radioPin = () => 3.4 * doc.pxmm;
+function dibujarPin(c, o) {
+  const r = radioPin(), x = o.x, y = o.y;
+  c.save(); c.fillStyle = o.color || COLOR_PIN; c.strokeStyle = '#ffffff'; c.lineWidth = Math.max(1, 0.35 * doc.pxmm);
+  c.beginPath(); c.moveTo(x, y); c.lineTo(x - r * 0.62, y - r * 1.1); c.arc(x, y - r * 1.75, r, Math.PI * 0.78, Math.PI * 2.22); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#fff'; c.font = `700 ${r * 1.05}px -apple-system,Roboto,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(o.n), x, y - r * 1.72);
+  c.restore();
+}
+function pinEn(d) {
+  if (!doc) return null; const r = radioPin(), tol = 10 / escalaVista();
+  for (let i = doc.objetos.length - 1; i >= 0; i--) { const o = doc.objetos[i]; if (o.tipo === 'pin' && Math.hypot(d.x - o.x, d.y - (o.y - r * 1.6)) < r * 1.4 + tol) return o; }
+  return null;
+}
+function nuevoPin(d) {
+  const antes = snapObj(), n = doc.objetos.filter(o => o.tipo === 'pin').reduce((m, o) => Math.max(m, o.n), 0) + 1;
+  const o = { tipo: 'pin', x: d.x, y: d.y, n, texto: '', id: Date.now() + Math.random() };
+  doc.objetos.push(o); renderObjetos(); editarPin(o, antes);
+}
+function editarPin(o, antesNuevo) {
+  const nuevo = !!antesNuevo;
+  modal(`<h3>Nota ${o.n}</h3>
+    <textarea id="pTxt" rows="4" placeholder="Ej.: fisura en el muro · cambiar tomacorriente · humedad a 1.20 m">${escapar(o.texto || '')}</textarea>
+    <div class="modal-btns">${nuevo ? '' : '<button class="rojo" id="pBor">Eliminar</button>'}<span style="flex:1"></span><button id="mNo">Cancelar</button><button class="ok" id="mSi">Guardar</button></div>`, cerrar => {
+    const i = $('pTxt'); setTimeout(() => i.focus(), 60);
+    const quitarNuevo = () => { const k = doc.objetos.indexOf(o); if (k >= 0) doc.objetos.splice(k, 1); renderObjetos(); };
+    $('mNo').onclick = () => { cerrar(); if (nuevo) quitarNuevo(); };
+    if (!nuevo) $('pBor').onclick = () => { const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); cerrar(); histObj(antes); refrescarPines(); };
+    $('mSi').onclick = () => {
+      const v = i.value.trim(); cerrar();
+      if (!v && nuevo) return quitarNuevo();
+      const antes = nuevo ? antesNuevo : snapObj(); o.texto = v; histObj(antes); refrescarPines();
+    };
+  }, () => { if (nuevo) { const k = doc.objetos.indexOf(o); if (k >= 0) doc.objetos.splice(k, 1); renderObjetos(); } });
+}
+function refrescarPines() { if (panelAbierto('pNotas')) pintarNotas(); }
+function irAPin(o) { // centra la vista en la nota
+  const p = mApl(M, o.x, o.y); M = mMul([1, 0, 0, 1, innerWidth / 2 - p.x, innerHeight / 2 - p.y], M); aplicarVista();
+}
+
 // ---- herramientas cota / texto / símbolo ----
 let selSim = null; // símbolo seleccionado
 let herrAntesSim = null; // herramienta a la que se vuelve tras mover un símbolo tocado con el lápiz
@@ -1132,6 +1397,7 @@ function iniciarArq(e) {
   const d = aDoc(e.clientX, e.clientY);
   const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, arq: herramienta, sx: e.clientX, sy: e.clientY, a: d, b: d, movido: false };
   if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; }
+  if (herramienta === 'pin') { t.obj = pinEn(d); if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
   if (herramienta === 'texto') { t.obj = objetoEn(d); if (t.obj && t.obj.tipo !== 'texto') t.obj = null; if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
   if (herramienta === 'simbolo') {
     t.antes = snapObj();
@@ -1152,6 +1418,7 @@ function moverArq(e) {
   const t = trazo; const d = aDoc(e.clientX, e.clientY);
   if (Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) t.movido = true;
   if (t.arq === 'cota') { t.b = imanCota(enderezarFin(t.a, d)); if (t.movido) renderObjetos({ tipo: 'cota', a: t.a, b: t.b, color: aj.color }); }
+  else if (t.arq === 'pin' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
   else if (t.arq === 'texto' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
   else if (t.arq === 'simbolo') {
     t.b = d;
@@ -1180,6 +1447,10 @@ function terminarArq(t) {
     if (!t.movido) { renderObjetos(); const o = objetoEn(t.a); if (o) (o.tipo === 'cota' ? editarCota(o) : editarTexto(o)); return; }
     if (Math.hypot(t.b.x - t.a.x, t.b.y - t.a.y) < 2 * doc.pxmm) { renderObjetos(); return; }
     agregarCota(t.a, t.b, 0, false, doc.pedirMedida);
+  } else if (t.arq === 'pin') {
+    if (t.obj && t.movido) { histObj(t.antes); return; }
+    if (t.obj) return editarPin(t.obj);
+    nuevoPin(t.a);
   } else if (t.arq === 'texto') {
     if (t.obj && t.movido) { histObj(t.antes); return; }
     if (t.obj) return editarTexto(t.obj);
@@ -1193,7 +1464,7 @@ function terminarArq(t) {
     ponerBarraSel();
   }
 }
-function cancelarArq(t) { if (t.arq === 'simbolo' && t.antes) { doc.objetos = JSON.parse(t.antes); selSim = null; ponerBarraSel(); } renderObjetos(); pedirSup(); }
+function cancelarArq(t) { if ((t.arq === 'simbolo' || t.arq === 'pin') && t.antes) { doc.objetos = JSON.parse(t.antes); selSim = null; ponerBarraSel(); } renderObjetos(); pedirSup(); }
 let avisoSuaveT = 0;
 function avisarSuave(txt) { const a = $('aviso'); a.textContent = txt; a.classList.remove('oculto'); clearTimeout(avisoT); avisoT = setTimeout(() => a.classList.add('oculto'), 900); }
 
@@ -1421,6 +1692,14 @@ function dibujarSup() {
     c.beginPath(); c.arc(h.x, h.y, 5, -2.4, 1.6); c.stroke();
     ponerBarraSel();
   }
+  if (g.sim && g.sim !== 'no') { // ejes de simetría
+    c.setTransform(DPR * M[0], DPR * M[1], DPR * M[2], DPR * M[3], DPR * M[4], DPR * M[5]);
+    c.save(); c.strokeStyle = 'rgba(80,140,255,.85)'; c.lineWidth = 1.6 / s; c.setLineDash([10 / s, 6 / s]); c.beginPath();
+    if (g.sim === 'v' || g.sim === '4') { c.moveTo(doc.w / 2, 0); c.lineTo(doc.w / 2, doc.h); }
+    if (g.sim === 'h' || g.sim === '4') { c.moveTo(0, doc.h / 2); c.lineTo(doc.w, doc.h / 2); }
+    c.stroke(); c.restore();
+  }
+  if (flot) dibujarManijasFlot(c);
   if (trazo && trazo.lazo && trazo.pts.length > 1) {
     c.setTransform(DPR, 0, 0, DPR, 0, 0); c.beginPath();
     trazo.pts.forEach((p, i) => { const q = mApl(M, p.x, p.y); i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y); });
@@ -1439,17 +1718,19 @@ function avisar(txt) {
 function elegirHerramienta(h) {
   if (h !== 'gotero') herrPrevia = h;
   if (h !== 'simbolo') herrAntesSim = null;
+  if (flot && h !== 'seleccion') aplicarFlot();
   herramienta = h; marcarBotones(); actualizarSliders(); ponerBarraSel(); pedirSup();
 }
 function marcarBotones() {
   document.querySelectorAll('.herr').forEach(b => b.classList.toggle('activo', b.dataset.h === herramienta));
   $('bGotero2').classList.toggle('activo', herramienta === 'gotero');
   $('bCapas').classList.toggle('activo', panelAbierto('pCapas'));
-  $('bGuias').classList.toggle('activo', doc && doc.guias.modo !== 'ninguna' || panelAbierto('pGuias'));
+  $('bGuias').classList.toggle('activo', doc && (doc.guias.modo !== 'ninguna' || doc.guias.sim && doc.guias.sim !== 'no') || panelAbierto('pGuias'));
   $('bMenu').classList.toggle('activo', panelAbierto('pMenu'));
   $('bNotas').classList.toggle('activo', panelAbierto('pNotas'));
 }
 function abrirPanel(id, ancla) {
+  if (flot && id === 'pCapas') aplicarFlot();
   const p = $(id), abierto = !p.classList.contains('oculto');
   cerrarPaneles();
   if (abierto) return;
@@ -1463,6 +1744,8 @@ document.querySelectorAll('.herr').forEach(b => b.addEventListener('click', () =
   if (herramienta === h && h !== 'gotero') {
     if (h === 'relleno') { abrirPanel('pTexturas', b); pintarTexturas(); }
     else if (h === 'simbolo') { abrirPanel('pSimbolos', b); pintarSimbolos(); }
+    else if (h === 'seleccion') menuCopiarPegar();
+    else if (h === 'pin') { tabNotas = 'notas'; abrirPanel('pNotas', $('bNotas')); pintarNotas(); }
     else if (h === 'cota' || h === 'texto') { abrirPanel('pNotas', $('bNotas')); pintarNotas(); }
     else { abrirPanel('pPinceles', b); pintarPinceles(); }
   } else {
@@ -1470,6 +1753,8 @@ document.querySelectorAll('.herr').forEach(b => b.addEventListener('click', () =
     if (h === 'simbolo' && !aj.simbolo) { abrirPanel('pSimbolos', b); pintarSimbolos(); }
     if (h === 'cota') avisarSuave('Cota: arrastra de un punto a otro · escala 1/' + doc.escala);
     if (h === 'texto') avisarSuave('Toca donde quieras escribir una nota');
+    if (h === 'pin') avisarSuave('Toca el punto del plano para poner una nota (o arrastra el ícono hasta ahí)');
+    if (h === 'seleccion') avisarSuave('Encierra con el lazo lo que quieras mover · toca otra vez el ícono: copiar, pegar, seleccionar todo');
   }
 }));
 $('bGotero2').addEventListener('click', () => elegirHerramienta(herramienta === 'gotero' ? herrPrevia : 'gotero'));
@@ -1478,7 +1763,7 @@ $('bRehacer').addEventListener('click', hacerRehacer);
 $('bCapas').addEventListener('click', e => { abrirPanel('pCapas', e.currentTarget); pintarCapas(); });
 $('bColor').addEventListener('click', e => { abrirPanel('pColor', e.currentTarget); pintarColorPanel(); });
 $('bGuias').addEventListener('click', e => { abrirPanel('pGuias', e.currentTarget); pintarGuiasPanel(); });
-$('bMenu').addEventListener('click', e => { abrirPanel('pMenu', e.currentTarget); pintarEstadoPresion(); });
+$('bMenu').addEventListener('click', e => { abrirPanel('pMenu', e.currentTarget); pintarEstadoPresion(); requestAnimationFrame(pintarCurva); });
 function pintarEstadoPresion() {
   const el = $('vPresionReal'); if (!el) return;
   el.textContent = estadoPresion === 'ok' ? '✓ Presión del lápiz detectada: aprieta más para un trazo más grueso u oscuro.'
@@ -1608,12 +1893,28 @@ $('rEscala').addEventListener('change', () => { guardarAjustes(); pintarTexturas
 
 // ---------- panel de capas ----------
 function refrescarCapasSiAbierto() { if (panelAbierto('pCapas')) pintarCapas(); }
+const gruposCerrados = new Set();
 function pintarCapas() {
   const l = $('listaCapas'); l.innerHTML = '';
+  let grupoPrevio = null;
   for (let i = doc.capas.length - 1; i >= 0; i--) {
     const c = doc.capas[i], d = document.createElement('div');
-    d.className = 'capa' + (i === doc.activa ? ' activo' : '') + (c.visible ? '' : ' escondida');
-    d.innerHTML = `<canvas width="128" height="92"></canvas><div class="c-nom">${escapar(c.nombre)}<small>${Math.round(c.op * 100)}%${c.mezcla === 'multiply' ? ' · Multiplicar' : ''}</small></div>
+    if (c.grupo && c.grupo !== grupoPrevio) { // cabecera del grupo (capas seguidas con el mismo grupo)
+      const miembros = []; for (let j = i; j >= 0 && doc.capas[j].grupo === c.grupo; j--) miembros.push(doc.capas[j]);
+      const cerrado = gruposCerrados.has(c.grupo), vis = miembros.some(m => m.visible), h = document.createElement('div'); h.className = 'grupo-cab';
+      h.innerHTML = `<button data-g="abrir">${cerrado ? '▸' : '▾'}</button><svg style="width:18px;height:18px"><use href="#i-carpeta"/></svg><span class="g-nom">${escapar(c.grupo)} <small style="opacity:.6">(${miembros.length})</small></span><button data-g="vis"><svg><use href="#i-${vis ? 'ojo' : 'ojo-no'}"/></svg></button>`;
+      h.onclick = ev => { const g = ev.target.closest('button')?.dataset.g;
+        if (g === 'vis') { miembros.forEach(m => { m.visible = !vis; estiloCapa(m); }); marcarCambio(); }
+        else if (g === 'abrir') { cerrado ? gruposCerrados.delete(c.grupo) : gruposCerrados.add(c.grupo); }
+        else pedirTexto('Nombre del grupo', c.grupo, v => { v = v.trim(); if (v) { miembros.forEach(m => { m.grupo = v; }); marcarCambio(); pintarCapas(); } });
+        pintarCapas(); };
+      l.appendChild(h);
+    }
+    grupoPrevio = c.grupo || null;
+    if (c.grupo && gruposCerrados.has(c.grupo) && i !== doc.activa) continue;
+    d.className = 'capa' + (i === doc.activa ? ' activo' : '') + (c.visible ? '' : ' escondida') + (c.grupo ? ' en-grupo' : '');
+    d.innerHTML = `<canvas width="128" height="92"></canvas><div class="c-nom">${escapar(c.nombre)}<small>${Math.round(c.op * 100)}%${c.mezcla === 'multiply' ? ' · Multiplicar' : ''}${c.bloq ? ' · Bloqueada' : ''}${c.ref ? ' · Referencia' : ''}</small></div>
+      <button class="c-bloq${c.bloq ? ' on' : ''}" data-a="bloq" title="Bloquear transparencia: pinta solo sobre lo ya dibujado"><svg><use href="#i-candado"/></svg></button>
       <div class="c-ord"><button data-a="sub" title="Subir"><svg><use href="#i-arriba"/></svg></button><button data-a="baj" title="Bajar"><svg><use href="#i-abajo"/></svg></button></div>
       <button class="c-vis" data-a="vis"><svg><use href="#i-${c.visible ? 'ojo' : 'ojo-no'}"/></svg></button>`;
     const m = d.querySelector('canvas').getContext('2d'), k = Math.min(128 / doc.w, 92 / doc.h);
@@ -1621,6 +1922,7 @@ function pintarCapas() {
     d.onclick = ev => {
       const a = ev.target.closest('button')?.dataset.a;
       if (a === 'vis') { c.visible = !c.visible; estiloCapa(c); marcarCambio(); }
+      else if (a === 'bloq') { c.bloq = !c.bloq; marcarCambio(); avisar(c.bloq ? 'Transparencia bloqueada: solo pintas encima de lo dibujado' : 'Transparencia desbloqueada'); }
       else if (a === 'sub' && i < doc.capas.length - 1) { moverCapaA(i, i + 1); pushHist({ t: 'mover', de: i, a: i + 1 }); }
       else if (a === 'baj' && i > 0) { moverCapaA(i, i - 1); pushHist({ t: 'mover', de: i, a: i - 1 }); }
       else if (!a) { if (i === doc.activa) renombrarCapa(c); doc.activa = i; ubicarTrazoCv(); }
@@ -1630,6 +1932,7 @@ function pintarCapas() {
   }
   const c = capaActiva();
   $('rCapaOp').value = c.op; $('vCapaOp').textContent = Math.round(c.op * 100) + '%';
+  $('cAgrupar').lastChild.textContent = c.grupo ? 'Desagrupar' : 'Agrupar';
   document.querySelectorAll('#segMezcla button').forEach(b => b.classList.toggle('activo', b.dataset.v === c.mezcla));
 }
 const MAX_CAPAS = 16;
@@ -1640,12 +1943,20 @@ $('bCapaNueva').onclick = () => {
 };
 $('cDuplicar').onclick = () => {
   if (doc.capas.length >= MAX_CAPAS) return avisar('Máximo ' + MAX_CAPAS + ' capas');
-  const o = capaActiva(), c = crearCapa(o.nombre + ' copia', doc.w, doc.h); c.ctx.drawImage(o.cv, 0, 0); c.op = o.op; c.mezcla = o.mezcla;
+  const o = capaActiva(), c = crearCapa(o.nombre + ' copia', doc.w, doc.h); c.ctx.drawImage(o.cv, 0, 0); c.op = o.op; c.mezcla = o.mezcla; c.bloq = o.bloq; c.grupo = o.grupo; c.ref = o.ref;
   const idx = doc.activa + 1; insertarCapa(c, idx); pushHist({ t: 'nueva', capa: c, idx }); pintarCapas();
 };
 $('cBorrar').onclick = () => {
   if (doc.capas.length <= 1) return avisar('Debe quedar al menos una capa');
   const c = capaActiva(), idx = doc.activa; quitarCapa(c); pushHist({ t: 'borrar', capa: c, idx }); pintarCapas();
+};
+$('cAgrupar').onclick = () => {
+  const i = doc.activa, c = doc.capas[i];
+  if (c.grupo) { c.grupo = null; marcarCambio(); pintarCapas(); return avisar('Capa fuera del grupo'); }
+  if (i === 0) return avisar('No hay capa debajo para agrupar');
+  const abajo = doc.capas[i - 1];
+  if (!abajo.grupo) { let n = 1; const usados = new Set(doc.capas.map(x => x.grupo)); while (usados.has('Grupo ' + n)) n++; abajo.grupo = 'Grupo ' + n; }
+  c.grupo = abajo.grupo; marcarCambio(); pintarCapas(); avisar('Agrupada con la capa de abajo');
 };
 $('cLimpiar').onclick = () => {
   const c = capaActiva(), antes = recorte(c.cv, [0, 0, doc.w, doc.h]); c.ctx.clearRect(0, 0, doc.w, doc.h);
@@ -1735,10 +2046,12 @@ function pintarGuiasPanel() {
     b.onclick = () => { g.modo = m.id; marcarCambio(); pintarGuiasPanel(); pedirSup(); marcarBotones(); };
     cont.appendChild(b);
   }
+  document.querySelectorAll('#segSim button').forEach(b => b.classList.toggle('activo', b.dataset.v === (g.sim || 'no')));
   $('chkAsist').checked = g.asist; $('rGuiaOp').value = g.op; $('rGuiaTam').value = g.tam;
   $('guiaNota').innerHTML = g.modo[0] === 'p' ? 'Arrastra los <b>puntos verdes</b> para mover los puntos de fuga. Aleja el lienzo (pellizco) si quedan fuera de la hoja.'
     : g.modo === 'ninguna' ? 'Elige una guía para dibujar en cuadrícula, isometría o perspectiva.' : 'Con la asistencia activa, cada trazo se alinea a la guía más cercana.';
 }
+document.querySelectorAll('#segSim button').forEach(b => b.onclick = () => { doc.guias.sim = b.dataset.v; marcarCambio(); pintarGuiasPanel(); pedirSup(); marcarBotones(); if (b.dataset.v !== 'no') avisar('Simetría activa: lo que dibujas se refleja'); });
 $('chkAsist').onchange = e => { doc.guias.asist = e.target.checked; marcarCambio(); };
 $('rGuiaOp').oninput = e => { doc.guias.op = +e.target.value; pedirSup(); };
 $('rGuiaTam').oninput = e => { doc.guias.tam = +e.target.value; pedirSup(); };
@@ -1746,7 +2059,27 @@ $('rGuiaOp').onchange = $('rGuiaTam').onchange = () => marcarCambio();
 
 // ---------- menú ----------
 $('rPresion').value = aj.presion; $('vPresion').textContent = aj.presion.toFixed(2);
-$('rPresion').oninput = e => { aj.presion = +e.target.value; $('vPresion').textContent = aj.presion.toFixed(2); guardarAjustes(); };
+$('rPresion').oninput = e => { aj.presion = +e.target.value; $('vPresion').textContent = aj.presion.toFixed(2); guardarAjustes(); pintarCurva(); };
+// curva de presión + zona de prueba: pasa el lápiz por el recuadro y ves cuánto marca
+let pruebaPr = null;
+function pintarCurva() {
+  const cv = $('cvPresion'); if (!cv) return; const w = cv.clientWidth || 300, h = 120;
+  if (cv.width !== w * DPR) { cv.width = w * DPR; cv.height = h * DPR; }
+  const c = cv.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, w, h);
+  const P = (x, y) => [10 + x * (w - 20), h - 10 - y * (h - 20)];
+  c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 1; c.beginPath();
+  for (let k = 0; k <= 4; k++) { const [x0, y0] = P(k / 4, 0), [x1, y1] = P(k / 4, 1); c.moveTo(x0, y0); c.lineTo(x1, y1); const [a, b] = P(0, k / 4), [a2, b2] = P(1, k / 4); c.moveTo(a, b); c.lineTo(a2, b2); }
+  c.stroke(); c.strokeStyle = '#8ACF00'; c.lineWidth = 2.5; c.beginPath();
+  for (let k = 0; k <= 50; k++) { const x = k / 50, [px, py] = P(x, Math.pow(x, aj.presion)); k ? c.lineTo(px, py) : c.moveTo(px, py); }
+  c.stroke();
+  c.fillStyle = '#9b9ba1'; c.font = '11px -apple-system,Roboto,sans-serif'; c.fillText('suave', 12, h - 14); c.textAlign = 'right'; c.fillText('fuerte', w - 12, h - 14); c.textAlign = 'left';
+  if (pruebaPr != null) { const y = Math.pow(pruebaPr, aj.presion), [px, py] = P(pruebaPr, y); c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py, 6, 0, 6.2832); c.fill(); c.fillText('presión ' + Math.round(pruebaPr * 100) + '% → trazo ' + Math.round(y * 100) + '%', 14, 18); }
+  else c.fillText('Pasa el lápiz por aquí apretando suave y fuerte', 14, 18);
+}
+(() => { const cv = $('cvPresion'); if (!cv) return;
+  const leer = e => { e.preventDefault(); if (e.pressure > 0 && e.buttons) { pruebaPr = e.pressure; pintarCurva(); } };
+  cv.addEventListener('pointerdown', leer); cv.addEventListener('pointermove', leer); cv.addEventListener('pointerup', () => { pruebaPr = null; pintarCurva(); });
+})();
 $('chkSoloLapiz').checked = aj.soloLapiz === true;
 $('chkSoloLapiz').onchange = e => { aj.soloLapiz = e.target.checked; guardarAjustes(); };
 $('chkZurdo').checked = aj.zurdo; document.body.classList.toggle('zurdo', aj.zurdo);
@@ -1757,19 +2090,23 @@ $('mVoltear').onclick = () => { cerrarPaneles(); const cx = innerWidth / 2; M = 
 $('mExportar').onclick = () => { cerrarPaneles(); exportar('png'); };
 $('mExportarJpg').onclick = () => { cerrarPaneles(); exportar('jpg'); };
 $('mImportar').onclick = () => { cerrarPaneles(); $('fImportar').click(); };
+$('mCopiar').onclick = () => { cerrarPaneles(); menuCopiarPegar(); };
+$('mSinUI').onclick = () => { cerrarPaneles(); alternarInterfaz(); };
 $('mPapel').onclick = () => { cerrarPaneles(); dialogoPapel(); };
 $('fImportar').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try {
     const img = await createImageBitmap(f);
     if (doc.capas.length >= MAX_CAPAS) return avisar('Máximo ' + MAX_CAPAS + ' capas');
-    const c = crearCapa('Referencia', doc.w, doc.h), k = Math.min(doc.w / img.width, doc.h / img.height);
-    c.ctx.drawImage(img, (doc.w - img.width * k) / 2, (doc.h - img.height * k) / 2, img.width * k, img.height * k);
-    c.op = 0.5;
-    insertarCapa(c, doc.activa + 1); pushHist({ t: 'nueva', capa: c, idx: doc.activa });
-    // la capa de referencia queda debajo para calcar encima
-    const nueva = crearCapa('Calco', doc.w, doc.h); insertarCapa(nueva, doc.activa + 1); pushHist({ t: 'nueva', capa: nueva, idx: doc.activa });
-    avisar('Imagen importada al 50%: dibuja encima');
+    if (flot) aplicarFlot();
+    // la referencia va ABAJO de todo, semitransparente y sin bloquear el relleno por color
+    const c = crearCapa('Referencia', doc.w, doc.h), k = Math.min(doc.w / img.width, doc.h / img.height) * 0.9;
+    c.op = 0.5; c.ref = true;
+    insertarCapa(c, 0); pushHist({ t: 'nueva', capa: c, idx: 0 });
+    const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(img.width * k)); cv.height = Math.max(1, Math.round(img.height * k));
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); img.close && img.close();
+    crearFlot(c, cv, doc.w / 2, doc.h / 2, null); // queda lista para mover, escalar o girar
+    avisar('Acomoda la imagen y toca Listo · luego dibuja encima en otra capa');
   } catch (err) { avisar('No se pudo abrir la imagen'); }
 };
 
@@ -1886,12 +2223,13 @@ document.addEventListener('pointermove', e => { if (e.buttons) ultToque = perfor
 function marcarCambio() { if (!doc) return; doc.cambio = true; clearTimeout(tGuardar); if (!esperaDesde) esperaDesde = performance.now(); tGuardar = setTimeout(guardarCuandoQuieto, 2500); }
 function guardarCuandoQuieto() {
   const ahora = performance.now(), ocupado = trazo || lapizAbajo || toques.size || ahora - ultToque < 2000;
-  if (ocupado && ahora - esperaDesde < 45000) { tGuardar = setTimeout(guardarCuandoQuieto, 1200); return; }
+  if (flot || ocupado && ahora - esperaDesde < 45000) { tGuardar = setTimeout(guardarCuandoQuieto, 1200); return; }
   const ir = () => { esperaDesde = 0; guardar(); };
   window.requestIdleCallback ? requestIdleCallback(ir, { timeout: 1500 }) : ir();
 }
 const respiro = () => new Promise(r => setTimeout(r, 0));
 async function guardar() {
+  if (flot) aplicarFlot(); // una selección flotando se pega antes de guardar
   if (!doc || !doc.cambio) return;
   if (guardando) { pendiente = true; return guardando; }
   const d = doc; d.cambio = false;
@@ -1903,7 +2241,7 @@ async function guardar() {
       id: d.id, nombre: d.nombre, w: d.w, h: d.h, papel: d.papel, grano: d.grano, creado: d.creado, fecha: Date.now(), activa: d.activa, guias: d.guias, thumb,
       tipo: d.tipo, escala: d.escala, pxmm: d.pxmm, objetos: d.objetos.map(o => { const { _bb, ...x } = o; return x; }), info: d.info, notas: d.notas, lista: d.lista,
       rotulo: d.rotulo, cotasAuto: d.cotasAuto, pedirMedida: d.pedirMedida, verAnot: d.verAnot,
-      capas: d.capas.map(c => ({ nombre: c.nombre, op: c.op, mezcla: c.mezcla, visible: c.visible, blob: c.blob })),
+      capas: d.capas.map(c => ({ nombre: c.nombre, op: c.op, mezcla: c.mezcla, visible: c.visible, blob: c.blob, bloq: !!c.bloq, grupo: c.grupo || null, ref: !!c.ref })),
     });
   })().catch(err => { console.error(err); avisar('No se pudo guardar'); d.cambio = true; }).finally(() => { guardando = null; if (pendiente) { pendiente = false; guardar(); } });
   return guardando;
@@ -2024,7 +2362,7 @@ async function abrirDibujo(id) {
   doc = { id: r.id, nombre: r.nombre, w: r.w, h: r.h, papel: r.papel, grano: r.grano, creado: r.creado, activa: r.activa || 0, guias: Object.assign(guiasPorDefecto(r.w, r.h), r.guias || {}), capas: [] };
   datosArq(doc, r);
   for (const l of r.capas) {
-    const c = crearCapa(l.nombre, r.w, r.h); c.op = l.op; c.mezcla = l.mezcla; c.visible = l.visible;
+    const c = crearCapa(l.nombre, r.w, r.h); c.op = l.op; c.mezcla = l.mezcla; c.visible = l.visible; c.bloq = !!l.bloq; c.grupo = l.grupo || null; c.ref = !!l.ref;
     if (l.blob) { try { const img = await createImageBitmap(l.blob); c.ctx.drawImage(img, 0, 0); img.close && img.close(); } catch (e) {} }
     c.blob = l.blob; c.sucia = false; doc.capas.push(c);
   }
@@ -2054,6 +2392,9 @@ function pintarNotas() {
   document.querySelectorAll('#nHoja input[data-k]').forEach(i => { i.value = doc.info[i.dataset.k] || ''; });
   $('nRotulo').checked = doc.rotulo; $('nCotaAuto').checked = doc.cotasAuto; $('nPedir').checked = doc.pedirMedida; $('nVerAnot').checked = doc.verAnot !== false;
   if (document.activeElement !== $('nTexto')) $('nTexto').value = doc.notas || '';
+  const pines = doc.objetos.filter(o => o.tipo === 'pin').sort((a, b) => a.n - b.n), pl = $('nPines');
+  pl.innerHTML = pines.length ? '' : '<p class="nota">Sin notas en el plano. Arrastra el ícono de nota hasta el punto donde la quieras.</p>';
+  for (const o of pines) { const b = document.createElement('button'); b.innerHTML = `<b>${o.n}</b><span>${escapar(o.texto || '(sin texto)')}</span>`; b.onclick = () => { cerrarPaneles(); irAPin(o); editarPin(o); }; pl.appendChild(b); }
   const it = $('nItems'); it.innerHTML = doc.lista.length ? '' : '<p class="nota">Sin pendientes. Agrega lo que debes medir o revisar en obra.</p>';
   doc.lista.forEach((x, i) => {
     const d = document.createElement('div'); d.className = 'n-item' + (x.ok ? ' ok' : '');
@@ -2142,6 +2483,73 @@ $('mTutorial').onclick = () => { cerrarPaneles(); mostrarTutorial(); };
     hecho = null;
   }, true);
 })();
+
+
+// =====================================================================
+//  ARRASTRAR DESDE LA BARRA: el color (rellena un ambiente, como ColorDrop de Procreate)
+//  y la nota (se clava en el punto donde se suelta)
+// =====================================================================
+function arrastrable(btn, clase, html, alSoltar) {
+  let st = null;
+  btn.addEventListener('pointerdown', e => { if (!doc || e.button > 0) return; st = { id: e.pointerId, x: e.clientX, y: e.clientY, fant: null }; try { btn.setPointerCapture(e.pointerId); } catch (_) {} });
+  btn.addEventListener('pointermove', e => {
+    if (!st || st.id !== e.pointerId) return;
+    if (!st.fant && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 14) { st.fant = document.createElement('div'); st.fant.className = clase; st.fant.innerHTML = html(); document.body.appendChild(st.fant); cerrarPaneles(); }
+    if (st.fant) { st.fant.style.left = e.clientX + 'px'; st.fant.style.top = e.clientY + 'px'; }
+  });
+  const fin = e => {
+    if (!st || st.id !== e.pointerId) return; const s0 = st; st = null; if (!s0.fant) return;
+    s0.fant.remove(); btn._arr = performance.now();
+    if (e.type !== 'pointerup') return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (el && el.closest('#escenario') && !el.closest('#barra,#lateral,.panel,.sel-bar')) alSoltar(aDoc(e.clientX, e.clientY));
+  };
+  btn.addEventListener('pointerup', fin); btn.addEventListener('pointercancel', fin);
+  btn.addEventListener('click', e => { if (btn._arr && performance.now() - btn._arr < 800) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+}
+arrastrable($('bColor'), 'arrastre-color', () => `<div style="width:100%;height:100%;border-radius:50%;background:${aj.color}"></div>`, d => rellenarEn(d));
+arrastrable($('bPin'), 'arrastre-pin', () => '<svg viewBox="0 0 24 24" style="width:100%;height:100%;fill:currentColor;stroke:#fff;stroke-width:1.2"><path d="M12 22s-7-6.6-7-11.5a7 7 0 0 1 14 0C19 15.4 12 22 12 22z"/></svg>', d => { if (flot) aplicarFlot(); nuevoPin(d); });
+
+// ---- relleno por color (cubeta) ----
+// El contorno sale de TODAS las capas visibles (muros en una capa, color en otra), como en un plano real.
+function rellenarEn(d) {
+  if (!doc) return; const capa = capaActiva();
+  if (!capa.visible) return avisar('La capa está oculta');
+  const W = doc.w, H = doc.h, x0 = Math.floor(d.x), y0 = Math.floor(d.y);
+  if (x0 < 0 || y0 < 0 || x0 >= W || y0 >= H) return;
+  if (flot) aplicarFlot();
+  const comp = document.createElement('canvas'); comp.width = W; comp.height = H; const cc = comp.getContext('2d', { willReadFrequently: true });
+  for (const l of doc.capas) if (l.visible && !l.ref) { cc.globalAlpha = Math.max(l.op, 0.6); cc.drawImage(l.cv, 0, 0); }
+  const px = cc.getImageData(0, 0, W, H).data, i0 = (y0 * W + x0) * 4;
+  const r0 = px[i0], g0 = px[i0 + 1], b0 = px[i0 + 2], a0 = px[i0 + 3], tol = 70; // ~27 %
+  const igual = i => { const a = px[i + 3]; if (a0 < 20) return a < 60; return Math.abs(px[i] - r0) + Math.abs(px[i + 1] - g0) + Math.abs(px[i + 2] - b0) + Math.abs(a - a0) < tol * 2; };
+  const mask = new Uint8Array(W * H), pila = [x0, y0]; let n = 0, bx0 = x0, bx1 = x0, by0 = y0, by1 = y0;
+  while (pila.length) {
+    const y = pila.pop(); let x = pila.pop(), f = y * W;
+    while (x >= 0 && !mask[f + x] && igual((f + x) * 4)) x--;
+    x++; let arriba = false, abajo = false;
+    while (x < W && !mask[f + x] && igual((f + x) * 4)) {
+      mask[f + x] = 1; n++; if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y;
+      if (y > 0) { const k = f - W + x; if (!mask[k] && igual(k * 4)) { if (!arriba) { pila.push(x, y - 1); arriba = true; } } else arriba = false; }
+      if (y < H - 1) { const k = f + W + x; if (!mask[k] && igual(k * 4)) { if (!abajo) { pila.push(x, y + 1); abajo = true; } } else abajo = false; }
+      x++;
+    }
+  }
+  if (!n) return;
+  // se amplía 1 px para cubrir el borde suave de las líneas
+  const r = bbEntero([bx0 - 2, by0 - 2, bx1 + 3, by1 + 3]), rgb = hexRgb(aj.color).split(',').map(Number);
+  const img = new ImageData(r[2], r[3]), o = img.data;
+  for (let y = 0; y < r[3]; y++) for (let x = 0; x < r[2]; x++) {
+    const gx = x + r[0], gy = y + r[1]; let dentro = mask[gy * W + gx];
+    if (!dentro) for (let dy = -1; dy <= 1 && !dentro; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = gx + dx, yy = gy + dy; if (xx >= 0 && yy >= 0 && xx < W && yy < H && mask[yy * W + xx]) { dentro = 1; break; } }
+    if (dentro) { const k = (y * r[2] + x) * 4; o[k] = rgb[0]; o[k + 1] = rgb[1]; o[k + 2] = rgb[2]; o[k + 3] = 255; }
+  }
+  const tmp = document.createElement('canvas'); tmp.width = r[2]; tmp.height = r[3]; tmp.getContext('2d').putImageData(img, 0, 0);
+  const antes = recorte(capa.cv, r), c = capa.ctx;
+  c.save(); c.globalAlpha = opcionesPincel('relleno').op; if (capa.bloq) c.globalCompositeOperation = 'source-atop'; c.drawImage(tmp, r[0], r[1]); c.restore();
+  histPx(capa, r, antes); refrescarCapasSiAbierto();
+  avisar(n > W * H * 0.97 ? 'Se rellenó toda la hoja: el contorno tiene una abertura (deshaz con 2 dedos)' : 'Relleno');
+}
 
 // =====================================================================
 //  RESALTADO AL PASAR EL LÁPIZ (como en Procreate): el botón se ilumina al pasar por encima y

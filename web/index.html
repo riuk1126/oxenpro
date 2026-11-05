@@ -37,6 +37,10 @@
     <symbol id="i-simbolo" viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20V8"/><path d="M6 8a12 12 0 0 1 12 12"/></symbol>
     <symbol id="i-notas" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10h7M8.5 14h7M8.5 18h4"/></symbol>
     <symbol id="i-ayuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6M12 17h.01"/></symbol>
+ <symbol id="i-seleccion" viewBox="0 0 24 24"><path d="M4 7V4h3M10 4h4M17 4h3v3M20 10v4M20 17v3h-3M14 20h-4M7 20H4v-3M4 14v-4"/><path d="M10 10l7 3-3 1-1 3z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><path d="M9.5 9.5h5M9.5 12h3"/></symbol>
+    <symbol id="i-candado" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-carpeta" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
     <symbol id="i-combinar" viewBox="0 0 24 24"><path d="M12 4v10M7 9l5 5 5-5M4 20h16"/></symbol>
   </defs>
 </svg>
@@ -76,9 +80,11 @@
       <button class="ib herr" data-h="pincel" id="bPincel" title="Pincel"><svg><use href="#i-pincel"/></svg></button>
       <button class="ib herr" data-h="borrador" id="bBorrador" title="Borrador"><svg><use href="#i-borrador"/></svg></button>
       <button class="ib herr" data-h="relleno" id="bRelleno" title="Relleno con textura"><svg><use href="#i-relleno"/></svg></button>
+      <button class="ib herr" data-h="seleccion" id="bSeleccion" title="Seleccionar y transformar (mover, escalar, girar)"><svg><use href="#i-seleccion"/></svg></button>
       <span class="sep"></span>
       <button class="ib herr" data-h="cota" id="bCota" title="Cota a escala"><svg><use href="#i-cota"/></svg></button>
       <button class="ib herr" data-h="texto" id="bTexto" title="Nota / texto"><svg><use href="#i-texto"/></svg></button>
+ <button class="ib herr" data-h="pin" id="bPin" title="Nota en el plano: arrástrala al punto o toca la hoja"><svg><use href="#i-pin"/></svg></button>
       <button class="ib herr" data-h="simbolo" id="bSimbolo" title="Símbolos: puertas, ventanas, mobiliario…"><svg><use href="#i-simbolo"/></svg></button>
       <span class="sep"></span>
       <button class="ib" id="bCapas" title="Capas"><svg><use href="#i-capas"/></svg></button>
@@ -100,6 +106,10 @@
     <button id="selGirar15">↻ 15°</button><button id="selGirar">↻ 90°</button><button id="selVoltear">⇋ Voltear</button>
     <button id="selAncho">Ancho…</button><button id="selSeccion">Sección…</button><button id="selTexto">Texto…</button><button id="selDup">Duplicar</button><button id="selBorrar" class="peligro">Eliminar</button>
   </div>
+  <div id="transfBar" class="sel-bar transf-bar oculto">
+    <button id="tfVoltH">⇋ Voltear</button><button id="tfVoltV">⇅ Voltear</button><button id="tfGirar">↻ 90°</button><button id="tfDup">Duplicar</button><button id="tfBorrar" class="peligro">Borrar</button><button id="tfCancelar">Cancelar</button><button id="tfListo" class="ok">Listo</button>
+  </div>
+  <button id="salirSinUI" class="oculto" title="Mostrar la interfaz">⤢</button>
   <div id="tip" class="tip oculto"></div>
 
   <!-- Paneles -->
@@ -126,6 +136,7 @@
     <div class="capa-acciones">
       <button id="cDuplicar"><svg><use href="#i-copiar"/></svg>Duplicar</button>
       <button id="cCombinar"><svg><use href="#i-combinar"/></svg>Combinar abajo</button>
+      <button id="cAgrupar"><svg><use href="#i-carpeta"/></svg>Agrupar</button>
       <button id="cLimpiar">Limpiar</button>
       <button id="cBorrar" class="peligro"><svg><use href="#i-basura"/></svg>Eliminar</button>
     </div>
@@ -145,6 +156,8 @@
   <div id="pGuias" class="panel oculto">
     <div class="panel-cab"><b>Guías de dibujo</b></div>
     <div class="guia-modos" id="guiaModos"></div>
+    <div class="etq">Simetría</div>
+    <div class="seg chico" id="segSim"><button data-v="no">No</button><button data-v="v">↔ Vertical</button><button data-v="h">↕ Horizontal</button><button data-v="4">✛ 4 partes</button></div>
     <label class="interruptor"><input type="checkbox" id="chkAsist"><span></span>Asistencia de trazo (las líneas se alinean solas)</label>
     <div class="fila-ajuste"><label>Opacidad</label><input type="range" id="rGuiaOp" min="0.1" max="1" step="0.05"></div>
     <div class="fila-ajuste"><label>Tamaño</label><input type="range" id="rGuiaTam" min="20" max="300" step="5"></div>
@@ -180,11 +193,16 @@
       <div class="campo fila"><input type="text" id="nNuevo" placeholder="Agregar pendiente…"><button class="btn-verde chico" id="nAgregar">Agregar</button></div>
     </div>
     <div id="nNotas" class="n-sec oculto">
+      <div class="etq">Notas en el plano</div>
+      <div id="nPines" class="pin-lista"></div>
+      <div class="etq">Notas generales</div>
       <textarea id="nTexto" rows="12" placeholder="Medidas sueltas, observaciones, estado de acabados, pedido del cliente…"></textarea>
     </div>
   </div>
   <div id="pMenu" class="panel oculto">
-    <button class="item" id="mImportar">Importar foto o plano…</button>
+    <button class="item" id="mImportar">Imagen de referencia (foto o plano para calcar)…</button>
+    <button class="item" id="mCopiar">Copiar y pegar…</button>
+    <button class="item" id="mSinUI">Pantalla completa</button>
     <button class="item" id="mExportar">Exportar imagen PNG</button>
     <button class="item" id="mExportarJpg">Exportar imagen JPG</button>
     <button class="item" id="mPapel">Cambiar papel…</button>
@@ -193,10 +211,11 @@
     <button class="item" id="mTutorial">Ver tutorial</button>
     <hr>
     <div class="fila-ajuste"><label>Presión del lápiz</label><input type="range" id="rPresion" min="0.4" max="2.5" step="0.05"><span id="vPresion"></span></div>
+    <canvas id="cvPresion"></canvas>
     <p class="nota" id="vPresionReal"></p>
     <label class="interruptor"><input type="checkbox" id="chkSoloLapiz"><span></span>Solo el lápiz dibuja (el dedo mueve)</label>
     <label class="interruptor"><input type="checkbox" id="chkZurdo"><span></span>Barra a la derecha (zurdo)</label>
-    <p class="nota">Gestos: 2 dedos = mover, girar y acercar · toque con 2 dedos = deshacer · toque con 3 dedos = rehacer · mantén el trazo al final para enderezar líneas y figuras; sin soltar, mueve el lápiz para agrandarlas o girarlas y toca con un dedo para hacerlas perfectas (círculo, cuadrado, ángulo exacto).</p>
+    <p class="nota">Gestos: 2 dedos = mover, girar y acercar · toque con 2 dedos = deshacer · toque con 3 dedos = rehacer · 3 dedos hacia abajo = copiar y pegar · toque con 4 dedos = pantalla completa · pellizco rápido = encajar la hoja · mantén el lápiz quieto al empezar = tomar color · arrastra el círculo de color a un ambiente para rellenarlo · mantén el trazo al final para enderezar líneas y figuras; sin soltar, mueve el lápiz para agrandarlas o girarlas y toca con un dedo para hacerlas perfectas (círculo, cuadrado, ángulo exacto).</p>
     <hr>
     <button class="item" id="mActualizar"><svg style="width:18px;height:18px;vertical-align:-4px;margin-right:8px"><use href="#i-actualizar"/></svg>Buscar actualizaciones</button>
     <p class="nota version">OXEN PRO <span id="verTxt"></span> · <span id="actEstado">al día</span></p>
