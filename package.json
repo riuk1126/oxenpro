@@ -1,7 +1,7 @@
 {
-  "name": "prodraft",
-  "productName": "ProDraft",
-  "version": "1.0.0",
+  "name": "oxen",
+  "productName": "OXEN",
+  "version": "1.1.0",
   "description": "Bocetos para arquitectos",
   "private": true,
   "author": "Arquizo"

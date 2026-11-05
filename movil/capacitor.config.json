@@ -1,9 +1,9 @@
 {
-  "appId": "com.arquizo.prodraft",
-  "appName": "ProDraft",
+  "appId": "com.arquizo.oxen",
+  "appName": "OXEN",
   "webDir": "www",
   "server": {
-    "url": "https://riuk1126.github.io/prodraft/",
+    "url": "https://riuk1126.github.io/oxen/",
     "androidScheme": "https",
     "errorPath": "sin-conexion.html"
   },

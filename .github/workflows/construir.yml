@@ -1,8 +1,8 @@
-# ProDraft — publicación automática
+# OXEN — publicación automática
 # • Cada cambio en "main" actualiza la app web (y la app de Android se actualiza sola, porque la carga desde ahí).
 # • El APK se arma y se publica en Releases cuando el mensaje del cambio incluye [apk],
-#   al crear una etiqueta v1.0.0… o a mano desde Actions → "Construir ProDraft" → Run workflow.
-name: Construir ProDraft
+#   al crear una etiqueta v1.0.0… o a mano desde Actions → "Construir OXEN" → Run workflow.
+name: Construir OXEN
 
 on:
   push:
@@ -33,9 +33,12 @@ jobs:
           V="$(node -p "require('./package.json').version")-$(git rev-parse --short HEAD)"
           rm -rf site && cp -r web site
           sed -i "s/__PD_VERSION__/$V/g" site/index.html site/sw.js
+          APK=$(node -p "require('./movil/package.json').version")
+          echo "{\"version\":\"$V\",\"apk\":\"$APK\"}" > site/version.json
+          cat site/version.json
           touch site/.nojekyll
           cd site && git init -q && git checkout -q -b gh-pages && git add -A
-          git -c user.name="ProDraft" -c user.email="prodraft@users.noreply.github.com" commit -qm "ProDraft web $V"
+          git -c user.name="OXEN" -c user.email="oxen@users.noreply.github.com" commit -qm "OXEN web $V"
           git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" gh-pages
           # activa GitHub Pages la primera vez (si ya está activo no pasa nada)
           gh api -X POST "repos/${{ github.repository }}/pages" -f "source[branch]=gh-pages" -f "source[path]=/" >/dev/null 2>&1 || true
@@ -60,17 +63,21 @@ jobs:
           rm -rf www android && mkdir www && cp -r ../web/* www/
           rm -f www/sw.js
           cp sin-conexion.html www/
-          V=$(node -p "require('../package.json').version")
+          V=$(node -p "require('./package.json').version")
           sed -i "s/__PD_VERSION__/$V/g" www/index.html
           npx cap add android
-          cp native/*.java android/app/src/main/java/com/arquizo/prodraft/
+          cp native/*.java android/app/src/main/java/com/arquizo/oxen/
           cp -r res/* android/app/src/main/res/
+          # permiso para que OXEN se actualice desde la propia app
+          MF=android/app/src/main/AndroidManifest.xml
+          grep -q REQUEST_INSTALL_PACKAGES $MF || sed -i 's#</manifest>#    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n</manifest>#' $MF
+          grep -n permission $MF
           sudo apt-get install -y -qq imagemagick >/dev/null 2>&1 || true
           for f in $(find android/app/src/main/res -name 'splash.png'); do
             W=$(identify -format '%w' "$f" || echo 0); H=$(identify -format '%h' "$f" || echo 0); [ "$W" = 0 ] && continue; M=$(( W<H ? W : H )); L=$(( M*34/100 ))
             convert -size ${W}x${H} xc:'#0b0b0c' \( splash-logo.png -resize ${L}x${L} \) -gravity center -composite "$f" || echo "splash sin cambiar: $f"
           done
-          CODE=$(node -p "const [a,b,c]=require('../package.json').version.split('.').map(Number);a*10000+b*100+c")
+          CODE=$(node -p "const [a,b,c]=require('./package.json').version.split('.').map(Number);a*10000+b*100+c")
           sed -i "s/versionCode [0-9]*/versionCode $CODE/; s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
           # la app gira libremente (tableta horizontal o vertical)
           npx cap sync android
@@ -83,8 +90,8 @@ jobs:
         run: |
           BT=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)
           $BT/zipalign -p -f 4 movil/android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
-          $BT/apksigner sign --ks movil/prodraft.jks --ks-key-alias prodraft --ks-pass pass:prodraft-arquizo-2026 --key-pass pass:prodraft-arquizo-2026 --out ProDraft.apk aligned.apk
-          $BT/apksigner verify ProDraft.apk && ls -la ProDraft.apk
-          V=$(node -p "require('./package.json').version")
-          gh release view "v$V" >/dev/null 2>&1 || gh release create "v$V" --target "${{ github.sha }}" --title "ProDraft $V" --notes "ProDraft $V — bocetos para arquitectos. Descarga ProDraft.apk e instálalo en tu tableta Android."
-          gh release upload "v$V" ProDraft.apk --clobber
+          $BT/apksigner sign --ks movil/oxen.jks --ks-key-alias prodraft --ks-pass pass:prodraft-arquizo-2026 --key-pass pass:prodraft-arquizo-2026 --out OXEN.apk aligned.apk
+          $BT/apksigner verify OXEN.apk && ls -la OXEN.apk
+          V=$(node -p "require('./movil/package.json').version")
+          gh release view "v$V" >/dev/null 2>&1 || gh release create "v$V" --target "${{ github.sha }}" --title "OXEN $V" --notes "OXEN $V — bocetos para arquitectos. Descarga OXEN.apk e instálalo en tu tableta Android."
+          gh release upload "v$V" OXEN.apk --clobber

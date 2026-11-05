@@ -1,4 +1,4 @@
-# ProDraft
+# OXEN
 
 **Bocetos para arquitectos.** Lápices con grano de papel, tintas, marcadores que se superponen como los reales, acuarela, texturas de materiales (ladrillo, concreto, madera, piedra, pasto, agua…), guías de perspectiva de 1, 2 y 3 puntos, isometría y cuadrícula.
 
@@ -6,8 +6,8 @@
 
 | Sistema | Instalador |
 |---|---|
-| 🤖 Android (tableta y celular) | [ProDraft.apk](https://github.com/riuk1126/prodraft/releases/latest/download/ProDraft.apk) |
-| 🌐 Navegador (para probar) | [riuk1126.github.io/prodraft](https://riuk1126.github.io/prodraft/) |
+| 🤖 Android (tableta y celular) | [OXEN.apk](https://github.com/riuk1126/oxen/releases/latest/download/OXEN.apk) |
+| 🌐 Navegador (para probar) | [riuk1126.github.io/oxen](https://riuk1126.github.io/oxen/) |
 
 La app de Android se actualiza sola: cada mejora que se sube aquí llega a la tableta al abrirla.
 
@@ -20,4 +20,4 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Relleno** (ícono de lazo): dibuja un contorno y se rellena con la textura o el color elegido.
 
 ## Sacar un APK nuevo
-Cambia `"version"` en `package.json` (por ejemplo `1.0.1`) y sube el cambio con `[apk]` en el mensaje, o en **Actions → Construir ProDraft → Run workflow**.
+Cambia `"version"` en `package.json` (por ejemplo `1.0.1`) y sube el cambio con `[apk]` en el mensaje, o en **Actions → Construir OXEN → Run workflow**.

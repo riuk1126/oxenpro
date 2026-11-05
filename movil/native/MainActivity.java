@@ -1,4 +1,4 @@
-package com.arquizo.prodraft;
+package com.arquizo.oxen;
 
 import android.os.Bundle;
 import androidx.core.view.WindowCompat;
@@ -9,6 +9,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    registerPlugin(OxenNative.class);
     super.onCreate(savedInstanceState);
     pantallaCompleta();
   }

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b0b0c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>ProDraft</title>
+<title>OXEN</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icono.png">
 <link rel="stylesheet" href="estilos.css?v=__PD_VERSION__">
@@ -31,6 +31,7 @@
     <symbol id="i-arriba" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
     <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
     <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+    <symbol id="i-actualizar" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/></symbol>
     <symbol id="i-combinar" viewBox="0 0 24 24"><path d="M12 4v10M7 9l5 5 5-5M4 20h16"/></symbol>
   </defs>
 </svg>
@@ -38,9 +39,13 @@
 <!-- ================= GALERÍA ================= -->
 <section id="galeria" class="pantalla">
   <header class="gal-cab">
-    <div class="marca"><img src="icono.png" alt=""><span>ProDraft</span></div>
-    <button id="btnNuevo" class="btn-verde"><svg><use href="#i-mas"/></svg>Nuevo boceto</button>
+    <div class="marca"><img src="icono.png" alt=""><span>OXEN</span></div>
+    <div class="grupo">
+      <button id="btnActualizar" class="ib" title="Buscar actualizaciones"><svg><use href="#i-actualizar"/></svg></button>
+      <button id="btnNuevo" class="btn-verde"><svg><use href="#i-mas"/></svg>Nuevo boceto</button>
+    </div>
   </header>
+  <div id="galAct" class="act-banner oculto"><span id="galActTxt"></span><button class="btn-verde" id="galActBtn">Actualizar</button></div>
   <div id="galGrid" class="gal-grid"></div>
   <p id="galVacia" class="gal-vacia">Aún no tienes bocetos. Toca <b>Nuevo boceto</b> para empezar.</p>
 </section>
@@ -57,6 +62,7 @@
       <button class="ib" id="bGaleria" title="Galería"><svg><use href="#i-galeria"/></svg></button>
       <button class="ib" id="bMenu" title="Acciones"><svg><use href="#i-menu"/></svg></button>
       <button class="ib" id="bGuias" title="Guías y perspectiva"><svg><use href="#i-guias"/></svg></button>
+      <button class="act-pill oculto" id="bAct"><svg><use href="#i-actualizar"/></svg>Actualizar</button>
     </div>
     <div class="grupo">
       <button class="ib herr" data-h="pincel" id="bPincel" title="Pincel"><svg><use href="#i-pincel"/></svg></button>
@@ -140,7 +146,9 @@
     <label class="interruptor"><input type="checkbox" id="chkSoloLapiz"><span></span>Solo el lápiz dibuja (el dedo mueve)</label>
     <label class="interruptor"><input type="checkbox" id="chkZurdo"><span></span>Barra a la derecha (zurdo)</label>
     <p class="nota">Gestos: 2 dedos = mover, girar y acercar · toque con 2 dedos = deshacer · toque con 3 dedos = rehacer · mantén el trazo al final para enderezar líneas y figuras.</p>
-    <p class="nota version">ProDraft <span id="verTxt"></span></p>
+    <hr>
+    <button class="item" id="mActualizar"><svg style="width:18px;height:18px;vertical-align:-4px;margin-right:8px"><use href="#i-actualizar"/></svg>Buscar actualizaciones</button>
+    <p class="nota version">OXEN <span id="verTxt"></span> · <span id="actEstado">al día</span></p>
   </div>
 
   <input type="file" id="fImportar" accept="image/*" hidden>

@@ -1,4 +1,4 @@
-// ProDraft — texturas de arquitectura (tiles que se repiten sin costuras)
+// OXEN — texturas de arquitectura (tiles que se repiten sin costuras)
 // Cada textura se dibuja en negro sobre fondo transparente y luego se colorea.
 'use strict';
 

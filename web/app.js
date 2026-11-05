@@ -1,4 +1,4 @@
-// ProDraft — bocetos para arquitectos
+// OXEN — bocetos para arquitectos
 'use strict';
 const $ = id => document.getElementById(id);
 const VERSION = window.PD_VERSION && !window.PD_VERSION.startsWith('__') ? window.PD_VERSION : 'dev';
@@ -107,8 +107,8 @@ const AJ_DEF = {
   textura: { id: 'ladrillo', escala: 1, modo: 'textura' }, presion: 1, soloLapiz: null, zurdo: false,
 };
 let aj = AJ_DEF;
-try { aj = Object.assign({}, AJ_DEF, JSON.parse(localStorage.getItem('pd-ajustes') || '{}')); } catch (e) {}
-function guardarAjustes() { try { localStorage.setItem('pd-ajustes', JSON.stringify(aj)); } catch (e) {} }
+try { aj = Object.assign({}, AJ_DEF, JSON.parse(localStorage.getItem('oxen-ajustes') || '{}')); } catch (e) {}
+function guardarAjustes() { try { localStorage.setItem('oxen-ajustes', JSON.stringify(aj)); } catch (e) {} }
 
 let doc = null;          // dibujo abierto
 let herramienta = 'pincel';
@@ -1071,7 +1071,7 @@ function dialogoPapel() {
 let dbP = null;
 function db() {
   return dbP || (dbP = new Promise((res, rej) => {
-    const r = indexedDB.open('prodraft', 1);
+    const r = indexedDB.open('oxen', 1);
     r.onupgradeneeded = () => r.result.createObjectStore('dibujos', { keyPath: 'id' });
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   }));
@@ -1128,9 +1128,9 @@ async function entregarArchivo(blob, nombre) {
     try {
       const data = await blobB64(blob);
       let guardado = false;
-      try { await P.Filesystem.writeFile({ path: 'ProDraft/' + nombre, data, directory: 'DOCUMENTS', recursive: true }); guardado = true; } catch (e) {}
+      try { await P.Filesystem.writeFile({ path: 'OXEN/' + nombre, data, directory: 'DOCUMENTS', recursive: true }); guardado = true; } catch (e) {}
       const r = await P.Filesystem.writeFile({ path: nombre, data, directory: 'CACHE' });
-      avisar(guardado ? 'Guardado en Documentos/ProDraft' : 'Imagen lista');
+      avisar(guardado ? 'Guardado en Documentos/OXEN' : 'Imagen lista');
       if (P.Share) await P.Share.share({ title: nombre, files: [r.uri], dialogTitle: 'Compartir boceto' }).catch(() => {});
       return;
     } catch (e) { console.error(e); }
@@ -1214,11 +1214,80 @@ addEventListener('popstate', () => { if (doc) cerrarDibujo(); });
 $('btnNuevo').onclick = dialogoNuevo;
 
 // =====================================================================
+//  ACTUALIZACIONES (sin reinstalar)
+//  • La app carga desde internet: las mejoras llegan solas al abrirla.
+//  • Si OXEN ya está abierto, busca cambios cada 20 min y al volver a la app.
+//  • Si alguna vez cambia la parte nativa (el APK), la descarga e instala desde la propia app.
+// =====================================================================
+const ES_APP = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+const nativo = () => ES_APP && Capacitor.Plugins && Capacitor.Plugins.OxenNative;
+const UPD = { web: null, apk: null, buscando: false };
+function cmpVer(a, b) { const x = String(a).split('-')[0].split('.').map(Number), y = String(b).split('-')[0].split('.').map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; }
+async function buscarActualizacion(manual) {
+  if (UPD.buscando) return; UPD.buscando = true;
+  $('btnActualizar').classList.add('girando'); if (manual) $('actEstado').textContent = 'buscando…';
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const v = await r.json();
+    UPD.web = v.version && VERSION !== 'dev' && v.version !== VERSION ? v.version : null;
+    UPD.apk = null;
+    const N = nativo();
+    if (N && v.apk) { try { const i = await N.info(); if (i.version && cmpVer(i.version, v.apk) < 0) UPD.apk = v.apk; } catch (e) {} }
+    mostrarEstadoAct(manual);
+    // sin dibujo abierto: se aplica sola, sin preguntar
+    let ya = ''; try { ya = sessionStorage.getItem('oxen-auto') || ''; } catch (e) {}
+    if (UPD.web && !UPD.apk && !doc && ya !== UPD.web) { try { sessionStorage.setItem('oxen-auto', UPD.web); } catch (e) {} aplicarActualizacion(); }
+  } catch (e) { if (manual) { avisar('Sin conexión: inténtalo luego'); $('actEstado').textContent = 'sin conexión'; } }
+  finally { UPD.buscando = false; $('btnActualizar').classList.remove('girando'); }
+}
+function mostrarEstadoAct(manual) {
+  const hay = UPD.web || UPD.apk;
+  $('actEstado').textContent = hay ? 'nueva versión ' + (UPD.apk || UPD.web).split('-')[0] : 'al día';
+  $('bAct').classList.toggle('oculto', !hay);
+  $('mActualizar').lastChild.textContent = hay ? 'Actualizar ahora' : 'Buscar actualizaciones';
+  $('galAct').classList.toggle('oculto', !hay);
+  $('galActTxt').textContent = UPD.apk ? '✨ Hay una versión nueva de OXEN (' + UPD.apk + ')' : '✨ Hay mejoras nuevas para OXEN';
+  if (manual && !hay) avisar('OXEN está al día ✓');
+}
+async function aplicarActualizacion() {
+  if (UPD.apk) return actualizarApk();
+  avisar('Actualizando OXEN…');
+  try { if (doc) { if (trazo) cancelarTrazo(); await guardar(); } } catch (e) {}
+  try { const reg = await navigator.serviceWorker?.getRegistration(); await reg?.update(); } catch (e) {}
+  try { sessionStorage.setItem('oxen-reabrir', doc ? doc.id : ''); } catch (e) {}
+  location.reload();
+}
+async function actualizarApk() {
+  const N = nativo(); if (!N) return;
+  try { if (doc) await guardar(); } catch (e) {}
+  let h = null;
+  try { h = await N.addListener('updProgress', d => avisar('Descargando actualización… ' + d.p + '%')); } catch (e) {}
+  try {
+    avisar('Descargando actualización…');
+    const r = await N.installUpdate({ url: 'https://github.com/riuk1126/oxen/releases/latest/download/OXEN.apk' });
+    if (r.status === 'permission') avisar('Permite «instalar apps» para OXEN y vuelve a tocar Actualizar');
+  } catch (e) { avisar('No se pudo descargar la actualización'); }
+  finally { try { h && h.remove(); } catch (e) {} }
+}
+$('btnActualizar').onclick = () => buscarActualizacion(true);
+$('mActualizar').onclick = () => { if (UPD.web || UPD.apk) { cerrarPaneles(); aplicarActualizacion(); } else buscarActualizacion(true); };
+$('bAct').onclick = () => aplicarActualizacion();
+$('galActBtn').onclick = () => aplicarActualizacion();
+setInterval(() => buscarActualizacion(false), 20 * 60 * 1000);
+addEventListener('visibilitychange', () => { if (!document.hidden) buscarActualizacion(false); });
+
+// =====================================================================
 //  INICIO
 // =====================================================================
 addEventListener('resize', () => { tamSup(); });
 tamSup();
 $('colorActual').style.background = aj.color;
 history.replaceState({ pd: 'galeria' }, '');
-mostrarGaleria();
+mostrarGaleria().then(() => {
+  // tras actualizar, vuelve a abrir el boceto en el que estabas
+  let re = ''; try { re = sessionStorage.getItem('oxen-reabrir') || ''; sessionStorage.removeItem('oxen-reabrir'); } catch (e) {}
+  if (re) { abrirDibujo(re).then(() => avisar('OXEN actualizado ✓')); }
+  setTimeout(() => buscarActualizacion(false), 2500);
+});
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
