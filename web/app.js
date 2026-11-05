@@ -213,6 +213,7 @@ const escalaVista = () => Math.hypot(M[0], M[1]);
 function aDoc(x, y) { return mApl(mInv(M), x, y); }
 function aplicarVista() {
   docEl.style.transform = `matrix(${M.join(',')})`;
+  if (!trazo) limpiarCursor();
   pedirSup();
 }
 function ajustarPantalla() {
@@ -622,7 +623,7 @@ function terminarTrazo(e) {
   }
   if (t.asist && !t.dir && !t.pts.length) agregarPunto(t, t.inicio);
   cancelAnimationFrame(rafComp); rafComp = 0;
-  componerTrazo(t); dibujarCursor();
+  componerTrazo(t); limpiarCursor();
   const r = bbEntero(t.motor.bb); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
   const antes = recorte(respaldo, r);
   if (!t.borrar) sumarTrazoALineas(t, r); else invalidarLineas(t.capa, r);
@@ -647,7 +648,7 @@ function cancelarTrazo() {
     const r = bbEntero(t.motor.bb);
     if (r) { const c = t.capa.ctx; c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); }
   }
-  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none'; pedirSup(); dibujarCursor();
+  trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none'; pedirSup(); limpiarCursor();
 }
 
 // ---- relleno con lazo ----
@@ -1184,8 +1185,13 @@ function vpCercano(x, y) {
 const cursorCv = $('cursorCv'), curCtx = cursorCv.getContext('2d');
 let hover = null, rafCur = 0, curPrev = null;
 function pedirCursor() { if (!rafCur) rafCur = requestAnimationFrame(() => { rafCur = 0; dibujarCursor(); }); }
+// Ojo: el borrado se hace SIN escala. Antes se borraba con la escala de pantalla (×2 o ×3 en la
+// tableta) aplicada, se limpiaba otra zona y quedaban "pelitos" de la tinta adelantada pegados en la
+// pantalla (no en la hoja: por eso seguían ahí al mover el lienzo o al abrir otra hoja).
+function limpiarCursor() { curCtx.setTransform(1, 0, 0, 1, 0, 0); curCtx.clearRect(0, 0, cursorCv.width, cursorCv.height); curPrev = null; }
 function dibujarCursor() {
   const c = curCtx;
+  c.setTransform(1, 0, 0, 1, 0, 0);
   if (curPrev) { c.clearRect(curPrev[0], curPrev[1], curPrev[2], curPrev[3]); curPrev = null; }
   if (!doc) return;
   const t = trazo, s = escalaVista();
