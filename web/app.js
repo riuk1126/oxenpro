@@ -1316,7 +1316,13 @@ function descartarCota(o) {
   const L = lineaDe.get(o), ult = deshacer[deshacer.length - 1];
   const i = doc.objetos.indexOf(o); if (i >= 0) doc.objetos.splice(i, 1);
   if (L && L.ent === ult) {
-    if (ult.t === 'multi') deshacer[deshacer.length - 1] = ult.items[0]; else { deshacer.pop(); }
+    const px = ult.t === 'multi' && ult.items.find(x => x.t === 'px');
+    if (px) { // línea de levantamiento sin medida: se borra también la línea (sin medida no sirve)
+      pegar(px.capa.ctx, px.antes, px.x, px.y); px.capa.sucia = true;
+      if (px.lnk) px.lnk.L.ok = false;
+      deshacer.pop(); bytesHist -= ult.bytes || 0; refrescarCapasSiAbierto();
+      avisarSuave('Línea sin medida: se quitó');
+    } else deshacer.pop();
   }
   renderObjetos(); marcarCambio();
 }
@@ -1744,7 +1750,7 @@ function avisarSuave(txt) { const a = $('aviso'); a.textContent = txt; a.classLi
 function editarCota(o, nueva) {
   const g = geomCota(o), med = metros(g.L), linea = lineaDeCota(o);
   modal(`<h3>${nueva ? 'Medida de la cota' : 'Editar cota'}</h3>
-    <p>En el dibujo mide <b>${fmtM(med)} m</b> a escala 1/${doc.escala}.${nueva ? ' Si la dejas vacía, la cota se quita.' : ''}</p>
+    <p>En el dibujo mide <b>${fmtM(med)} m</b> a escala 1/${doc.escala}.${nueva ? (lineaDe.get(o) && lineaDe.get(o).ent.t === 'multi' ? ' <b>Si no pones la medida, la línea se borra.</b>' : ' Si la dejas vacía, la cota se quita.') : ''}</p>
     <div class="etq">Medida real (m)</div>
     <input type="text" id="cVal" inputmode="decimal" value="${nueva ? '' : o.texto || fmtM(med)}" placeholder="${fmtM(med)}" autocomplete="off">
     <label class="interruptor"><input type="checkbox" id="cAjustar" checked><span></span>${linea ? 'Llevar la línea dibujada a esta medida (a escala)' : 'Llevar la cota a esta medida (a escala)'}</label>
