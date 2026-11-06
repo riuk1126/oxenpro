@@ -1455,6 +1455,7 @@ function ponerBarraSel() {
   $('selTexto').classList.toggle('oculto', !(sim.id === 'nivel' || sim.id === 'corte' || sim.estructura));
   $('selTexto').textContent = sim.estructura ? 'Nombre…' : 'Texto…';
   $('selSeccion').classList.toggle('oculto', !sim.estructura);
+  if (sim.estructura) { const q = seccionSim(selSim); $('selSeccion').textContent = 'Medidas ' + (sim.circular ? 'Ø' + fmtM(q.sw) : sim.id === 'placa' ? fmtM(q.sw) : fmtM(q.sw) + '×' + fmtM(q.sh)); }
   $('selAncho').textContent = sim.estructura ? 'Largo…' : 'Ancho…';
   const w = bar.offsetWidth; bar.style.left = clamp(cx / n - w / 2, 8, innerWidth - w - 8) + 'px'; bar.style.top = clamp(maxY + 14, 60, innerHeight - 60) + 'px';
 }
@@ -1467,15 +1468,43 @@ $('selBorrar').onclick = () => { if (!selSim) return; const antes = snapObj(); d
 $('selAncho').onclick = () => { if (!selSim) return; const o = selSim; pedirTexto(Simbolos.de(o.sid).estructura ? 'Largo (m)' : 'Ancho del vano (m)', fmtM(o.w), v => { const n = parseFloat(String(v).replace(',', '.')); if (n > 0) cambiarSel(x => { x.w = n; }); }, 'decimal'); };
 $('selTexto').onclick = () => { if (!selSim) return; const o = selSim, est = Simbolos.de(o.sid).estructura;
   pedirTexto(o.sid === 'nivel' ? 'Texto del nivel' : o.sid === 'corte' ? 'Letra del corte' : o.sid === 'viga' ? 'Nombre de la viga (ej. V-101)' : 'Nombre (ej. C-1)', est ? (o.texto || '') : textoSim(o), v => cambiarSel(x => { x.texto = v; })); };
-$('selSeccion').onclick = () => { if (!selSim) return; const o = selSim, sim = Simbolos.de(o.sid), q = seccionSim(o);
-  const tit = sim.circular ? 'Diámetro (m)' : sim.id === 'viga' ? 'Sección: ancho × peralte (m)' : sim.id === 'placa' ? 'Espesor (m)' : 'Sección (m), ej. 0.25 x 0.40';
-  const val = sim.circular || sim.id === 'placa' ? fmtM(q.sw) : fmtM(q.sw) + ' x ' + fmtM(q.sh);
-  pedirTexto(tit, val, v => {
-    const n = String(v).replace(/,/g, '.').match(/\d*\.?\d+/g); if (!n) return; const a = parseFloat(n[0]), b = n[1] ? parseFloat(n[1]) : a;
-    if (!(a > 0)) return;
-    cambiarSel(x => { x.sw = a; x.sh = sim.id === 'placa' ? 0 : b; });
-    aj.secciones = aj.secciones || {}; aj.secciones[sim.id] = { sw: a, sh: sim.id === 'placa' ? 0 : b }; guardarAjustes(); // la próxima sale igual
-  }); };
+// ---- medidas de columnas, vigas, placas y zapatas ----
+// Se preguntan al ponerlas (con medidas típicas a un toque) y se cambian con "Sección…" al seleccionarlas.
+const SECCIONES = {
+  columna: { t: 'Columna', a: 'Lado X (m)', b: 'Lado Y (m)', pre: [[.25, .25], [.25, .40], [.25, .50], [.30, .30], [.30, .50], [.40, .40]] },
+  columnaC: { t: 'Columna circular', a: 'Diámetro (m)', pre: [[.25], [.30], [.40], [.50]] },
+  viga: { t: 'Viga', a: 'Ancho b (m)', b: 'Peralte h (m)', pre: [[.25, .40], [.25, .50], [.30, .60], [.25, .20], [.40, .20]] },
+  placa: { t: 'Placa / muro', a: 'Espesor (m)', pre: [[.15], [.20], [.25], [.30]] },
+  zapata: { t: 'Zapata', a: 'Lado X (m)', b: 'Lado Y (m)', pre: [[1, 1], [1.2, 1.2], [1.5, 1.5], [1.2, 1.8]] },
+};
+const numM = v => { const n = parseFloat(String(v).replace(',', '.')); return n > 0 && n < 50 ? n : null; };
+function dialogoSeccion(o, nuevo) {
+  const sim = Simbolos.de(o.sid), cfg = SECCIONES[o.sid]; if (!cfg) return;
+  const q = seccionSim(o), dos = !!cfg.b, nom = o.sid === 'viga' ? 'V-101' : o.sid === 'zapata' ? 'Z-1' : o.sid === 'placa' ? 'PL-1' : 'C-1';
+  const etiqueta = p => p.map(v => fmtM(v)).join(' × ');
+  modal(`<h3>${cfg.t}: medidas</h3>
+    <div class="sec-pre">${cfg.pre.map((p, i) => `<button data-i="${i}">${etiqueta(p)}</button>`).join('')}</div>
+    <div class="sec-campos"><label><span>${cfg.a}</span><input id="secA" type="text" inputmode="decimal" value="${fmtM(q.sw)}"></label>
+    ${dos ? `<label><span>${cfg.b}</span><input id="secB" type="text" inputmode="decimal" value="${fmtM(q.sh)}"></label>` : ''}
+    ${o.sid === 'viga' && o.w ? `<label><span>Largo (m)</span><input id="secL" type="text" inputmode="decimal" value="${fmtM(o.w)}"></label>` : ''}
+    <label><span>Nombre</span><input id="secN" type="text" value="${escapar(o.texto || '')}" placeholder="${nom}"></label></div>
+    ${nuevo ? `<label class="interruptor"><input type="checkbox" id="secNoPreg"><span></span>Usar esta medida en las siguientes sin preguntar</label>` : ''}
+    <div class="modal-btns"><span style="flex:1"></span><button id="mNo">${nuevo ? 'Dejar así' : 'Cancelar'}</button><button class="ok" id="mSi">Listo</button></div>`, cerrar => {
+    document.querySelectorAll('.sec-pre button').forEach(b => b.onclick = () => { const p = cfg.pre[+b.dataset.i]; $('secA').value = fmtM(p[0]); if (dos) $('secB').value = fmtM(p[1]); });
+    $('mNo').onclick = cerrar;
+    $('mSi').onclick = () => {
+      const a = numM($('secA').value), b = dos ? numM($('secB').value) : a, L = $('secL') ? numM($('secL').value) : null, n = $('secN').value.trim();
+      if (!a || !b) return avisar('Escribe medidas válidas en metros (ej. 0.25)');
+      const noPreg = nuevo && $('secNoPreg').checked; cerrar();
+      const antes = snapObj(); o.sw = a; o.sh = o.sid === 'placa' ? 0 : b; o.texto = n || null; if (L) o.w = L; histObj(antes);
+      aj.secciones = aj.secciones || {}; aj.secciones[o.sid] = { sw: a, sh: o.sid === 'placa' ? 0 : b };
+      if (noPreg) { aj.secNoPreguntar = aj.secNoPreguntar || {}; aj.secNoPreguntar[o.sid] = true; }
+      guardarAjustes(); if (selSim === o) ponerBarraSel();
+    };
+    setTimeout(() => { const i = $('secA'); i.focus(); i.select(); }, 60);
+  });
+}
+$('selSeccion').onclick = () => { if (selSim) dialogoSeccion(selSim, false); };
 
 function iniciarArq(e) {
   const d = aDoc(e.clientX, e.clientY);
@@ -1544,7 +1573,8 @@ function terminarArq(t) {
   } else if (t.arq === 'simbolo') {
     if (t.modo === 'soltar') { seleccionar(null); if (herrAntesSim) { const h = herrAntesSim; herrAntesSim = null; elegirHerramienta(h); } }
     else if (t.modo === 'poner' && t.desdeCol && !t.movido) seleccionar(t.desdeCol); // solo un toque: selecciona la columna
-    else if (t.modo === 'poner') { const o = nuevoSim(t); doc.objetos.push(o); histObj(t.antes); seleccionar(o); }
+    else if (t.modo === 'poner') { const o = nuevoSim(t); doc.objetos.push(o); histObj(t.antes); seleccionar(o);
+      if (SECCIONES[o.sid] && !(aj.secNoPreguntar && aj.secNoPreguntar[o.sid])) dialogoSeccion(o, true); }
     else if (t.movido || t.modo === 'girar') histObj(t.antes);
     ponerBarraSel();
   }
