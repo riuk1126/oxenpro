@@ -294,3 +294,22 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 .sec-campos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .sec-campos label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--texto2)}
 .sec-campos input{font-size:16px}
+
+/* chip de levantamiento: líneas rectas/libres, cota lineal/ángulo, terreno */
+.chip-lev{position:absolute;z-index:12;left:50%;transform:translateX(-50%);bottom:calc(16px + var(--sa-b, 0px));display:flex;align-items:center;gap:4px;padding:5px;border-radius:999px;background:rgba(22,22,24,.94);border:1px solid var(--linea);box-shadow:var(--sombra)}
+.chip-lev button{padding:8px 13px;border-radius:999px;font-weight:600;font-size:13px;color:var(--texto2)}
+.chip-lev button.activo{background:var(--gris3);color:var(--texto)}
+.chip-lev button[data-a="terreno"].activo{background:var(--verde);color:#0b0b0c}
+.cl-et{font-size:11.5px;color:var(--texto2);padding:0 4px 0 10px;text-transform:uppercase;letter-spacing:.04em}
+.cl-sep{width:1px;height:20px;background:var(--linea);margin:0 4px}
+.terreno-panel{width:280px}
+.tr-c,.tr-campos label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--texto2);margin-bottom:8px}
+.tr-c small{font-size:11px;opacity:.8}
+.terreno-panel input{background:var(--gris2);border:1px solid var(--linea);color:var(--texto);border-radius:9px;padding:9px 10px;font-size:16px;width:100%;-webkit-user-select:text;user-select:text}
+.tr-campos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tr-sent{margin-bottom:10px}
+.tr-lista{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px;font-size:13px}
+.tr-lista div{display:flex;gap:8px;align-items:center}.tr-lista b{width:20px;height:20px;border-radius:50%;background:var(--gris3);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.tr-btns{display:flex;gap:6px;margin:4px 0 8px}
+.tr-btns button{flex:1;padding:9px 10px;border-radius:999px;background:var(--gris3);font-weight:600;font-size:13px}
+.tr-btns button.ok{background:var(--verde);color:#0b0b0c}

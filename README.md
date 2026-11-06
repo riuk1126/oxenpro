@@ -24,7 +24,8 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Selección** (ícono de recuadro): encierra algo con el lazo y muévelo, escálalo, gíralo, voltéalo o duplícalo. Toca otra vez el ícono para copiar, pegar o seleccionar toda la capa.
 - **Nota en el plano** (ícono de pin): arrástrala al punto exacto; queda numerada. Tócala (con el dedo o el lápiz) para leerla; todas aparecen en la ventana de notas de la izquierda.
 - **Formas**: tras enderezar, sin soltar mueve el lápiz para agrandar o girar; un dedo la vuelve perfecta.
-- **Estructura**: columnas, vigas (se pegan a las columnas), placas y zapatas con su sección.
+- **Estructura**: columnas, vigas (se pegan a las columnas), placas y zapatas; al ponerlas pide sus medidas.
+- **Terrenos no rectos** (barra de abajo en planta y levantamiento): líneas **Rectas/Libres** con largo y ángulo en vivo, **cota de ángulo** y **Terreno por medidas** (lado por lado: largo y ángulo interior, con cotas y ángulos automáticos).
 - **Simetría** (en Guías), **bloquear transparencia** y **grupos** (en Capas), **imagen de referencia** para calcar (en Acciones).
 - **Mantén el lápiz quieto** al empezar = tomar color · **3 dedos hacia abajo** = copiar y pegar · **toque con 4 dedos** = pantalla completa · **pellizco rápido** = encajar la hoja.
 

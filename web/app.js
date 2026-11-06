@@ -481,7 +481,8 @@ function finPuntero(e) {
     if (toques.size < 2 && gesto) terminarGesto(true);
     if (toques.size === 0) {
       const dt = performance.now() - gestoTap.t;
-      if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz()) { const o = pinEn(aDoc(e.clientX, e.clientY)); if (o) verPin(o); else if (pinVisto) ocultarPin(); }
+      if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz() && terreno && !terreno.v0) { terreno.v0 = imanCota(aDoc(e.clientX, e.clientY)); pintarTerreno(); pedirSup(); }
+      else if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz()) { const o = pinEn(aDoc(e.clientX, e.clientY)); if (o) verPin(o); else if (pinVisto) ocultarPin(); }
       if (gestoTap.max >= 2 && !gestoTap.movido && dt < 380) { gestoTap.max >= 4 ? alternarInterfaz() : gestoTap.max === 3 ? hacerRehacer() : hacerDeshacer(); }
       gestoTap.max = 0; gestoTap.menu3 = false;
     }
@@ -559,6 +560,7 @@ function copiarRespaldo(capa) {
 
 function iniciarTrazo(e) {
   if (herramienta === 'gotero') { trazo = { id: e.pointerId, tipo: e.pointerType, gotero: true, t0: performance.now(), largo: 0 }; tomarColor(e); return; }
+  if (terreno && !terreno.v0) { terreno.v0 = imanCota(aDoc(e.clientX, e.clientY)); pintarTerreno(); pedirSup(); return; }
   if (herramienta === 'cota' || herramienta === 'texto' || herramienta === 'simbolo' || herramienta === 'pin') return iniciarArq(e);
   if (herramienta === 'seleccion' && flot) return iniciarTransf(e);
   const capa = capaActiva();
@@ -634,6 +636,7 @@ function moverTrazo(e, soloPrediccion) {
       agregarPunto(t, p);
     }
     if (t.forma && lista.length) { const p = t.raw[t.raw.length - 1]; editarForma(t, { x: p.x, y: p.y }); t.formaPend = true; }
+    else if (!t.borrar && !t.lazo && t.pts.length > 1 && aEscala() && performance.now() - (t.lecT || 0) > 60) { t.lecT = performance.now(); avisarSuave(lecturaLinea(t.pts[0], t.pts[t.pts.length - 1])); }
     reiniciarQuickShape(t, e);
   }
   // tinta adelantada: dibuja hacia donde va el lápiz para que se sienta sin retraso
@@ -905,7 +908,7 @@ function dibujarManijasFlot(c) {
   c.beginPath(); c.arc(m.giro.x, m.giro.y, 11, 0, 6.2832); c.fillStyle = '#8ACF00'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#0b0b0c'; c.stroke();
   c.beginPath(); c.arc(m.giro.x, m.giro.y, 5, -2.4, 1.6); c.stroke();
 }
-function ponerBarraTransf() { $('transfBar').classList.toggle('oculto', !flot); }
+function ponerBarraTransf() { $('transfBar').classList.toggle('oculto', !flot); pintarChipLev(); }
 $('tfVoltH').onclick = () => { if (flot) { flot.fx *= -1; renderFlot(); } };
 $('tfVoltV').onclick = () => { if (flot) { flot.fy *= -1; renderFlot(); } };
 $('tfGirar').onclick = () => { if (flot) { flot.ang = (Math.round(flot.ang / (Math.PI / 2)) + 1) * Math.PI / 2; renderFlot(); } };
@@ -1008,7 +1011,7 @@ function editarForma(t, p) { // la forma sigue al lápiz mientras se mantiene pr
 }
 function medidaForma(f) { // en hojas a escala se ve la medida real mientras se ajusta
   if (!doc || doc.tipo === 'boceto' || doc.tipo === 'perspectiva') return;
-  if (f.tipo === 'linea') avisarSuave(fmtM(metros(Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y))) + ' m');
+  if (f.tipo === 'linea') avisarSuave(lecturaLinea(f.a, f.b));
   else if (f.tipo === 'circulo') avisarSuave('Ø ' + fmtM(metros(f.rx * 2)) + ' m');
   else if (f.tipo === 'rect') avisarSuave(fmtM(metros(f.hw * 2)) + ' × ' + fmtM(metros(f.hh * 2)) + ' m');
 }
@@ -1212,7 +1215,7 @@ function renderObjetos(previa, previaSim) {
   if (anotCv.width !== doc.w || anotCv.height !== doc.h) { anotCv.width = doc.w; anotCv.height = doc.h; anotCv.style.width = doc.w + 'px'; anotCv.style.height = doc.h + 'px'; }
   const c = anotCtx; c.clearRect(0, 0, doc.w, doc.h);
   if (doc.rotulo) dibujarRotulo(c);
-  for (const o of doc.objetos) { if (o.tipo === 'cota') dibujarCota(c, o); else if (o.tipo === 'texto') dibujarTexto(c, o); else if (o.tipo === 'simbolo') dibujarSim(c, o); }
+  for (const o of doc.objetos) { if (o.tipo === 'cota') dibujarCota(c, o); else if (o.tipo === 'texto') dibujarTexto(c, o); else if (o.tipo === 'simbolo') dibujarSim(c, o); else if (o.tipo === 'angulo') dibujarAngulo(c, o); }
   for (const o of doc.objetos) if (o.tipo === 'pin') dibujarPin(c, o); // las notas siempre encima
   if (previa) dibujarCota(c, previa, true);
   if (previaSim) dibujarSim(c, previaSim);
@@ -1223,6 +1226,7 @@ function objetoEn(d) {
   for (let i = doc.objetos.length - 1; i >= 0; i--) {
     const o = doc.objetos[i];
     if (o.tipo === 'texto' && o._bb && d.x >= o._bb[0] - tol / 2 && d.x <= o._bb[2] + tol / 2 && d.y >= o._bb[1] - tol / 2 && d.y <= o._bb[3] + tol / 2) return o;
+    if (o.tipo === 'angulo' && o._t && Math.hypot(d.x - o._t.x, d.y - o._t.y) < tol + 4 * doc.pxmm) return o;
     if (o.tipo === 'cota') {
       const g = geomCota(o), px = d.x - g.a2.x, py = d.y - g.a2.y, k = clamp((px * g.ux + py * g.uy) / g.L, 0, 1);
       if (Math.hypot(d.x - (g.a2.x + g.ux * g.L * k), d.y - (g.a2.y + g.uy * g.L * k)) < tol + 3 * doc.pxmm) return o;
@@ -1318,6 +1322,153 @@ function descartarCota(o) {
 }
 
 
+
+// =====================================================================
+//  TERRENOS QUE NO SON RECTOS
+//  · Líneas "Rectas" (se pegan a 0/45/90°) o "Libres" (cualquier ángulo), con largo y ángulo en vivo.
+//  · Cota de ángulo: tres toques (vértice, un punto de cada muro).
+//  · Terreno por medidas: lado por lado (largo y ángulo interior), como en topografía.
+// =====================================================================
+const aEscala = () => doc && (doc.tipo === 'levantamiento' || doc.tipo === 'planta');
+const gradosDe = (dx, dy) => ((Math.atan2(-dy, dx) * 180 / Math.PI) % 360 + 360) % 360; // 0° = derecha, 90° = arriba
+const fmtG = g => (Math.round(g * 10) / 10).toString().replace(/\.0$/, '') + '°';
+function lecturaLinea(a, b) { return fmtM(metros(Math.hypot(b.x - a.x, b.y - a.y))) + ' m · ' + fmtG(gradosDe(b.x - a.x, b.y - a.y)); }
+function pintarChipLev() {
+  const ch = $('chipLev'), ver = aEscala() && !flot;
+  ch.classList.toggle('oculto', !ver); if (!ver) return;
+  const recto = !!doc.guias.asist, esCota = herramienta === 'cota', ang = aj.cotaModo === 'angulo';
+  ch.innerHTML = (esCota
+    ? `<span class="cl-et">Cota</span><button data-a="lineal" class="${ang ? '' : 'activo'}">Lineal</button><button data-a="angulo" class="${ang ? 'activo' : ''}">Ángulo</button>`
+    : `<span class="cl-et">Líneas</span><button data-a="recto" class="${recto ? 'activo' : ''}">Rectas</button><button data-a="libre" class="${recto ? '' : 'activo'}">Libres</button>`)
+    + `<span class="cl-sep"></span><button data-a="terreno" class="${terreno ? 'activo' : ''}">Terreno por medidas</button>`;
+  ch.onclick = ev => { const a = ev.target.closest('button')?.dataset.a; if (!a) return;
+    if (a === 'recto' || a === 'libre') { doc.guias.asist = a === 'recto'; marcarCambio(); avisar(a === 'recto' ? 'Líneas rectas: se pegan a 0°, 45° y 90°' : 'Líneas libres: cualquier ángulo (verás largo y ángulo al dibujar)'); if (panelAbierto('pGuias')) pintarGuiasPanel(); }
+    else if (a === 'lineal' || a === 'angulo') { aj.cotaModo = a; guardarAjustes(); angPend = []; renderObjetos(); avisar(a === 'angulo' ? 'Cota de ángulo: toca el vértice, luego un punto de cada muro' : 'Cota lineal'); }
+    else if (a === 'terreno') terreno ? cerrarTerreno() : abrirTerreno();
+    pintarChipLev(); };
+}
+// ---- cota de ángulo ----
+let angPend = [];
+function datosAngulo(o) {
+  const a1 = Math.atan2(o.a.y - o.v.y, o.a.x - o.v.x), a2 = Math.atan2(o.b.y - o.v.y, o.b.x - o.v.x);
+  let d = a2 - a1;
+  if (o.dir > 0) { while (d < 0) d += 2 * Math.PI; while (d >= 2 * Math.PI) d -= 2 * Math.PI; } // ángulo interior de un terreno (puede pasar de 180°)
+  else if (o.dir < 0) { while (d > 0) d -= 2 * Math.PI; while (d <= -2 * Math.PI) d += 2 * Math.PI; }
+  else { while (d > Math.PI) d -= 2 * Math.PI; while (d <= -Math.PI) d += 2 * Math.PI; }
+  return { a1, d, grados: Math.abs(d) * 180 / Math.PI, r: 9 * doc.pxmm };
+}
+function dibujarAngulo(c, o) {
+  const g = datosAngulo(o), mm = doc.pxmm, fs = 2.6 * mm, mid = g.a1 + g.d / 2;
+  c.save(); c.strokeStyle = c.fillStyle = o.color || '#1d1d1f'; c.lineWidth = Math.max(1, 0.18 * mm); c.lineCap = 'round';
+  c.beginPath(); c.arc(o.v.x, o.v.y, g.r, g.a1, g.a1 + g.d, g.d < 0); c.stroke();
+  for (const an of [g.a1, g.a1 + g.d]) { c.beginPath(); c.moveTo(o.v.x + Math.cos(an) * (g.r - 1.2 * mm), o.v.y + Math.sin(an) * (g.r - 1.2 * mm)); c.lineTo(o.v.x + Math.cos(an) * (g.r + 1.2 * mm), o.v.y + Math.sin(an) * (g.r + 1.2 * mm)); c.stroke(); }
+  const tx = o.v.x + Math.cos(mid) * (g.r + 4 * mm), ty = o.v.y + Math.sin(mid) * (g.r + 4 * mm), txt = fmtG(g.grados);
+  c.font = `600 ${fs}px -apple-system,Roboto,"Segoe UI",sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.lineWidth = fs * 0.28; c.strokeStyle = papelDe(doc.papel).color; c.lineJoin = 'round'; c.strokeText(txt, tx, ty); c.fillText(txt, tx, ty);
+  c.restore(); o._t = { x: tx, y: ty };
+}
+function puntoAngulo(p) {
+  angPend.push(imanCota(p));
+  if (angPend.length === 1) avisarSuave('Ahora toca un punto del primer muro');
+  else if (angPend.length === 2) avisarSuave('Ahora toca un punto del segundo muro');
+  else { const antes = snapObj(), [v, a, b] = angPend; angPend = []; doc.objetos.push({ tipo: 'angulo', v, a, b, color: aj.color, id: Date.now() + Math.random() }); histObj(antes); avisar('Ángulo: ' + fmtG(datosAngulo(doc.objetos[doc.objetos.length - 1]).grados)); }
+  renderObjetos(); pedirSup();
+}
+
+// ---- terreno por medidas ----
+let terreno = null; // { v0, dir0, sentido: 1 antihorario | -1 horario, lados: [{L, ang}] }
+function abrirTerreno() {
+  if (flot) aplicarFlot(); ocultarPin(); ventanaPines = false;
+  terreno = { v0: null, dir0: 0, sentido: -1, lados: [] };
+  avisar('Toca en la hoja el primer vértice del terreno'); pintarTerreno(); pintarChipLev(); pintarVentanaPines();
+}
+function cerrarTerreno() { terreno = null; $('terrenoPanel').classList.add('oculto'); pedirSup(); pintarChipLev(); }
+function verticesTerreno(extra) { // en px de la hoja
+  const T = terreno, v = [T.v0]; let h = T.dir0, x = T.v0.x, y = T.v0.y;
+  const lados = extra ? T.lados.concat([extra]) : T.lados;
+  lados.forEach((l, i) => {
+    if (i > 0) h += T.sentido * (180 - l.ang);
+    const r = h * Math.PI / 180; x += pxDeMetros(l.L) * Math.cos(r); y -= pxDeMetros(l.L) * Math.sin(r); v.push({ x, y });
+  });
+  return v;
+}
+function pintarTerreno() {
+  const P = $('terrenoPanel'); if (!terreno) { P.classList.add('oculto'); return; }
+  const T = terreno; P.classList.remove('oculto');
+  if (!T.v0) { P.innerHTML = `<div class="pv-cab"><b>Terreno por medidas</b><button data-x="1">×</button></div><p class="nota">Toca en la hoja el <b>primer vértice</b> (puedes tocar el extremo de una línea ya dibujada).</p>`; }
+  else {
+    const v = verticesTerreno(), fin = v[v.length - 1], falta = metros(Math.hypot(fin.x - T.v0.x, fin.y - T.v0.y)), n = T.lados.length;
+    P.innerHTML = `<div class="pv-cab"><b>Terreno por medidas</b><button data-x="1">×</button></div>
+      ${n === 0 ? `<label class="tr-c"><span>Dirección del primer lado (°)</span><input id="trDir" type="text" inputmode="decimal" value="${T.dir0}"><small>0° = derecha · 90° = arriba · 180° = izquierda · 270° = abajo</small></label>
+      <div class="seg chico tr-sent"><button data-s="-1" class="${T.sentido < 0 ? 'activo' : ''}">↻ Horario</button><button data-s="1" class="${T.sentido > 0 ? 'activo' : ''}">↺ Antihorario</button></div>` : ''}
+      <div class="tr-lista">${T.lados.map((l, i) => `<div><b>${i + 1}</b>${fmtM(l.L)} m${i ? ' · ' + fmtG(l.ang) : ''}</div>`).join('')}</div>
+      <div class="tr-campos"><label><span>Lado ${n + 1}: largo (m)</span><input id="trL" type="text" inputmode="decimal" placeholder="12.50"></label>
+      ${n ? `<label><span>Ángulo interior (°)</span><input id="trA" type="text" inputmode="decimal" placeholder="90" value="${T.ultAng || 90}"></label>` : ''}</div>
+      <div class="tr-btns"><button id="trMas" class="ok">＋ Agregar lado</button>${n ? '<button id="trQuitar">Quitar último</button>' : ''}</div>
+      ${n ? `<p class="nota">Distancia al punto de inicio: <b>${fmtM(falta)} m</b>${n >= 3 ? ' (si ya pusiste todos los lados, ese es el error de cierre)' : ''}</p>` : ''}
+      ${n ? `<div class="tr-btns"><button id="trCerrar" class="ok">Cerrar y dibujar</button><button id="trAbierto">Dibujar abierto</button></div>` : ''}`;
+  }
+  P.onclick = ev => {
+    if (ev.target.closest('[data-x]')) return cerrarTerreno();
+    const sb = ev.target.closest('[data-s]'); if (sb) { T.sentido = +sb.dataset.s; pintarTerreno(); pedirSup(); return; }
+    const id = ev.target.closest('button')?.id;
+    if (id === 'trMas') agregarLadoTerreno();
+    else if (id === 'trQuitar') { T.lados.pop(); pintarTerreno(); pedirSup(); }
+    else if (id === 'trCerrar') dibujarTerreno(true);
+    else if (id === 'trAbierto') dibujarTerreno(false);
+  };
+  const L = $('trL'), A = $('trA'), D = $('trDir');
+  const vivo = () => pedirSup();
+  if (L) { L.oninput = vivo; L.onkeydown = e => { if (e.key === 'Enter') (A || {}).focus ? A.focus() : agregarLadoTerreno(); }; }
+  if (A) { A.oninput = vivo; A.onkeydown = e => { if (e.key === 'Enter') agregarLadoTerreno(); }; }
+  if (D) D.oninput = () => { const g = parseFloat(String(D.value).replace(',', '.')); if (!isNaN(g)) { T.dir0 = g; pedirSup(); } };
+  if (L) setTimeout(() => L.focus(), 30);
+}
+function ladoEscrito() {
+  const L = numM(($('trL') || {}).value), A = $('trA') ? parseFloat(String($('trA').value).replace(',', '.')) : 0;
+  return L && !(terreno.lados.length && !(A > 0 && A < 360)) ? { L, ang: A || 0 } : null;
+}
+function agregarLadoTerreno() {
+  const l = ladoEscrito(); if (!l) return avisar('Escribe el largo en metros' + (terreno.lados.length ? ' y el ángulo interior' : ''));
+  terreno.lados.push(l); if (l.ang) terreno.ultAng = l.ang; pintarTerreno(); pedirSup();
+}
+function dibujarTerreno(cerrar) {
+  const T = terreno, l = ladoEscrito(); if (l) T.lados.push(l);
+  if (!T.lados.length) return;
+  const v = verticesTerreno(); if (cerrar) v.push({ x: T.v0.x, y: T.v0.y });
+  const capa = capaActiva(); if (!capa.visible) return avisar('La capa activa está oculta');
+  const pin = pincelActual(), o = opcionesPincel(claveAjuste()), s = Math.max(0.35, tamPincel(pin, o, doc.pxmm) * (1 - pin.pTam * 0.4)), a = (pin.alfa || 1) * (1 - (pin.pAlfa || 0) * 0.4);
+  const m = crearTrazo(trazoCtx, pin, aj.color, aj.textura);
+  for (let k = 1; k < v.length; k++) { const p = v[k - 1], q = v[k], n = Math.max(2, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / 2)); for (let i = (k === 1 ? 0 : 1); i <= n; i++) trazoPunto(m, { x: lerp(p.x, q.x, i / n), y: lerp(p.y, q.y, i / n), s, a }); }
+  const r = bbEntero(m.bb); if (!r) return;
+  const antes = recorte(capa.cv, r), c = capa.ctx;
+  c.save(); c.globalAlpha = o.op * (pin.op || 1); if (capa.bloq) c.globalCompositeOperation = 'source-atop'; c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); c.restore();
+  trazoCtx.clearRect(r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4);
+  histPx(capa, r, antes); const px = deshacer.pop(); bytesHist -= px.bytes || 0;
+  // una cota por lado (por fuera del terreno) y los ángulos interiores
+  const antesObj = snapObj(), lados = v.length - 1, area = v.slice(0, -1).reduce((acc, p, i) => acc + p.x * v[i + 1].y - v[i + 1].x * p.y, 0);
+  const fuera = cerrar && area < 0 ? 1 : -1; // en la hoja (y hacia abajo) el signo del área dice para dónde queda "afuera"
+  for (let k = 0; k < lados; k++) doc.objetos.push({ tipo: 'cota', a: { ...v[k] }, b: { ...v[k + 1] }, off: (cerrar ? fuera : -1) * 6 * doc.pxmm, color: aj.color, id: Date.now() + Math.random() + k });
+  if (cerrar && lados >= 3) for (let k = 0; k < lados; k++) {
+    const prev = v[(k - 1 + lados) % lados], cur = v[k], next = v[k + 1];
+    doc.objetos.push({ tipo: 'angulo', v: { ...cur }, a: { ...next }, b: { ...prev }, dir: area > 0 ? 1 : -1, color: aj.color, id: Date.now() + Math.random() + 100 + k });
+  }
+  pushHist({ t: 'multi', items: [px, { t: 'obj', antes: antesObj, despues: snapObj() }], bytes: px.bytes });
+  renderObjetos(); refrescarCapasSiAbierto();
+  const fin = verticesTerreno(); const err = metros(Math.hypot(fin[fin.length - 1].x - T.v0.x, fin[fin.length - 1].y - T.v0.y));
+  cerrarTerreno(); avisar(cerrar ? `Terreno dibujado · ${T.lados.length} lados + cierre` + (T.lados.length >= 3 && err > 0.005 ? ` · el lado de cierre mide ${fmtM(err)} m` : '') : 'Polígono dibujado');
+}
+function dibujarTerrenoSup(c) {
+  const T = terreno; if (!T || !T.v0) return;
+  const l = ladoEscrito(), v = verticesTerreno(l), s = escalaVista();
+  c.setTransform(DPR * M[0], DPR * M[1], DPR * M[2], DPR * M[3], DPR * M[4], DPR * M[5]);
+  c.save(); c.lineWidth = 2 / s; c.strokeStyle = '#8ACF00'; c.beginPath(); v.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
+  if (l) { c.stroke(); c.beginPath(); c.setLineDash([8 / s, 6 / s]); c.moveTo(v[v.length - 2].x, v[v.length - 2].y); c.lineTo(v[v.length - 1].x, v[v.length - 1].y); }
+  c.stroke(); c.setLineDash([6 / s, 6 / s]); c.strokeStyle = 'rgba(138,207,0,.45)'; c.beginPath(); c.moveTo(v[v.length - 1].x, v[v.length - 1].y); c.lineTo(T.v0.x, T.v0.y); c.stroke(); c.setLineDash([]);
+  c.fillStyle = '#8ACF00'; for (const p of v) { c.beginPath(); c.arc(p.x, p.y, 5 / s, 0, 6.2832); c.fill(); }
+  c.restore();
+}
+
 // ---- notas con punto (pines numerados en el plano) ----
 const COLOR_PIN = '#ff7a2f';
 const radioPin = () => 5 * doc.pxmm;
@@ -1375,7 +1526,7 @@ function ubicarGloboPin() {
 // ---- ventana con todas las notas (a la izquierda) ----
 let ventanaPines = false;
 function pintarVentanaPines() {
-  const v = $('pinesVentana'), mostrar = !!doc && (ventanaPines || herramienta === 'pin');
+  const v = $('pinesVentana'), mostrar = !!doc && !terreno && (ventanaPines || herramienta === 'pin');
   v.classList.toggle('oculto', !mostrar); if (!mostrar) return;
   const pines = doc.objetos.filter(o => o.tipo === 'pin').sort((a, b) => a.n - b.n);
   v.innerHTML = `<div class="pv-cab"><b>Notas del plano</b><button data-x="1">×</button></div>` + (pines.length
@@ -1509,7 +1660,7 @@ $('selSeccion').onclick = () => { if (selSim) dialogoSeccion(selSim, false); };
 function iniciarArq(e) {
   const d = aDoc(e.clientX, e.clientY);
   const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, arq: herramienta, sx: e.clientX, sy: e.clientY, a: d, b: d, movido: false };
-  if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; }
+  if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; if (aj.cotaModo === 'angulo') t.angulo = true; }
   if (herramienta === 'pin') { t.obj = pinEn(d); if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
   if (herramienta === 'texto') { t.obj = objetoEn(d); if (t.obj && t.obj.tipo !== 'texto') t.obj = null; if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
   if (herramienta === 'simbolo') {
@@ -1530,7 +1681,8 @@ function iniciarArq(e) {
 function moverArq(e) {
   const t = trazo; const d = aDoc(e.clientX, e.clientY);
   if (Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) t.movido = true;
-  if (t.arq === 'cota') { t.b = imanCota(enderezarFin(t.a, d)); if (t.movido) renderObjetos({ tipo: 'cota', a: t.a, b: t.b, color: aj.color }); }
+  if (t.arq === 'cota' && t.angulo) { t.b = imanCota(d); if (t.movido && !angPend.length) { renderObjetos(); avisarSuave('Suelta sobre el primer muro'); } }
+  else if (t.arq === 'cota') { t.b = imanCota(enderezarFin(t.a, d)); if (t.movido) { renderObjetos({ tipo: 'cota', a: t.a, b: t.b, color: aj.color }); if (aEscala()) avisarSuave(lecturaLinea(t.a, t.b)); } }
   else if (t.arq === 'pin' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
   else if (t.arq === 'texto' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
   else if (t.arq === 'simbolo') {
@@ -1556,8 +1708,13 @@ function nuevoSim(t) {
   return o;
 }
 function terminarArq(t) {
+  if (t.arq === 'cota' && aj.cotaModo === 'angulo') {
+    if (!angPend.length && !t.movido) { const o = objetoEn(t.a); if (o && o.tipo === 'angulo') return confirmar('Cota de ángulo', '¿Quitar esta cota de ángulo?', 'Quitar', () => { const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); histObj(antes); renderObjetos(); }); }
+    if (t.movido && !angPend.length) { angPend = [imanCota(t.a)]; puntoAngulo(t.b); } else puntoAngulo(t.a);
+    return;
+  }
   if (t.arq === 'cota') {
-    if (!t.movido) { renderObjetos(); const o = objetoEn(t.a); if (o) (o.tipo === 'cota' ? editarCota(o) : editarTexto(o)); return; }
+    if (!t.movido) { renderObjetos(); const o = objetoEn(t.a); if (o) (o.tipo === 'cota' ? editarCota(o) : o.tipo === 'angulo' ? null : editarTexto(o)); return; }
     if (Math.hypot(t.b.x - t.a.x, t.b.y - t.a.y) < 2 * doc.pxmm) { renderObjetos(); return; }
     agregarCota(t.a, t.b, 0, false, doc.pedirMedida);
   } else if (t.arq === 'pin') {
@@ -1814,6 +1971,9 @@ function dibujarSup() {
     if (g.sim === 'h' || g.sim === '4') { c.moveTo(0, doc.h / 2); c.lineTo(doc.w, doc.h / 2); }
     c.stroke(); c.restore();
   }
+  if (terreno) dibujarTerrenoSup(c);
+  if (angPend.length && herramienta === 'cota') { c.setTransform(DPR * M[0], DPR * M[1], DPR * M[2], DPR * M[3], DPR * M[4], DPR * M[5]); c.fillStyle = '#8ACF00'; c.strokeStyle = '#8ACF00'; c.lineWidth = 2 / s;
+    c.beginPath(); angPend.forEach((p, i) => { i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y); }); c.stroke(); for (const p of angPend) { c.beginPath(); c.arc(p.x, p.y, 5 / s, 0, 6.2832); c.fill(); } }
   if (flot) dibujarManijasFlot(c);
   if (trazo && trazo.lazo && trazo.pts.length > 1) {
     c.setTransform(DPR, 0, 0, DPR, 0, 0); c.beginPath();
@@ -1834,7 +1994,7 @@ function elegirHerramienta(h) {
   if (h !== 'gotero') herrPrevia = h;
   if (h !== 'simbolo') herrAntesSim = null;
   if (flot && h !== 'seleccion') aplicarFlot();
-  setTimeout(pintarVentanaPines, 0);
+  setTimeout(() => { pintarVentanaPines(); pintarChipLev(); }, 0); angPend = [];
   herramienta = h; marcarBotones(); actualizarSliders(); ponerBarraSel(); pedirSup();
 }
 function marcarBotones() {
@@ -2361,6 +2521,7 @@ function pintarGuiasPanel() {
     : g.modo === 'ninguna' ? 'Elige una guía para dibujar en cuadrícula, isometría o perspectiva.' : 'Con la asistencia activa, cada trazo se alinea a la guía más cercana.';
 }
 document.querySelectorAll('#segSim button').forEach(b => b.onclick = () => { doc.guias.sim = b.dataset.v; marcarCambio(); pintarGuiasPanel(); pedirSup(); marcarBotones(); if (b.dataset.v !== 'no') avisar('Simetría activa: lo que dibujas se refleja'); });
+$('chkAsist').addEventListener('change', () => setTimeout(pintarChipLev, 0));
 $('chkAsist').onchange = e => { doc.guias.asist = e.target.checked; marcarCambio(); };
 $('rGuiaOp').oninput = e => { doc.guias.op = +e.target.value; pedirSup(); };
 $('rGuiaTam').oninput = e => { doc.guias.tam = +e.target.value; pedirSup(); };
@@ -2400,6 +2561,7 @@ $('mExportar').onclick = () => { cerrarPaneles(); exportar('png'); };
 $('mExportarJpg').onclick = () => { cerrarPaneles(); exportar('jpg'); };
 $('mImportar').onclick = () => { cerrarPaneles(); $('fImportar').click(); };
 $('mCopiar').onclick = () => { cerrarPaneles(); menuCopiarPegar(); };
+$('mTerreno').onclick = () => { cerrarPaneles(); if (!aEscala()) return avisar('Disponible en hojas de planta y levantamiento (a escala)'); abrirTerreno(); };
 $('mSinUI').onclick = () => { cerrarPaneles(); alternarInterfaz(); };
 $('mPapel').onclick = () => { cerrarPaneles(); dialogoPapel(); };
 $('fImportar').onchange = async e => {
@@ -2640,6 +2802,7 @@ function prepararEditor() {
   ajustarPantalla(); marcarBotones(); actualizarSliders(); pedirSup();
   setTimeout(prepararPrevias, 1500);
   ventanaPines = false; pinVisto = null; $('pinGlobo').classList.add('oculto'); pintarVentanaPines();
+  terreno = null; $('terrenoPanel').classList.add('oculto'); angPend = []; pintarChipLev();
 }
 function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   r = r || {};
