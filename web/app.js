@@ -2977,7 +2977,7 @@ async function guardar() {
     await dbPut({
       id: d.id, nombre: d.nombre, w: d.w, h: d.h, papel: d.papel, grano: d.grano, creado: d.creado, fecha: Date.now(), activa: d.activa, guias: d.guias, thumb,
       tipo: d.tipo, escala: d.escala, pxmm: d.pxmm, objetos: d.objetos.map(o => { const { _bb, ...x } = o; return x; }), info: d.info, notas: d.notas, lista: d.lista,
-      rotulo: d.rotulo, cotasAuto: d.cotasAuto, pedirMedida: d.pedirMedida, verAnot: d.verAnot, nivel0: d.nivel0,
+      rotulo: d.rotulo, cotasAuto: d.cotasAuto, pedirMedida: d.pedirMedida, verAnot: d.verAnot, nivel0: d.nivel0, cotasV110: true,
       capas: d.capas.map(c => ({ nombre: c.nombre, op: c.op, mezcla: c.mezcla, visible: c.visible, blob: c.blob, bloq: !!c.bloq, grupo: c.grupo || null, ref: !!c.ref })),
     });
   })().catch(err => { console.error(err); avisar('No se pudo guardar'); d.cambio = true; }).finally(() => { guardando = null; if (pendiente) { pendiente = false; guardar(); } });
@@ -3076,6 +3076,9 @@ function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   d.tipo = r.tipo || 'boceto'; d.escala = r.escala || 50; d.pxmm = r.pxmm || (r.w ? (r.w >= 2480 ? 2480 / 297 : PXMM) : PXMM); d.objetos = r.objetos || [];
   d.info = r.info || {}; d.notas = r.notas || ''; d.lista = r.lista || []; d.rotulo = !!r.rotulo;
   d.cotasAuto = !!r.cotasAuto; d.pedirMedida = r.pedirMedida !== false; d.verAnot = r.verAnot !== false;
+  // planta, corte y elevación también llevan cota automática (como el levantamiento); las hojas antiguas se actualizan una vez
+  if (!r.cotasV110 && ['planta', 'corte', 'elevacion', 'levantamiento'].includes(d.tipo)) { d.cotasAuto = true; d.pedirMedida = true; }
+  d.cotasV110 = true;
   d.nivel0 = typeof r.nivel0 === 'number' ? r.nivel0 : null; // altura (en la hoja) del nivel ±0.00
 }
 function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
