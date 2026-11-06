@@ -1262,7 +1262,7 @@ function dibujarRotulo(c) {
   c.save(); c.strokeStyle = c.fillStyle = col; c.lineWidth = Math.max(1, 0.35 * mm);
   c.fillStyle = papelDe(doc.papel).color; c.fillRect(x, y, W, H); c.fillStyle = col;
   c.strokeRect(x, y, W, H);
-  const fil = [['PROYECTO', inf.proyecto], ['PLANO', inf.plano || ({ levantamiento: 'Levantamiento', planta: 'Planta', elevacion: 'Elevación / corte' }[doc.tipo] || '')], ['UBICACIÓN', inf.ubicacion], ['LEVANTÓ / DIBUJÓ', inf.autor]];
+  const fil = [['PROYECTO', inf.proyecto], ['PLANO', inf.plano || ({ levantamiento: 'Levantamiento', planta: 'Planta', elevacion: 'Elevación', corte: 'Corte' }[doc.tipo] || '')], ['UBICACIÓN', inf.ubicacion], ['LEVANTÓ / DIBUJÓ', inf.autor]];
   const fh = H / 5;
   c.lineWidth = Math.max(1, 0.18 * mm); c.beginPath();
   for (let i = 1; i < 5; i++) { c.moveTo(x, y + fh * i); c.lineTo(x + W, y + fh * i); }
@@ -1406,21 +1406,25 @@ function descartarCota(o) {
 //  · Cota de ángulo: tres toques (vértice, un punto de cada muro).
 //  · Terreno por medidas: lado por lado (largo y ángulo interior), como en topografía.
 // =====================================================================
-const aEscala = () => doc && (doc.tipo === 'levantamiento' || doc.tipo === 'planta');
+const aEscala = () => doc && (doc.tipo === 'levantamiento' || doc.tipo === 'planta' || doc.tipo === 'corte' || doc.tipo === 'elevacion');
+const esCorte = () => doc && (doc.tipo === 'corte' || doc.tipo === 'elevacion');
 const gradosDe = (dx, dy) => ((Math.atan2(-dy, dx) * 180 / Math.PI) % 360 + 360) % 360; // 0° = derecha, 90° = arriba
 const fmtG = g => (Math.round(g * 10) / 10).toString().replace(/\.0$/, '') + '°';
 function lecturaLinea(a, b) { return fmtM(metros(Math.hypot(b.x - a.x, b.y - a.y))) + ' m · ' + fmtG(gradosDe(b.x - a.x, b.y - a.y)); }
 function pintarChipLev() {
   const ch = $('chipLev'), ver = aEscala() && !flot;
   ch.classList.toggle('oculto', !ver); if (!ver) return;
-  const recto = !!doc.guias.asist, esCota = herramienta === 'cota', ang = aj.cotaModo === 'angulo';
+  const recto = !!doc.guias.asist, esCota = herramienta === 'cota', modo = aj.cotaModo || 'lineal';
   ch.innerHTML = (esCota
-    ? `<span class="cl-et">Cota</span><button data-a="lineal" class="${ang ? '' : 'activo'}">Lineal</button><button data-a="angulo" class="${ang ? 'activo' : ''}">Ángulo</button>`
+    ? `<span class="cl-et">Cota</span>` + [['lineal', 'Lineal'], ['nivel', 'Nivel'], ['angulo', 'Ángulo']].map(([v, n]) => `<button data-a="${v}" class="${modo === v ? 'activo' : ''}">${n}</button>`).join('')
     : `<span class="cl-et">Líneas</span><button data-a="recto" class="${recto ? 'activo' : ''}">Rectas</button><button data-a="libre" class="${recto ? '' : 'activo'}">Libres</button>`)
-    + `<span class="cl-sep"></span><button data-a="terreno" class="${terreno ? 'activo' : ''}">Terreno por medidas</button>`;
+    + (esCorte() ? `<span class="cl-sep"></span><button data-a="cotaNivel">${esCota && modo === 'nivel' ? 'Toca la altura del nivel' : 'Niveles y alturas'}</button>`
+      : `<span class="cl-sep"></span><button data-a="terreno" class="${terreno ? 'activo' : ''}">Terreno por medidas</button>`);
   ch.onclick = ev => { const a = ev.target.closest('button')?.dataset.a; if (!a) return;
     if (a === 'recto' || a === 'libre') { doc.guias.asist = a === 'recto'; marcarCambio(); avisar(a === 'recto' ? 'Líneas rectas: se pegan a 0°, 45° y 90°' : 'Líneas libres: cualquier ángulo (verás largo y ángulo al dibujar)'); if (panelAbierto('pGuias')) pintarGuiasPanel(); }
-    else if (a === 'lineal' || a === 'angulo') { aj.cotaModo = a; guardarAjustes(); angPend = []; renderObjetos(); avisar(a === 'angulo' ? 'Cota de ángulo: toca el vértice, luego un punto de cada muro' : 'Cota lineal'); }
+    else if (a === 'lineal' || a === 'angulo' || a === 'nivel') { aj.cotaModo = a; guardarAjustes(); angPend = []; renderObjetos();
+      avisar(a === 'angulo' ? 'Cota de ángulo: toca el vértice, luego un punto de cada muro' : a === 'nivel' ? (doc.nivel0 == null ? 'Toca la altura del piso: será el ±0.00' : 'Toca cada altura: el nivel se calcula solo') : 'Cota lineal (en cortes, arrastra en vertical para alturas)'); }
+    else if (a === 'cotaNivel') { aj.cotaModo = 'nivel'; guardarAjustes(); elegirHerramienta('cota'); avisar(doc.nivel0 == null ? 'Toca la altura del piso: será el ±0.00' : 'Toca cada altura: el nivel se calcula solo'); }
     else if (a === 'terreno') terreno ? cerrarTerreno() : abrirTerreno();
     pintarChipLev(); };
 }
@@ -1678,7 +1682,32 @@ function textoSim(o) {
   const sim = Simbolos.de(o.sid);
   if (sim.id === 'viga') { const q = seccionSim(o); return (o.texto || 'V') + ` (${f2(q.sw)}×${f2(q.sh)})`; }
   if (sim.estructura) return o.texto || null;
-  return o.texto || (o.sid === 'nivel' ? 'NPT +0.00' : o.sid === 'corte' ? 'A' : null);
+  if (o.sid === 'nivel') return o.texto || textoNivel(o);
+  return o.texto || (o.sid === 'corte' ? 'A' : null);
+}
+// ---- niveles: el primero que se pone es el ±0.00; los demás se calculan por su altura en la hoja ----
+function textoNivel(o) {
+  const pref = o.pref || 'NPT'; if (doc.nivel0 == null) return pref + ' ±0.00';
+  const v = Math.round(metros(doc.nivel0 - o.y) * 100) / 100;
+  return Math.abs(v) < 0.005 ? pref + ' ±0.00' : pref + ' ' + (v > 0 ? '+' : '−') + fmtM(Math.abs(v));
+}
+function ponerNivel(d) {
+  const antes = snapObj(), o = { tipo: 'simbolo', sid: 'nivel', x: d.x, y: d.y, ang: 0, flip: false, color: aj.color, pref: 'NPT' };
+  if (doc.nivel0 == null) { doc.nivel0 = d.y; avisar('Este es el nivel ±0.00: los siguientes se calculan desde aquí'); }
+  doc.objetos.push(o); histObj(antes); renderObjetos(); return o;
+}
+function dialogoNivel(o) {
+  const PREF = [['NPT', 'piso terminado'], ['NFP', 'falso piso'], ['NTT', 'techo terminado'], ['NFL', 'fondo de losa'], ['NFV', 'fondo de viga'], ['NTN', 'terreno natural'], ['NFC', 'fondo de cimiento']];
+  modal(`<h3>Nivel</h3><p>Ahora marca <b>${escapar(textoSim(o))}</b>. Se calcula solo desde el ±0.00 según su altura.</p>
+    <div class="etq">Tipo de nivel</div><div class="sec-pre" id="nvPref">${PREF.map(([p, d]) => `<button data-p="${p}" class="${(o.pref || 'NPT') === p ? 'activo' : ''}">${p}<small style="opacity:.6;font-weight:500"> ${d}</small></button>`).join('')}</div>
+    <div class="etq">Escribirlo a mano (vacío = automático)</div><input type="text" id="nvTxt" value="${escapar(o.texto || '')}" placeholder="${escapar(textoNivel(o))}">
+    <div class="modal-btns"><button id="nvCero">Usar como ±0.00</button><span style="flex:1"></span><button id="mNo">Cancelar</button><button class="ok" id="mSi">Listo</button></div>`, cerrar => {
+    let pref = o.pref || 'NPT';
+    $('nvPref').querySelectorAll('button').forEach(b => b.onclick = () => { pref = b.dataset.p; $('nvPref').querySelectorAll('button').forEach(x => x.classList.toggle('activo', x === b)); });
+    $('mNo').onclick = cerrar;
+    $('nvCero').onclick = () => { cerrar(); doc.nivel0 = o.y; o.texto = null; marcarCambio(); renderObjetos(); avisar('Nuevo ±0.00: todos los niveles se recalcularon'); };
+    $('mSi').onclick = () => { const antes = snapObj(); o.pref = pref; o.texto = $('nvTxt').value.trim() || null; cerrar(); histObj(antes); renderObjetos(); };
+  });
 }
 function dibujarSim(c, o) {
   const sim = Simbolos.de(o.sid);
@@ -1743,6 +1772,7 @@ $('selDup').onclick = () => { if (!selSim) return; const antes = snapObj(), c = 
 $('selBorrar').onclick = () => { if (!selSim) return; const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(selSim), 1); selSim = null; histObj(antes); ponerBarraSel(); pedirSup(); };
 $('selAncho').onclick = () => { if (!selSim) return; const o = selSim; pedirTexto(Simbolos.de(o.sid).estructura ? 'Largo (m)' : 'Ancho del vano (m)', fmtM(o.w), v => { const n = parseFloat(String(v).replace(',', '.')); if (n > 0) cambiarSel(x => { x.w = n; }); }, 'decimal'); };
 $('selTexto').onclick = () => { if (!selSim) return; const o = selSim, est = Simbolos.de(o.sid).estructura;
+  if (o.sid === 'nivel') return dialogoNivel(o);
   pedirTexto(o.sid === 'nivel' ? 'Texto del nivel' : o.sid === 'corte' ? 'Letra del corte' : o.sid === 'viga' ? 'Nombre de la viga (ej. V-101)' : 'Nombre (ej. C-1)', est ? (o.texto || '') : textoSim(o), v => cambiarSel(x => { x.texto = v; })); };
 // ---- medidas de columnas, vigas, placas y zapatas ----
 // Se preguntan al ponerlas (con medidas típicas a un toque) y se cambian con "Sección…" al seleccionarlas.
@@ -1785,7 +1815,7 @@ $('selSeccion').onclick = () => { if (selSim) dialogoSeccion(selSim, false); };
 function iniciarArq(e) {
   const d = aDoc(e.clientX, e.clientY);
   const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, arq: herramienta, sx: e.clientX, sy: e.clientY, a: d, b: d, movido: false };
-  if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; if (aj.cotaModo === 'angulo') t.angulo = true; }
+  if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; if (aj.cotaModo === 'angulo' || aj.cotaModo === 'nivel') t.angulo = true; }
   if (herramienta === 'pin') { t.obj = pinEn(d); if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; }
     else { const f = fotoEn(d); if (f) { t.obj = f; t.caja = true; t.antes = snapObj(); t.ox = f.fx - d.x; t.oy = f.fy - d.y; } } }
   if (herramienta === 'texto') { t.obj = objetoEn(d); if (t.obj && t.obj.tipo !== 'texto') t.obj = null; if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
@@ -1807,7 +1837,7 @@ function iniciarArq(e) {
 function moverArq(e) {
   const t = trazo; const d = aDoc(e.clientX, e.clientY);
   if (Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) t.movido = true;
-  if (t.arq === 'cota' && t.angulo) { t.b = imanCota(d); if (t.movido && !angPend.length) { renderObjetos(); avisarSuave('Suelta sobre el primer muro'); } }
+  if (t.arq === 'cota' && t.angulo) { t.b = imanCota(d); if (t.movido && aj.cotaModo === 'nivel') avisarSuave(doc.nivel0 == null ? '±0.00' : textoNivel({ y: t.b.y })); else if (t.movido && !angPend.length) { renderObjetos(); avisarSuave('Suelta sobre el primer muro'); } }
   else if (t.arq === 'cota') { t.b = imanCota(enderezarFin(t.a, d)); if (t.movido) { renderObjetos({ tipo: 'cota', a: t.a, b: t.b, color: aj.color }); if (aEscala()) avisarSuave(lecturaLinea(t.a, t.b)); } }
   else if (t.arq === 'pin' && t.obj && t.movido) { if (t.caja) { t.obj.fx = d.x + t.ox; t.obj.fy = d.y + t.oy; } else { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; } renderObjetos(); }
   else if (t.arq === 'texto' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
@@ -1827,13 +1857,20 @@ function nuevoSim(t) {
   if (sim.tipo === 'abertura') {
     const exacto = sim.estructura && t.desdeCol && imanColumna(t.b) !== t.b; // de columna a columna: medida exacta
     w = arr ? (exacto ? metros(L) : Math.max(0.3, Math.round(metros(L) * 20) / 20)) : sim.def;
-    if (arr) avisarSuave((sim.estructura ? 'Largo ' : 'Ancho ') + fmtM(w) + ' m');
+    if (arr) avisarSuave((sim.estructura || sim.cat.startsWith('Corte') || sim.id === 'corte' ? 'Largo ' : 'Ancho ') + fmtM(w) + ' m');
   }
   const o = { tipo: 'simbolo', sid: sim.id, x: t.a.x, y: t.a.y, ang, w, flip: false, color: aj.color };
+  if (sim.id === 'nivel') { o.pref = 'NPT'; if (doc.nivel0 == null) { doc.nivel0 = t.a.y; avisar('Este es el nivel ±0.00'); } }
   if (sim.estructura) { const u = aj.secciones && aj.secciones[sim.id]; o.sw = u ? u.sw : sim.sw; o.sh = u ? u.sh : sim.sh; }
   return o;
 }
 function terminarArq(t) {
+  if (t.arq === 'cota' && aj.cotaModo === 'nivel') {
+    if (!t.movido) { // tocar justo sobre el símbolo de un nivel lo edita (no por cerca: los niveles pueden estar a 20 cm)
+      const mm = doc.pxmm, o = doc.objetos.find(x => x.sid === 'nivel' && t.a.y <= x.y + 0.6 * mm && t.a.y >= x.y - 7 * mm && t.a.x >= x.x - 3 * mm && t.a.x <= x.x + 20 * mm);
+      if (o) return dialogoNivel(o); }
+    ponerNivel(imanCota(t.movido ? t.b : t.a)); return;
+  }
   if (t.arq === 'cota' && aj.cotaModo === 'angulo') {
     if (!angPend.length && !t.movido) { const o = objetoEn(t.a); if (o && o.tipo === 'angulo') return confirmar('Cota de ángulo', '¿Quitar esta cota de ángulo?', 'Quitar', () => { const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); histObj(antes); renderObjetos(); }); }
     if (t.movido && !angPend.length) { angPend = [imanCota(t.a)]; puntoAngulo(t.b); } else puntoAngulo(t.a);
@@ -1939,9 +1976,13 @@ function editarTexto(o, pos) {
 // ---- panel de símbolos ----
 let catSim = null;
 function pintarSimbolos() {
-  if (!catSim) catSim = Simbolos.de(aj.simbolo || 'puerta').cat;
-  $('simCats').innerHTML = Simbolos.CATS.map(c => `<button data-c="${c}" class="${c === catSim ? 'activo' : ''}">${c}</button>`).join('');
-  $('simCats').querySelectorAll('button').forEach(b => b.onclick = () => { catSim = b.dataset.c; pintarSimbolos(); });
+  if (!catSim || (esCorte() && !catSim.startsWith('Corte') && catSim !== 'Anotación' && !pintarSimbolos.elegida)) catSim = esCorte() ? 'Corte · Mobiliario' : Simbolos.de(aj.simbolo || 'puerta').cat;
+  const ORD = ['Corte · Mobiliario', 'Corte · Baño y cocina', 'Corte · Estructura', 'Corte · Personas y vegetación'];
+  const cats = esCorte() ? ORD.concat(Simbolos.CATS.filter(c => !ORD.includes(c))) : Simbolos.CATS;
+  $('simAyuda').innerHTML = catSim.startsWith('Corte') ? 'Toca la hoja <b>sobre la línea del piso</b> para poner muebles, personas y plantas. En losas, escaleras, terreno, barandas y setos <b>arrastra de punta a punta</b> (toma el largo a escala). Tócalo después para moverlo, girarlo o voltearlo.'
+    : 'Toca la hoja para ponerlo (en puertas, ventanas y muros arrastra <b>de jamba a jamba</b> y toma el ancho a escala). Después <b>tócalo para seleccionarlo</b>: arrástralo para moverlo y usa la manija verde para girarlo.';
+  $('simCats').innerHTML = cats.map(c => `<button data-c="${c}" class="${c === catSim ? 'activo' : ''}">${c}</button>`).join('');
+  $('simCats').querySelectorAll('button').forEach(b => b.onclick = () => { catSim = b.dataset.c; pintarSimbolos.elegida = true; pintarSimbolos(); });
   const g = $('simGrid'); g.innerHTML = '';
   for (const s of Simbolos.lista.filter(s => s.cat === catSim)) {
     const b = document.createElement('button'); b.className = 'tex-item' + (s.id === (aj.simbolo || 'puerta') ? ' activo' : '');
@@ -2762,7 +2803,7 @@ function opcionesHtml(lista, sel, extra) {
 }
 const TIPOS = [
   { id: 'boceto', n: 'Boceto libre', d: 'Dibujo a mano alzada' }, { id: 'levantamiento', n: 'Levantamiento', d: 'Cotas, notas y lista' },
-  { id: 'planta', n: 'Planta', d: 'Distribución a escala' }, { id: 'elevacion', n: 'Elevación / corte', d: 'Fachadas y secciones' },
+  { id: 'planta', n: 'Planta', d: 'Distribución a escala' }, { id: 'corte', n: 'Corte', d: 'Secciones con niveles y alturas' }, { id: 'elevacion', n: 'Elevación', d: 'Fachadas' },
   { id: 'perspectiva', n: 'Perspectiva', d: 'Guía de 2 puntos' },
 ];
 const LISTA_LEV = ['Largo y ancho de cada ambiente', 'Diagonales para verificar escuadra', 'Altura de piso a techo y de vigas', 'Espesor de muros y tipo (ladrillo, drywall, adobe)', 'Columnas y vigas: ubicación y sección (ancho × peralte)', 'Puertas y ventanas: ancho, alto y alféizar', 'Tomacorrientes, interruptores y puntos de luz', 'Puntos de agua y desagüe', 'Niveles de piso (NPT)', 'Ubicar el norte', 'Fotos de cada ambiente', 'Estado de acabados y humedad'];
@@ -2809,6 +2850,7 @@ function transformarHoja(W, H, f) {
     c.cv = nv; c.ctx = x; c.sucia = true;
   }
   for (const o of doc.objetos) moverObj(o, T, f);
+  if (doc.nivel0 != null) doc.nivel0 = T({ x: 0, y: doc.nivel0 }).y;
   const g = doc.guias; for (const k in g.vps) g.vps[k] = g.vps[k].map(([x, y]) => { const q = T({ x, y }); return [q.x, q.y]; });
   doc.w = W; doc.h = H; doc.cambio = true;
   prepararEditor(); marcarCambio();
@@ -2872,7 +2914,7 @@ function terminarMoverTodo(aplicar) {
     c.ctx.clearRect(r[0], r[1], r[2], r[3]); c.ctx.drawImage(pieza, r[0] + dx, r[1] + dy); c.sucia = true; invalidarLineas(c);
     items.push({ t: 'px', capa: c, x: U[0], y: U[1], antes, despues: recorte(c.cv, U), bytes: U[2] * U[3] * 8 });
   }
-  const antesObj = snapObj(); for (const o of doc.objetos) moverObj(o, p => ({ x: p.x + dx, y: p.y + dy }));
+  const antesObj = snapObj(); for (const o of doc.objetos) moverObj(o, p => ({ x: p.x + dx, y: p.y + dy })); if (doc.nivel0 != null) doc.nivel0 += dy;
   items.push({ t: 'obj', antes: antesObj, despues: snapObj() });
   pushHist({ t: 'multi', items, bytes: items.reduce((m, x) => m + (x.bytes || 0), 0) });
   renderObjetos(); refrescarCapasSiAbierto(); avisar('Dibujo movido');
@@ -2935,7 +2977,7 @@ async function guardar() {
     await dbPut({
       id: d.id, nombre: d.nombre, w: d.w, h: d.h, papel: d.papel, grano: d.grano, creado: d.creado, fecha: Date.now(), activa: d.activa, guias: d.guias, thumb,
       tipo: d.tipo, escala: d.escala, pxmm: d.pxmm, objetos: d.objetos.map(o => { const { _bb, ...x } = o; return x; }), info: d.info, notas: d.notas, lista: d.lista,
-      rotulo: d.rotulo, cotasAuto: d.cotasAuto, pedirMedida: d.pedirMedida, verAnot: d.verAnot,
+      rotulo: d.rotulo, cotasAuto: d.cotasAuto, pedirMedida: d.pedirMedida, verAnot: d.verAnot, nivel0: d.nivel0,
       capas: d.capas.map(c => ({ nombre: c.nombre, op: c.op, mezcla: c.mezcla, visible: c.visible, blob: c.blob, bloq: !!c.bloq, grupo: c.grupo || null, ref: !!c.ref })),
     });
   })().catch(err => { console.error(err); avisar('No se pudo guardar'); d.cambio = true; }).finally(() => { guardando = null; if (pendiente) { pendiente = false; guardar(); } });
@@ -3026,7 +3068,7 @@ function prepararEditor() {
   ajustarPantalla(); marcarBotones(); actualizarSliders(); pedirSup();
   setTimeout(prepararPrevias, 1500);
   ventanaPines = false; pinVisto = null; $('pinGlobo').classList.add('oculto'); pintarVentanaPines();
-  terreno = null; $('terrenoPanel').classList.add('oculto'); angPend = []; pintarChipLev();
+  terreno = null; $('terrenoPanel').classList.add('oculto'); angPend = []; pintarChipLev(); pintarSimbolos.elegida = false; catSim = null;
   movTodo = null; movArr = null; $('moverBar').classList.add('oculto');
 }
 function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
@@ -3034,6 +3076,7 @@ function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   d.tipo = r.tipo || 'boceto'; d.escala = r.escala || 50; d.pxmm = r.pxmm || (r.w ? (r.w >= 2480 ? 2480 / 297 : PXMM) : PXMM); d.objetos = r.objetos || [];
   d.info = r.info || {}; d.notas = r.notas || ''; d.lista = r.lista || []; d.rotulo = !!r.rotulo;
   d.cotasAuto = !!r.cotasAuto; d.pedirMedida = r.pedirMedida !== false; d.verAnot = r.verAnot !== false;
+  d.nivel0 = typeof r.nivel0 === 'number' ? r.nivel0 : null; // altura (en la hoja) del nivel ±0.00
 }
 function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
   const n = new Date(), tn = TIPOS.find(t => t.id === tipo).n;
@@ -3046,6 +3089,9 @@ function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
     ['Muros', 'Detalles'].forEach(nm => doc.capas.push(crearCapa(nm, w, h))); doc.activa = 0;
     doc.rotulo = true; doc.cotasAuto = true; doc.lista = LISTA_LEV.map(t => ({ t, ok: false }));
     Object.assign(doc.guias, { modo: 'cuadricula', asist: true, tam: unM, op: 0.3 });
+  } else if (tipo === 'corte') {
+    ['Cortado', 'Proyección', 'Color'].forEach(nm => doc.capas.push(crearCapa(nm, w, h))); doc.activa = 0;
+    doc.rotulo = true; Object.assign(doc.guias, { modo: 'cuadricula', asist: true, tam: unM, op: 0.3 });
   } else if (tipo === 'planta' || tipo === 'elevacion') {
     ['Muros', 'Color'].forEach(nm => doc.capas.push(crearCapa(nm, w, h)));
     doc.rotulo = true; Object.assign(doc.guias, { modo: 'cuadricula', asist: true, tam: unM, op: 0.3 });
@@ -3054,6 +3100,7 @@ function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
   } else doc.capas.push(crearCapa('Boceto', w, h));
   prepararEditor(); doc.cambio = true; guardar();
   if (tipo === 'levantamiento') avisar('Levantamiento a 1/' + esc + ': usa la cota para medir');
+  if (tipo === 'corte') avisar('Corte a 1/' + esc + ': pon el nivel ±0.00 con Cota → Nivel; los demás niveles se calculan solos');
 }
 async function abrirDibujo(id) {
   const r = await dbUno(id); if (!r) return;

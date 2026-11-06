@@ -27,6 +27,7 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Estructura**: columnas, vigas (se pegan a las columnas), placas y zapatas; al ponerlas pide sus medidas.
 - **Terrenos no rectos** (barra de abajo en planta y levantamiento): líneas **Rectas/Libres** con largo y ángulo en vivo, **cota de ángulo** y **Terreno por medidas** (lado por lado: largo y ángulo interior, con cotas y ángulos automáticos).
 - **Simetría** (en Guías), **bloquear transparencia** y **grupos** (en Capas), **imagen de referencia** para calcar (en Acciones).
+- **Cortes**: nuevo tipo de hoja **Corte** (capas Cortado / Proyección / Color). Cota → **Nivel**: el primero es el ±0.00 y los demás se calculan solos (NPT, NFP, NTT, NFL, NFV, NTN, NFC). Mobiliario, baño y cocina, estructura (losa aligerada, viga, cimiento, escalera, terreno, vanos, baranda) y personas y vegetación **vistos en corte**.
 - **Borrador**: al borrar una línea medida (o pasar por el número) también se borra su cota.
 - **Acciones → Mover o centrar todo el dibujo**, **Agrandar la hoja**; y en Notas → Hoja, **escala personalizada** (puede conservar las medidas reales redibujando todo).
 - **Notas con foto**: al crear o editar una nota puedes agregar una foto de referencia y mostrarla en el plano con un llamado.
