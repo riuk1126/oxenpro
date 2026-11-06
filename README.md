@@ -27,6 +27,9 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Estructura**: columnas, vigas (se pegan a las columnas), placas y zapatas; al ponerlas pide sus medidas.
 - **Terrenos no rectos** (barra de abajo en planta y levantamiento): líneas **Rectas/Libres** con largo y ángulo en vivo, **cota de ángulo** y **Terreno por medidas** (lado por lado: largo y ángulo interior, con cotas y ángulos automáticos).
 - **Simetría** (en Guías), **bloquear transparencia** y **grupos** (en Capas), **imagen de referencia** para calcar (en Acciones).
+- **Borrador**: al borrar una línea medida (o pasar por el número) también se borra su cota.
+- **Acciones → Mover o centrar todo el dibujo**, **Agrandar la hoja**; y en Notas → Hoja, **escala personalizada** (puede conservar las medidas reales redibujando todo).
+- **Notas con foto**: al crear o editar una nota puedes agregar una foto de referencia y mostrarla en el plano con un llamado.
 - **Mantén el lápiz quieto** al empezar = tomar color · **3 dedos hacia abajo** = copiar y pegar · **toque con 4 dedos** = pantalla completa · **pellizco rápido** = encajar la hoja.
 
 ## Sacar un APK nuevo

@@ -249,8 +249,10 @@ label.interruptor.pasa{color:#fff}
 .lista-acc button.pasa{background:var(--gris3)}
 body.sinUI #barra,body.sinUI #lateral{display:none}
 #salirSinUI{position:fixed;top:calc(10px + var(--sa-t));right:calc(10px + var(--sa-r));z-index:20;width:40px;height:40px;border-radius:12px;background:rgba(22,22,24,.85);color:#fff;font-size:20px}
-.arrastre-color{position:fixed;z-index:70;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;pointer-events:none;box-shadow:0 0 0 3px #0b0b0c,0 0 0 5px rgba(255,255,255,.85),0 8px 20px rgba(0,0,0,.5)}
-.arrastre-pin{position:fixed;z-index:70;width:34px;height:34px;margin:-34px 0 0 -17px;pointer-events:none;color:#ff7a2f;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+.arrastre-color{position:fixed;left:0;top:0;will-change:transform;z-index:70;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;pointer-events:none;box-shadow:0 0 0 3px #0b0b0c,0 0 0 5px rgba(255,255,255,.85),0 8px 20px rgba(0,0,0,.5)}
+.arrastre-pin{position:fixed;left:0;top:0;z-index:70;width:44px;height:44px;margin:-44px 0 0 -22px;pointer-events:none;will-change:transform;filter:drop-shadow(0 6px 10px rgba(0,0,0,.45));animation:pinSube .12s ease-out}
+.arrastre-pin svg{width:100%;height:100%}.arrastre-pin path{fill:#ff7a2f;stroke:#fff;stroke-width:1.3}.arrastre-pin text{fill:#fff;font:700 7.5px -apple-system,Roboto,sans-serif}
+@keyframes pinSube{from{opacity:0;scale:.6}to{opacity:1;scale:1}}
 .capa .c-bloq{opacity:.35}.capa .c-bloq.on{opacity:1;color:var(--verde)}
 .grupo-cab{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-top:6px;border-radius:10px;background:var(--gris2);font-weight:650;font-size:13px}
 .grupo-cab .g-nom{flex:1}.grupo-cab button{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center}
@@ -313,3 +315,12 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 .tr-btns{display:flex;gap:6px;margin:4px 0 8px}
 .tr-btns button{flex:1;padding:9px 10px;border-radius:999px;background:var(--gris3);font-weight:600;font-size:13px}
 .tr-btns button.ok{background:var(--verde);color:#0b0b0c}
+
+.pin-foto{display:block;width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:#000;margin:8px 0}
+.pin-foto-btns{display:flex;gap:6px;margin:8px 0}
+.pin-foto-btns button{flex:1;padding:10px;border-radius:10px;background:var(--gris2);font-weight:600;font-size:13px}
+#pTam{margin:6px 0 4px}
+.pg-foto{display:block;width:100%;max-height:170px;object-fit:cover;border-radius:10px;margin:8px 0 2px;cursor:zoom-in}
+.foto-grande{display:block;max-width:100%;max-height:70vh;margin:0 auto;border-radius:10px}
+.mv-et{font-size:12.5px;color:var(--texto2);padding:0 8px}
+.opciones button:disabled{opacity:.35}

@@ -297,6 +297,34 @@ function recorte(src, r) {
   cv.getContext('2d').drawImage(src, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]); return cv;
 }
 function pegar(ctx, cv, x, y) { ctx.save(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(x, y, cv.width, cv.height); ctx.drawImage(cv, x, y); ctx.restore(); }
+// El borrador también se lleva las cotas, ángulos, textos y símbolos que toca. Si borra la línea de una
+// cota (aunque no toque la cota), la cota se va con ella: una cota sin su línea no sirve.
+function tintaEnSeg(capa, a, b) {
+  let si = 0; const n = 24;
+  for (let i = 0; i <= n; i++) { const x = Math.round(lerp(a.x, b.x, i / n)), y = Math.round(lerp(a.y, b.y, i / n)); if (x < 0 || y < 0 || x >= doc.w || y >= doc.h) continue;
+    const d = capa.ctx.getImageData(x - 1, y - 1, 3, 3).data; let m = 0; for (let k = 3; k < d.length; k += 4) m = Math.max(m, d[k]); if (m > 40) si++; }
+  return si / (n + 1);
+}
+function borrarAnotacionesBajo(t) {
+  if (!doc.objetos.length || !t.pts.length) return;
+  const rad = medidasTrazo(t).s / 2 + 6 / escalaVista(), pts = t.pts;
+  const cerca = p => p && pts.some(q => Math.hypot(q.x - p.x, q.y - p.y) < rad);
+  const cercaSeg = (a, b) => pts.some(q => distSeg(q, a, b) < rad);
+  const fuera = doc.objetos.filter(o => {
+    if (o.tipo === 'cota') { // pasar por el número, o borrar la línea que mide
+      const g = geomCota(o), mid = { x: (g.a2.x + g.b2.x) / 2, y: (g.a2.y + g.b2.y) / 2 };
+      return pts.some(q => Math.hypot(q.x - mid.x, q.y - mid.y) < rad + 3 * doc.pxmm) || cercaSeg(o.a, o.b) && tintaEnSeg(t.capa, o.a, o.b) < 0.4; }
+    if (o.tipo === 'angulo') return cerca(o._t) || cerca(o.v);
+    if (o.tipo === 'texto') return o._bb && pts.some(q => q.x >= o._bb[0] && q.x <= o._bb[2] && q.y >= o._bb[1] && q.y <= o._bb[3]);
+    if (o.tipo === 'simbolo') return pts.some(q => simEn(q, x => x === o));
+    return false;
+  });
+  if (!fuera.length) return;
+  const antes = snapObj(), px = deshacer.pop(); bytesHist -= px.bytes || 0;
+  doc.objetos = doc.objetos.filter(o => !fuera.includes(o)); if (fuera.includes(selSim)) seleccionar(null);
+  pushHist({ t: 'multi', items: [px, { t: 'obj', antes, despues: snapObj() }], bytes: px.bytes });
+  renderObjetos();
+}
 function histPx(capa, r, antes, yaSumado) {
   if (!yaSumado) invalidarLineas(capa, r); // lo pintado encima de una línea recordada ya no permite redibujarla
   const despues = recorte(capa.cv, r);
@@ -405,6 +433,7 @@ const panelAbierto = id => !$(id).classList.contains('oculto');
 escenario.addEventListener('pointerdown', e => {
   if (!doc) return;
   e.preventDefault();
+  if (movTodo) { if (!movArr) { try { escenario.setPointerCapture(e.pointerId); } catch (_) {} movArr = { id: e.pointerId, d0: aDoc(e.clientX, e.clientY), dx: movTodo.dx, dy: movTodo.dy }; } return; }
   if (pinVisto && herramienta !== 'pin' && !(e.pointerType === 'touch' && soloLapiz())) ocultarPin();
   try { escenario.setPointerCapture(e.pointerId); } catch (_) {}
   // tocar el lienzo con un panel abierto: lo cierra (salvo mover puntos de fuga)
@@ -432,7 +461,7 @@ escenario.addEventListener('pointerdown', e => {
   toques.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
   if (toques.size === 1) {
     gestoTap = { t: performance.now(), max: 1, movido: false };
-    if (!soloLapiz() || herramienta === 'gotero' || herramienta === 'simbolo' && sobreSimbolo(e) || herramienta === 'seleccion' && flot && sobreFlot(e) || herramienta === 'pin' && pinEn(aDoc(e.clientX, e.clientY))) iniciarTrazo(e);
+    if (!soloLapiz() || herramienta === 'gotero' || herramienta === 'simbolo' && sobreSimbolo(e) || herramienta === 'seleccion' && flot && sobreFlot(e) || herramienta === 'pin' && (pinEn(aDoc(e.clientX, e.clientY)) || fotoEn(aDoc(e.clientX, e.clientY)))) iniciarTrazo(e);
     else paneo = { id: e.pointerId, x: e.clientX, y: e.clientY };
   } else {
     gestoTap.max = Math.max(gestoTap.max, toques.size);
@@ -449,6 +478,7 @@ let gestoTap = { t: 0, max: 0, movido: false };
 
 escenario.addEventListener('pointermove', e => {
   if (!doc) return;
+  if (movArr && movArr.id === e.pointerId) { const d = aDoc(e.clientX, e.clientY); movTodo.dx = movArr.dx + d.x - movArr.d0.x; movTodo.dy = movArr.dy + d.y - movArr.d0.y; previaMover(); return; }
   if (arrastreVP && arrastreVP.id === e.pointerId) {
     const d = aDoc(e.clientX, e.clientY); doc.guias.vps[doc.guias.modo][arrastreVP.i] = [d.x, d.y]; pedirSup(); return;
   }
@@ -471,6 +501,7 @@ escenario.addEventListener('pointermove', e => {
 
 function finPuntero(e) {
   if (!doc) return;
+  if (movArr && movArr.id === e.pointerId) { movArr = null; return; }
   if (arrastreVP && arrastreVP.id === e.pointerId) { arrastreVP = null; marcarCambio(); return; }
   if (e.pointerType === 'pen' || e.pointerId === lapizId) { lapizAbajo = false; lapizId = null; }
   if (e.pointerType !== 'touch') { hover = e.pointerType === 'mouse' ? { x: e.clientX, y: e.clientY } : null; pedirCursor(); }
@@ -482,7 +513,7 @@ function finPuntero(e) {
     if (toques.size === 0) {
       const dt = performance.now() - gestoTap.t;
       if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz() && terreno && !terreno.v0) { terreno.v0 = imanCota(aDoc(e.clientX, e.clientY)); pintarTerreno(); pedirSup(); }
-      else if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz()) { const o = pinEn(aDoc(e.clientX, e.clientY)); if (o) verPin(o); else if (pinVisto) ocultarPin(); }
+      else if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz()) { const dd = aDoc(e.clientX, e.clientY), o = pinEn(dd) || fotoEn(dd); if (o) verPin(o); else if (pinVisto) ocultarPin(); }
       if (gestoTap.max >= 2 && !gestoTap.movido && dt < 380) { gestoTap.max >= 4 ? alternarInterfaz() : gestoTap.max === 3 ? hacerRehacer() : hacerDeshacer(); }
       gestoTap.max = 0; gestoTap.menu3 = false;
     }
@@ -694,7 +725,7 @@ function terminarTrazo(e) {
   if (t.lapiz) estadoPresion = (t.prMax - t.prMin > 0.04) ? 'ok' : 'plana';
   // toque corto sobre una puerta o mueble con el lápiz: se selecciona (no deja un punto)
   if (!t.borrar && performance.now() - t.t0 < 350 && t.largo * escalaVista() < 6 && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 8) {
-    const pn = pinEn(t.inicio); if (pn) { trazo = t; cancelarTrazo(); verPin(pn); return; }
+    const pn = pinEn(t.inicio) || fotoEn(t.inicio); if (pn) { trazo = t; cancelarTrazo(); verPin(pn); return; }
     const o = simEn(t.inicio);
     if (o) { trazo = t; cancelarTrazo(); herrAntesSim = herramienta; elegirHerramienta('simbolo'); seleccionar(o); avisarSuave('Arrastra para mover · manija verde para girar · toca fuera para seguir dibujando'); return; }
   }
@@ -712,6 +743,7 @@ function terminarTrazo(e) {
   if (!t.borrar) sumarTrazoALineas(t, r); else invalidarLineas(t.capa, r);
   histPx(t.capa, r, antes, true);
   trazoCtx.clearRect(r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4);
+  if (t.borrar) borrarAnotacionesBajo(t);
   // líneas rectas: se recuerdan para poder llevarlas a una medida exacta con una cota
   if (!t.borrar && (t.forma && t.forma.tipo === 'linea' || t.dir) && t.pts.length > 1) {
     const a = t.forma ? t.forma.a : t.pts[0], b = t.forma ? t.forma.b : t.pts[t.pts.length - 1];
@@ -769,6 +801,29 @@ function aplicarLazo(t) {
 //  Se encierra una parte con el lazo; queda "flotando" sobre la capa y se puede mover, escalar,
 //  girar, voltear, duplicar o borrar. Al tocar fuera o "Listo" se pega en la capa (un solo deshacer).
 // =====================================================================
+
+// ---- anotaciones (cotas, ángulos, textos, símbolos, notas) que acompañan al dibujo cuando se mueve ----
+function puntosObj(o) {
+  if (o.tipo === 'cota') return [o.a, o.b];
+  if (o.tipo === 'angulo') return [o.v, o.a, o.b];
+  if (o.tipo === 'texto' || o.tipo === 'simbolo' || o.tipo === 'pin') return [{ x: o.x, y: o.y }];
+  return [];
+}
+function moverObj(o, T, k = 1, dAng = 0) {
+  const P = p => { const q = T(p); p.x = q.x; p.y = q.y; };
+  if (o.tipo === 'cota') { P(o.a); P(o.b); o.off = (o.off || 0) * k; }
+  else if (o.tipo === 'angulo') { P(o.v); P(o.a); P(o.b); }
+  else if (o.tipo === 'texto' || o.tipo === 'simbolo' || o.tipo === 'pin') {
+    const q = T(o); o.x = q.x; o.y = q.y;
+    if (o.tipo === 'simbolo') o.ang = (o.ang || 0) + dAng;
+    if (o.tipo === 'pin' && o.fx != null) { const r = T({ x: o.fx, y: o.fy }); o.fx = r.x; o.fy = r.y; }
+  }
+}
+function dentroPoligono(p, pts) {
+  let d = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) d = !d; }
+  return d;
+}
+function distSeg(p, a, b) { const dx = b.x - a.x, dy = b.y - a.y, L = dx * dx + dy * dy || 1, k = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / L, 0, 1); return Math.hypot(p.x - (a.x + dx * k), p.y - (a.y + dy * k)); }
 let flot = null; // { capa, cv, w, h, cx, cy, k, ang, fx, fy, corte:{x,y,cv} | null, bbPrev }
 const portapapeles = { cv: null, cx: 0, cy: 0 };
 function contenidoBB(cv) { // caja de lo dibujado en un canvas
@@ -787,19 +842,21 @@ function levantarSeleccion(capa, pts) {
   const corte = { x: r[0], y: r[1], cv: recorte(capa.cv, r) };
   capa.ctx.save(); caminoLazo(capa.ctx, pts); capa.ctx.clip(); capa.ctx.clearRect(r[0], r[1], r[2], r[3]); capa.ctx.restore();
   invalidarLineas(capa, r);
-  crearFlot(capa, cv, r[0] + r[2] / 2, r[1] + r[3] / 2, corte);
+  const objs = doc.objetos.filter(o => { const q = puntosObj(o); return q.length && q.every(p => dentroPoligono(p, pts)); });
+  crearFlot(capa, cv, r[0] + r[2] / 2, r[1] + r[3] / 2, corte, objs);
 }
 function seleccionarCapaEntera() {
   const capa = capaActiva(), r = contenidoBB(capa.cv); if (!r) return avisar('La capa está vacía');
   const cv = recorte(capa.cv, r), corte = { x: r[0], y: r[1], cv: recorte(capa.cv, r) };
   capa.ctx.clearRect(r[0], r[1], r[2], r[3]); invalidarLineas(capa, r);
   if (herramienta !== 'seleccion') elegirHerramienta('seleccion');
-  crearFlot(capa, cv, r[0] + r[2] / 2, r[1] + r[3] / 2, corte);
+  crearFlot(capa, cv, r[0] + r[2] / 2, r[1] + r[3] / 2, corte, doc.objetos.slice());
 }
-function crearFlot(capa, cv, cx, cy, corte) {
+function crearFlot(capa, cv, cx, cy, corte, objs) {
   if (flot) aplicarFlot();
   doc.activa = doc.capas.indexOf(capa); ubicarTrazoCv();
-  flot = { capa, cv, w: cv.width, h: cv.height, cx, cy, k: 1, ang: 0, fx: 1, fy: 1, corte, bbPrev: null, cx0: cx, cy0: cy };
+  flot = { capa, cv, w: cv.width, h: cv.height, cx, cy, k: 1, ang: 0, fx: 1, fy: 1, corte, bbPrev: null, cx0: cx, cy0: cy,
+    objs: (objs || []).map(o => ({ o, s: JSON.stringify(o) })), objAntes: objs && objs.length ? snapObj() : null };
   if (herramienta !== 'seleccion') { herramienta = 'seleccion'; marcarBotones(); }
   trazoCv.style.display = ''; trazoCv.style.opacity = capa.op;
   renderFlot(); ponerBarraTransf();
@@ -820,8 +877,16 @@ function renderFlot() {
   dibujarFlotEn(trazoCtx);
   const bb = [1e9, 1e9, -1e9, -1e9]; for (const p of esquinasFlot()) bbAmpliar(bb, p.x, p.y, 3);
   flot.bbPrev = bbEntero(bb) || [0, 0, 0, 0];
+  if (flot.objs.length) moverObjsFlot(flot);
   pedirSup();
 }
+function moverObjsFlot(f) { // misma transformación que el dibujo: centro, giro, escala y volteo
+  const co = Math.cos(f.ang), si = Math.sin(f.ang);
+  const T = p => { const x = (p.x - f.cx0) * f.k * f.fx, y = (p.y - f.cy0) * f.k * f.fy; return { x: f.cx + x * co - y * si, y: f.cy + x * si + y * co }; };
+  for (const it of f.objs) { Object.assign(it.o, JSON.parse(it.s)); moverObj(it.o, T, f.k, f.ang); }
+  renderObjetos();
+}
+function restaurarObjsFlot(f) { for (const it of f.objs) Object.assign(it.o, JSON.parse(it.s)); if (f.objs.length) renderObjetos(); }
 function aplicarFlot() {
   const f = flot; if (!f) return; flot = null;
   const capa = f.capa, sinCambio = f.k === 1 && f.ang === 0 && f.fx === 1 && f.fy === 1 && Math.abs(f.cx - f.cx0) < 0.5 && Math.abs(f.cy - f.cy0) < 0.5;
@@ -836,7 +901,9 @@ function aplicarFlot() {
       if (f.corte) antes.getContext('2d').drawImage(f.corte.cv, f.corte.x - r[0], f.corte.y - r[1]);
       const c = capa.ctx; c.save(); if (capa.bloq) c.globalCompositeOperation = 'source-atop'; dibujarFlotEn(c, f); c.restore();
       invalidarLineas(capa, r);
-      pushHist({ t: 'px', capa, x: r[0], y: r[1], antes, despues: recorte(capa.cv, r), bytes: r[2] * r[3] * 8 }); capa.sucia = true;
+      const px = { t: 'px', capa, x: r[0], y: r[1], antes, despues: recorte(capa.cv, r), bytes: r[2] * r[3] * 8 }; capa.sucia = true;
+      if (f.objAntes) pushHist({ t: 'multi', items: [px, { t: 'obj', antes: f.objAntes, despues: snapObj() }], bytes: px.bytes }); // dibujo y cotas en un solo deshacer
+      else pushHist(px);
     }
   }
   if (capa.ref && doc.capas.length > 1 && doc.activa === 0) { doc.activa = 1; ubicarTrazoCv(); }
@@ -846,12 +913,16 @@ function cancelarFlot() {
   const f = flot; if (!f) return; flot = null;
   trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none';
   if (f.corte) { pegar(f.capa.ctx, f.corte.cv, f.corte.x, f.corte.y); f.capa.sucia = true; }
+  restaurarObjsFlot(f);
   ponerBarraTransf(); pedirSup();
 }
 function borrarFlot() { // lo seleccionado se elimina (con deshacer)
   const f = flot; if (!f) return; flot = null;
   trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none';
-  if (f.corte) { const r = [f.corte.x, f.corte.y, f.corte.cv.width, f.corte.cv.height]; pushHist({ t: 'px', capa: f.capa, x: r[0], y: r[1], antes: f.corte.cv, despues: recorte(f.capa.cv, r), bytes: r[2] * r[3] * 8 }); f.capa.sucia = true; }
+  restaurarObjsFlot(f);
+  if (f.corte) { const r = [f.corte.x, f.corte.y, f.corte.cv.width, f.corte.cv.height], px = { t: 'px', capa: f.capa, x: r[0], y: r[1], antes: f.corte.cv, despues: recorte(f.capa.cv, r), bytes: r[2] * r[3] * 8 }; f.capa.sucia = true;
+    if (f.objAntes) { for (const it of f.objs) { const i = doc.objetos.indexOf(it.o); if (i >= 0) doc.objetos.splice(i, 1); } pushHist({ t: 'multi', items: [px, { t: 'obj', antes: f.objAntes, despues: snapObj() }], bytes: px.bytes }); renderObjetos(); }
+    else pushHist(px); }
   ponerBarraTransf(); pedirSup(); avisar('Selección eliminada');
 }
 function flotComoImagen(f = flot) { // la selección tal como se ve (girada/escalada)
@@ -1478,7 +1549,30 @@ function dibujarTerrenoSup(c) {
 // ---- notas con punto (pines numerados en el plano) ----
 const COLOR_PIN = '#ff7a2f';
 const radioPin = () => 5 * doc.pxmm;
+const imgsFoto = new Map();
+function imagenFoto(src) { let im = imgsFoto.get(src); if (!im) { im = new Image(); im.onload = () => renderObjetos(); im.src = src; imgsFoto.set(src, im); } return im.complete && im.naturalWidth ? im : null; }
+function cajaFoto(o) { // recuadro de la foto en el plano (llamado)
+  const im = imagenFoto(o.foto), w = o.fw || 45 * doc.pxmm, h = im ? w * im.naturalHeight / im.naturalWidth : w * 0.75;
+  return { x0: o.fx - w / 2, y0: o.fy - h / 2, w, h, im };
+}
+function fotoEn(d) {
+  if (!doc) return null;
+  for (let i = doc.objetos.length - 1; i >= 0; i--) { const o = doc.objetos[i]; if (o.tipo !== 'pin' || !o.foto || !o.llamado) continue; const b = cajaFoto(o); if (d.x >= b.x0 && d.x <= b.x0 + b.w && d.y >= b.y0 && d.y <= b.y0 + b.h) return o; }
+  return null;
+}
+function dibujarLlamado(c, o) {
+  const b = cajaFoto(o), mm = doc.pxmm, px = clamp(o.x, b.x0, b.x0 + b.w), py = clamp(o.y, b.y0, b.y0 + b.h);
+  c.save(); c.strokeStyle = o.color || COLOR_PIN; c.lineWidth = Math.max(1, 0.35 * mm);
+  c.beginPath(); c.moveTo(o.x, o.y); c.lineTo(px, py); c.stroke();
+  c.fillStyle = '#fff'; c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 2 * mm; c.fillRect(b.x0 - mm, b.y0 - mm, b.w + 2 * mm, b.h + 2 * mm); c.shadowBlur = 0;
+  if (b.im) c.drawImage(b.im, b.x0, b.y0, b.w, b.h); else { c.fillStyle = '#ddd'; c.fillRect(b.x0, b.y0, b.w, b.h); }
+  c.lineWidth = Math.max(1, 0.3 * mm); c.strokeRect(b.x0 - mm, b.y0 - mm, b.w + 2 * mm, b.h + 2 * mm);
+  c.fillStyle = o.color || COLOR_PIN; c.beginPath(); c.arc(b.x0 + 2.2 * mm, b.y0 + 2.2 * mm, 2.6 * mm, 0, 6.2832); c.fill();
+  c.fillStyle = '#fff'; c.font = `700 ${2.8 * mm}px -apple-system,Roboto,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(o.n), b.x0 + 2.2 * mm, b.y0 + 2.3 * mm);
+  c.restore();
+}
 function dibujarPin(c, o) {
+  if (o.foto && o.llamado && o.fx != null) dibujarLlamado(c, o);
   const r = radioPin(), x = o.x, y = o.y;
   c.save(); c.fillStyle = o.color || COLOR_PIN; c.strokeStyle = '#ffffff'; c.lineWidth = Math.max(1, 0.35 * doc.pxmm);
   c.beginPath(); c.moveTo(x, y); c.lineTo(x - r * 0.62, y - r * 1.1); c.arc(x, y - r * 1.75, r, Math.PI * 0.78, Math.PI * 2.22); c.closePath(); c.fill(); c.stroke();
@@ -1495,31 +1589,56 @@ function nuevoPin(d) {
   const o = { tipo: 'pin', x: d.x, y: d.y, n, texto: '', id: Date.now() + Math.random() };
   doc.objetos.push(o); renderObjetos(); editarPin(o, antes);
 }
+async function reducirFoto(f) {
+  const b = await createImageBitmap(f), k = Math.min(1, 1400 / Math.max(b.width, b.height)), cv = document.createElement('canvas');
+  cv.width = Math.round(b.width * k); cv.height = Math.round(b.height * k); cv.getContext('2d').drawImage(b, 0, 0, cv.width, cv.height); b.close && b.close();
+  return cv.toDataURL('image/jpeg', 0.82);
+}
 function editarPin(o, antesNuevo) {
-  const nuevo = !!antesNuevo;
+  const nuevo = !!antesNuevo; let foto = o.foto || null;
+  const TAM = { s: 30, m: 45, l: 65 }, tamAct = o.fw ? (o.fw / doc.pxmm < 37 ? 's' : o.fw / doc.pxmm < 55 ? 'm' : 'l') : 'm';
   modal(`<h3>Nota ${o.n}</h3>
-    <textarea id="pTxt" rows="4" placeholder="Ej.: fisura en el muro · cambiar tomacorriente · humedad a 1.20 m">${escapar(o.texto || '')}</textarea>
+    <textarea id="pTxt" rows="3" placeholder="Ej.: fisura en el muro · cambiar tomacorriente · humedad a 1.20 m">${escapar(o.texto || '')}</textarea>
+    <div id="pFotoZona"></div>
     <div class="modal-btns">${nuevo ? '' : '<button class="rojo" id="pBor">Eliminar</button>'}<span style="flex:1"></span><button id="mNo">Cancelar</button><button class="ok" id="mSi">Guardar</button></div>`, cerrar => {
     const i = $('pTxt'); setTimeout(() => i.focus(), 60);
+    const zona = () => {
+      $('pFotoZona').innerHTML = (foto ? `<img class="pin-foto" src="${foto}">` : '') +
+        `<div class="pin-foto-btns"><button id="pFoto">📷 ${foto ? 'Cambiar foto' : 'Agregar foto de referencia'}</button>${foto ? '<button id="pFotoQ">Quitar</button>' : ''}</div>` +
+        (foto ? `<label class="interruptor"><input type="checkbox" id="pLlam" ${o.llamado || !o.foto ? 'checked' : ''}><span></span>Mostrar la foto en el plano con un llamado</label>
+          <div class="seg chico" id="pTam">${Object.keys(TAM).map(k => `<button data-k="${k}" class="${k === tamAct ? 'activo' : ''}">${{ s: 'Chica', m: 'Mediana', l: 'Grande' }[k]}</button>`).join('')}</div>` : '');
+      $('pFoto').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+        inp.onchange = async () => { const f = inp.files[0]; if (!f) return; try { foto = await reducirFoto(f); zona(); } catch (e) { avisar('No se pudo leer la foto'); } }; inp.click(); };
+      if ($('pFotoQ')) $('pFotoQ').onclick = () => { foto = null; zona(); };
+      if ($('pTam')) $('pTam').querySelectorAll('button').forEach(b => b.onclick = () => $('pTam').querySelectorAll('button').forEach(x => x.classList.toggle('activo', x === b)));
+    };
+    zona();
     const quitarNuevo = () => { const k = doc.objetos.indexOf(o); if (k >= 0) doc.objetos.splice(k, 1); renderObjetos(); };
     $('mNo').onclick = () => { cerrar(); if (nuevo) quitarNuevo(); };
     if (!nuevo) $('pBor').onclick = () => { const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); cerrar(); histObj(antes); refrescarPines(); };
     $('mSi').onclick = () => {
-      const v = i.value.trim(); cerrar();
-      if (!v && nuevo) return quitarNuevo();
-      const antes = nuevo ? antesNuevo : snapObj(); o.texto = v; histObj(antes); if (nuevo) ventanaPines = true; refrescarPines();
+      const v = i.value.trim(), llam = foto && $('pLlam') && $('pLlam').checked, tk = $('pTam') && $('pTam').querySelector('.activo')?.dataset.k;
+      cerrar();
+      if (!v && !foto && nuevo) return quitarNuevo();
+      const antes = nuevo ? antesNuevo : snapObj();
+      o.texto = v; o.foto = foto || undefined; o.llamado = !!llam;
+      if (llam) { o.fw = (TAM[tk] || 45) * doc.pxmm; if (o.fx == null) { o.fx = clamp(o.x + 40 * doc.pxmm, o.fw / 2, doc.w - o.fw / 2); o.fy = clamp(o.y - 40 * doc.pxmm, o.fw / 2, doc.h - o.fw / 2); } }
+      histObj(antes); if (nuevo) ventanaPines = true; refrescarPines(); if (pinVisto === o) verPin(o);
     };
   }, () => { if (nuevo) { const k = doc.objetos.indexOf(o); if (k >= 0) doc.objetos.splice(k, 1); renderObjetos(); } });
 }
+function verFotoGrande(src) { modal(`<img class="foto-grande" src="${src}"><div class="modal-btns"><span style="flex:1"></span><button class="ok" id="mSi">Cerrar</button></div>`, cerrar => { $('mSi').onclick = cerrar; }); }
 function refrescarPines() { if (panelAbierto('pNotas')) pintarNotas(); pintarVentanaPines(); if (pinVisto && !doc.objetos.includes(pinVisto)) ocultarPin(); }
 // ---- ver una nota: globo junto al punto (se abre con el dedo o el lápiz) ----
 let pinVisto = null;
 function verPin(o) {
   pinVisto = o; const g = $('pinGlobo');
   g.innerHTML = `<div class="pg-cab"><b>${o.n}</b><span>Nota ${o.n}</span><button class="pg-x" data-a="x">×</button></div>
-    <div class="pg-txt">${o.texto ? escapar(o.texto).replace(/\n/g, '<br>') : '<i>Sin texto</i>'}</div>
+    ${o.foto ? `<img class="pg-foto" data-a="foto" src="${o.foto}">` : ''}
+    <div class="pg-txt">${o.texto ? escapar(o.texto).replace(/\n/g, '<br>') : o.foto ? '' : '<i>Sin texto</i>'}</div>
     <div class="pg-btns"><button data-a="borrar" class="peligro">Eliminar</button><button data-a="editar" class="ok">Editar</button></div>`;
-  g.onclick = ev => { const a = ev.target.closest('button')?.dataset.a; if (!a) return;
+  g.onclick = ev => { const a = ev.target.closest('button,[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'foto') return verFotoGrande(o.foto);
     if (a === 'x') ocultarPin(); else if (a === 'editar') { ocultarPin(); editarPin(o); }
     else if (a === 'borrar') { ocultarPin(); const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); histObj(antes); refrescarPines(); } };
   g.classList.remove('oculto'); ubicarGloboPin(); pintarVentanaPines();
@@ -1536,7 +1655,7 @@ function pintarVentanaPines() {
   v.classList.toggle('oculto', !mostrar); if (!mostrar) return;
   const pines = doc.objetos.filter(o => o.tipo === 'pin').sort((a, b) => a.n - b.n);
   v.innerHTML = `<div class="pv-cab"><b>Notas del plano</b><button data-x="1">×</button></div>` + (pines.length
-    ? pines.map(o => `<button class="pv-item${o === pinVisto ? ' activo' : ''}" data-id="${o.id}"><b>${o.n}</b><span>${o.texto ? escapar(o.texto) : '<i>Sin texto</i>'}</span></button>`).join('')
+    ? pines.map(o => `<button class="pv-item${o === pinVisto ? ' activo' : ''}" data-id="${o.id}"><b>${o.n}</b><span>${o.foto ? '📷 ' : ''}${o.texto ? escapar(o.texto) : '<i>Sin texto</i>'}</span></button>`).join('')
     : '<p class="nota">Arrastra el ícono de nota hasta un punto del plano para agregar una.</p>');
   v.onclick = ev => { if (ev.target.closest('[data-x]')) { ventanaPines = false; if (herramienta === 'pin') elegirHerramienta('pincel'); else pintarVentanaPines(); return; }
     const b = ev.target.closest('.pv-item'); if (!b) return; const o = doc.objetos.find(x => String(x.id) === b.dataset.id); if (o) { irAPin(o); verPin(o); } };
@@ -1667,7 +1786,8 @@ function iniciarArq(e) {
   const d = aDoc(e.clientX, e.clientY);
   const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, arq: herramienta, sx: e.clientX, sy: e.clientY, a: d, b: d, movido: false };
   if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; if (aj.cotaModo === 'angulo') t.angulo = true; }
-  if (herramienta === 'pin') { t.obj = pinEn(d); if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
+  if (herramienta === 'pin') { t.obj = pinEn(d); if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; }
+    else { const f = fotoEn(d); if (f) { t.obj = f; t.caja = true; t.antes = snapObj(); t.ox = f.fx - d.x; t.oy = f.fy - d.y; } } }
   if (herramienta === 'texto') { t.obj = objetoEn(d); if (t.obj && t.obj.tipo !== 'texto') t.obj = null; if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
   if (herramienta === 'simbolo') {
     t.antes = snapObj();
@@ -1689,7 +1809,7 @@ function moverArq(e) {
   if (Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) t.movido = true;
   if (t.arq === 'cota' && t.angulo) { t.b = imanCota(d); if (t.movido && !angPend.length) { renderObjetos(); avisarSuave('Suelta sobre el primer muro'); } }
   else if (t.arq === 'cota') { t.b = imanCota(enderezarFin(t.a, d)); if (t.movido) { renderObjetos({ tipo: 'cota', a: t.a, b: t.b, color: aj.color }); if (aEscala()) avisarSuave(lecturaLinea(t.a, t.b)); } }
-  else if (t.arq === 'pin' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
+  else if (t.arq === 'pin' && t.obj && t.movido) { if (t.caja) { t.obj.fx = d.x + t.ox; t.obj.fy = d.y + t.oy; } else { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; } renderObjetos(); }
   else if (t.arq === 'texto' && t.obj && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); }
   else if (t.arq === 'simbolo') {
     t.b = d;
@@ -2567,6 +2687,8 @@ $('mExportar').onclick = () => { cerrarPaneles(); exportar('png'); };
 $('mExportarJpg').onclick = () => { cerrarPaneles(); exportar('jpg'); };
 $('mImportar').onclick = () => { cerrarPaneles(); $('fImportar').click(); };
 $('mCopiar').onclick = () => { cerrarPaneles(); menuCopiarPegar(); };
+$('mHoja').onclick = () => { cerrarPaneles(); dialogoHoja(); };
+$('mMoverTodo').onclick = () => { cerrarPaneles(); iniciarMoverTodo(); };
 $('mTerreno').onclick = () => { cerrarPaneles(); if (!aEscala()) return avisar('Disponible en hojas de planta y levantamiento (a escala)'); abrirTerreno(); };
 $('mSinUI').onclick = () => { cerrarPaneles(); alternarInterfaz(); };
 $('mPapel').onclick = () => { cerrarPaneles(); dialogoPapel(); };
@@ -2649,12 +2771,14 @@ function dialogoNuevo() {
   const F = formatos();
   modal(`<h3>Nueva hoja</h3>
     <div class="etq">Tipo de hoja</div><div class="opciones" id="oTipo">${TIPOS.map(t => `<button data-id="${t.id}" class="${t.id === tipo ? 'activo' : ''}">${t.n}<small>${t.d}</small></button>`).join('')}</div>
-    <div id="oEscWrap" class="oculto"><div class="etq">Escala</div><div class="opciones" id="oEsc">${[20, 25, 50, 75, 100, 200].map(e => `<button data-id="${e}" class="${e === esc ? 'activo' : ''}">1/${e}</button>`).join('')}</div></div>
+    <div id="oEscWrap" class="oculto"><div class="etq">Escala</div><div class="opciones" id="oEsc">${[20, 25, 50, 75, 100, 200].map(e => `<button data-id="${e}" class="${e === esc ? 'activo' : ''}">1/${e}</button>`).join('')}<button data-id="otra">Otra…</button></div><input type="text" id="oEscOtra" class="oculto" inputmode="numeric" placeholder="Escribe la escala: 1 / … (ej. 30)" style="margin-top:8px"></div>
     <div class="etq">Tamaño</div><div class="opciones" id="oFmt">${opcionesHtml(F, fmt, o => { const k = 30 / Math.max(o.w, o.h); return `<span class="hoja" style="width:${o.w * k}px;height:${o.h * k}px"></span>`; })}</div>
     <div class="etq">Papel</div><div class="opciones" id="oPap">${opcionesHtml(PAPELES, pap, o => `<span class="hoja" style="width:26px;height:20px;background:${o.color}"></span>`)}</div>
     <div class="modal-btns"><button id="mNo">Cancelar</button><button class="ok" id="mSi">Crear</button></div>`, cerrar => {
     const sel = (id, fn) => $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.classList.toggle('activo', x === b)); fn(b.dataset.id); });
-    sel('oFmt', v => fmt = v); sel('oPap', v => pap = v); sel('oEsc', v => esc = +v);
+    sel('oFmt', v => fmt = v); sel('oPap', v => pap = v);
+    sel('oEsc', v => { const otra = v === 'otra'; $('oEscOtra').classList.toggle('oculto', !otra); if (otra) $('oEscOtra').focus(); else esc = +v; });
+    $('oEscOtra').oninput = e => { const n = Math.round(parseFloat(String(e.target.value).replace(',', '.'))); if (n >= 1 && n <= 100000) esc = n; };
     sel('oTipo', v => { tipo = v; $('oEscWrap').classList.toggle('oculto', v === 'boceto' || v === 'perspectiva'); });
     $('mNo').onclick = cerrar;
     $('mSi').onclick = () => { cerrar(); const f = F.find(x => x.id === fmt); nuevoDibujo(f.w, f.h, pap, tipo, esc); };
@@ -2669,6 +2793,100 @@ function dialogoPapel() {
     $('mSi').onclick = cerrar;
   });
 }
+
+
+// =====================================================================
+//  TAMAÑO DE LA HOJA Y ESCALA
+//  Agrandar la hoja deja el dibujo al centro. Cambiar la escala puede redibujar todo para que las
+//  medidas reales se conserven (ej.: de 1/50 a 1/100 el dibujo se achica a la mitad y entra en la hoja).
+// =====================================================================
+function transformarHoja(W, H, f) {
+  if (flot) aplicarFlot(); if (trazo) cancelarTrazo();
+  const cx0 = doc.w / 2, cy0 = doc.h / 2, cx1 = W / 2, cy1 = H / 2, T = p => ({ x: cx1 + (p.x - cx0) * f, y: cy1 + (p.y - cy0) * f });
+  for (const c of doc.capas) {
+    const nv = document.createElement('canvas'); nv.width = W; nv.height = H; nv.style.width = W + 'px'; nv.style.height = H + 'px';
+    const x = nv.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c.cv, cx1 - cx0 * f, cy1 - cy0 * f, doc.w * f, doc.h * f);
+    c.cv = nv; c.ctx = x; c.sucia = true;
+  }
+  for (const o of doc.objetos) moverObj(o, T, f);
+  const g = doc.guias; for (const k in g.vps) g.vps[k] = g.vps[k].map(([x, y]) => { const q = T({ x, y }); return [q.x, q.y]; });
+  doc.w = W; doc.h = H; doc.cambio = true;
+  prepararEditor(); marcarCambio();
+}
+function dialogoHoja() {
+  const F = formatos().filter(x => /^a[0-4]/.test(x.id)), mm = v => Math.round(v / doc.pxmm);
+  modal(`<h3>Tamaño de la hoja</h3>
+    <p>Ahora: <b>${mm(doc.w)} × ${mm(doc.h)} mm</b>. El dibujo queda al centro con su escala (las medidas no cambian).</p>
+    <div class="opciones" id="hFmt">${F.map(o => `<button data-id="${o.id}" ${o.w < doc.w && o.h < doc.h ? 'disabled' : ''}>${o.n}<small>${mm(o.w)}×${mm(o.h)} mm</small></button>`).join('')}
+      <button data-m="1.25">Ampliar 25 %<small>más margen</small></button><button data-m="1.5">Ampliar 50 %<small>más margen</small></button></div>
+    <p class="nota">Esta acción no se puede deshacer.</p>
+    <div class="modal-btns"><span style="flex:1"></span><button id="mNo">Cancelar</button></div>`, cerrar => {
+    $('hFmt').onclick = ev => { const b = ev.target.closest('button'); if (!b || b.disabled) return; cerrar();
+      let W, H; if (b.dataset.m) { W = Math.round(doc.w * +b.dataset.m); H = Math.round(doc.h * +b.dataset.m); } else { const o = F.find(x => x.id === b.dataset.id); W = o.w; H = o.h; }
+      if (W * H > 7000 * 7000) return avisar('Hoja demasiado grande para la tableta');
+      transformarHoja(W, H, 1); avisar('Hoja ampliada: el dibujo quedó al centro'); };
+    $('mNo').onclick = cerrar;
+  });
+}
+function cambiarEscala(nueva) {
+  const vieja = doc.escala; if (!nueva || nueva === vieja) return;
+  const hay = doc.capas.some(c => contenidoBB(c.cv)) || doc.objetos.length;
+  const aplicar = conservar => {
+    if (conservar && hay) { doc.escala = nueva; transformarHoja(doc.w, doc.h, vieja / nueva); }
+    else { doc.escala = nueva; marcarCambio(); renderObjetos(); }
+    if (doc.guias.modo === 'cuadricula') { doc.guias.tam = pxDeMetros(1); pedirSup(); }
+    if (panelAbierto('pNotas')) pintarNotas();
+    avisar('Escala 1/' + nueva + (conservar && hay ? ': el dibujo se ajustó y las medidas reales se conservan' : ''));
+  };
+  if (!hay) return aplicar(false);
+  modal(`<h3>Cambiar a escala 1/${nueva}</h3><p>¿Qué hago con lo que ya dibujaste?</p>
+    <div class="lista-acc"><button id="eCons"><b>Conservar las medidas reales</b><br><small>El dibujo se ${nueva > vieja ? 'achica' : 'agranda'} para que un muro de 4 m siga midiendo 4 m${nueva > vieja ? ' (útil si ya no entra en la hoja)' : ''}.</small></button>
+    <button id="eSolo"><b>Solo cambiar la escala</b><br><small>El dibujo queda igual; las cotas se recalculan.</small></button></div>
+    <div class="modal-btns"><span style="flex:1"></span><button id="mNo">Cancelar</button></div>`, cerrar => {
+    $('eCons').onclick = () => { cerrar(); aplicar(true); }; $('eSolo').onclick = () => { cerrar(); aplicar(false); }; $('mNo').onclick = () => { cerrar(); if (panelAbierto('pNotas')) pintarNotas(); };
+  });
+}
+function pedirEscala(alElegir) {
+  pedirTexto('Escala personalizada: 1 / …', '', v => { const n = Math.round(parseFloat(String(v).replace(',', '.').replace(/^1\s*\/\s*/, ''))); if (n >= 1 && n <= 100000) alElegir(n); else avisar('Escribe un número, por ejemplo 30 o 150'); });
+}
+
+// =====================================================================
+//  MOVER TODO EL DIBUJO (todas las capas y anotaciones) — por ejemplo, para centrar un levantamiento
+// =====================================================================
+let movTodo = null, movArr = null;
+function iniciarMoverTodo() {
+  if (!doc) return; if (flot) aplicarFlot(); cerrarPaneles(); ocultarPin();
+  movTodo = { dx: 0, dy: 0 }; $('moverBar').classList.remove('oculto'); avisar('Arrastra para mover todo el dibujo (con sus cotas)');
+}
+function previaMover() { const tr = movTodo && (movTodo.dx || movTodo.dy) ? `translate(${movTodo.dx}px, ${movTodo.dy}px)` : ''; for (const c of doc.capas) c.cv.style.transform = tr; anotCv.style.transform = tr; }
+function terminarMoverTodo(aplicar) {
+  if (!movTodo) return; const dx = Math.round(movTodo.dx), dy = Math.round(movTodo.dy); movTodo = null; movArr = null;
+  $('moverBar').classList.add('oculto'); previaMover();
+  if (!aplicar || (!dx && !dy)) return;
+  const items = [];
+  for (const c of doc.capas) {
+    const r = contenidoBB(c.cv); if (!r) continue;
+    const bb = [r[0], r[1], r[0] + r[2], r[1] + r[3]]; bbAmpliar(bb, r[0] + dx, r[1] + dy, 0); bbAmpliar(bb, r[0] + r[2] + dx, r[1] + r[3] + dy, 0);
+    const U = bbEntero(bb); if (!U) continue;
+    const antes = recorte(c.cv, U), pieza = recorte(c.cv, r);
+    c.ctx.clearRect(r[0], r[1], r[2], r[3]); c.ctx.drawImage(pieza, r[0] + dx, r[1] + dy); c.sucia = true; invalidarLineas(c);
+    items.push({ t: 'px', capa: c, x: U[0], y: U[1], antes, despues: recorte(c.cv, U), bytes: U[2] * U[3] * 8 });
+  }
+  const antesObj = snapObj(); for (const o of doc.objetos) moverObj(o, p => ({ x: p.x + dx, y: p.y + dy }));
+  items.push({ t: 'obj', antes: antesObj, despues: snapObj() });
+  pushHist({ t: 'multi', items, bytes: items.reduce((m, x) => m + (x.bytes || 0), 0) });
+  renderObjetos(); refrescarCapasSiAbierto(); avisar('Dibujo movido');
+}
+function centrarDibujo() {
+  const bb = [1e9, 1e9, -1e9, -1e9];
+  for (const c of doc.capas) { const r = contenidoBB(c.cv); if (r) { bbAmpliar(bb, r[0], r[1], 0); bbAmpliar(bb, r[0] + r[2], r[1] + r[3], 0); } }
+  for (const o of doc.objetos) for (const p of puntosObj(o)) bbAmpliar(bb, p.x, p.y, 0);
+  if (bb[0] > bb[2]) return avisar('No hay nada dibujado');
+  movTodo.dx = doc.w / 2 - (bb[0] + bb[2]) / 2; movTodo.dy = doc.h / 2 - (bb[1] + bb[3]) / 2; previaMover();
+}
+$('mvCentrar').onclick = centrarDibujo;
+$('mvCancelar').onclick = () => terminarMoverTodo(false);
+$('mvListo').onclick = () => terminarMoverTodo(true);
 
 // =====================================================================
 //  ALMACENAMIENTO (IndexedDB, en el propio dispositivo)
@@ -2809,6 +3027,7 @@ function prepararEditor() {
   setTimeout(prepararPrevias, 1500);
   ventanaPines = false; pinVisto = null; $('pinGlobo').classList.add('oculto'); pintarVentanaPines();
   terreno = null; $('terrenoPanel').classList.add('oculto'); angPend = []; pintarChipLev();
+  movTodo = null; movArr = null; $('moverBar').classList.add('oculto');
 }
 function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   r = r || {};
@@ -2867,7 +3086,8 @@ function pintarNotas() {
   document.querySelectorAll('#segNotas button').forEach(b => b.classList.toggle('activo', b.dataset.v === tabNotas));
   $('nHoja').classList.toggle('oculto', tabNotas !== 'hoja'); $('nLista').classList.toggle('oculto', tabNotas !== 'lista'); $('nNotas').classList.toggle('oculto', tabNotas !== 'notas');
   $('nTipo').innerHTML = TIPOS.map(t => `<option value="${t.id}" ${t.id === doc.tipo ? 'selected' : ''}>${t.n}</option>`).join('');
-  $('nEscala').innerHTML = ESCALAS.map(e => `<option value="${e}" ${e === doc.escala ? 'selected' : ''}>1/${e}</option>`).join('');
+  const escs = ESCALAS.includes(doc.escala) ? ESCALAS : ESCALAS.concat([doc.escala]).sort((a, b) => a - b);
+  $('nEscala').innerHTML = escs.map(e => `<option value="${e}" ${e === doc.escala ? 'selected' : ''}>1/${e}</option>`).join('') + '<option value="otra">Otra escala…</option>';
   document.querySelectorAll('#nHoja input[data-k]').forEach(i => { i.value = doc.info[i.dataset.k] || ''; });
   $('nRotulo').checked = doc.rotulo; $('nCotaAuto').checked = doc.cotasAuto; $('nPedir').checked = doc.pedirMedida; $('nVerAnot').checked = doc.verAnot !== false;
   if (document.activeElement !== $('nTexto')) $('nTexto').value = doc.notas || '';
@@ -2886,7 +3106,7 @@ function pintarNotas() {
 document.querySelectorAll('#segNotas button').forEach(b => b.onclick = () => { tabNotas = b.dataset.v; pintarNotas(); });
 $('bNotas').addEventListener('click', e => { abrirPanel('pNotas', e.currentTarget); if (panelAbierto('pNotas')) pintarNotas(); });
 $('nTipo').onchange = e => { doc.tipo = e.target.value; marcarCambio(); renderObjetos(); };
-$('nEscala').onchange = e => { doc.escala = +e.target.value; marcarCambio(); renderObjetos(); avisar('Escala 1/' + doc.escala + ': las cotas se recalculan'); };
+$('nEscala').onchange = e => { const v = e.target.value; if (v === 'otra') { pintarNotas(); pedirEscala(cambiarEscala); } else cambiarEscala(+v); };
 document.querySelectorAll('#nHoja input[data-k]').forEach(i => i.addEventListener('input', () => { doc.info[i.dataset.k] = i.value; marcarCambio(); if (doc.rotulo) renderObjetos(); }));
 $('nRotulo').onchange = e => { doc.rotulo = e.target.checked; marcarCambio(); renderObjetos(); };
 $('nCotaAuto').onchange = e => { doc.cotasAuto = e.target.checked; marcarCambio(); };
@@ -2975,11 +3195,14 @@ function arrastrable(btn, clase, html, alSoltar) {
   btn.addEventListener('pointermove', e => {
     if (!st || st.id !== e.pointerId) return;
     if (!st.fant && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 7) { st.fant = document.createElement('div'); st.fant.className = clase; st.fant.innerHTML = html(); document.body.appendChild(st.fant); cerrarPaneles(); }
-    if (st.fant) { st.fant.style.left = e.clientX + 'px'; st.fant.style.top = e.clientY + 'px'; }
+    if (st.fant) { // se mueve con transform en el siguiente cuadro: va pegado al lápiz, sin saltos
+      st.px = e.clientX; st.py = e.clientY;
+      if (!st.raf) st.raf = requestAnimationFrame(() => { st && st.fant && (st.fant.style.transform = `translate3d(${st.px}px, ${st.py}px, 0)`); if (st) st.raf = 0; });
+    }
   });
   const fin = e => {
     if (!st || st.id !== e.pointerId) return; const s0 = st; st = null; if (!s0.fant) return;
-    s0.fant.remove(); btn._arr = performance.now();
+    cancelAnimationFrame(s0.raf); s0.fant.remove(); btn._arr = performance.now();
     if (e.type !== 'pointerup') return;
     const el = document.elementFromPoint(e.clientX, e.clientY);
     if (el && el.closest('#escenario') && !el.closest('#barra,#lateral,.panel,.sel-bar')) alSoltar(aDoc(e.clientX, e.clientY));
@@ -2988,7 +3211,7 @@ function arrastrable(btn, clase, html, alSoltar) {
   btn.addEventListener('click', e => { if (btn._arr && performance.now() - btn._arr < 800) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 }
 arrastrable($('bColor'), 'arrastre-color', () => `<div style="width:100%;height:100%;border-radius:50%;background:${aj.color}"></div>`, d => rellenarEn(d));
-arrastrable($('bPin'), 'arrastre-pin', () => '<svg viewBox="0 0 24 24" style="width:100%;height:100%;fill:currentColor;stroke:#fff;stroke-width:1.2"><path d="M12 22s-7-6.6-7-11.5a7 7 0 0 1 14 0C19 15.4 12 22 12 22z"/></svg>', d => { if (flot) aplicarFlot(); nuevoPin(d); });
+arrastrable($('bPin'), 'arrastre-pin', () => `<svg viewBox="0 0 24 24"><path d="M12 22.5s-7.5-7-7.5-12.2a7.5 7.5 0 0 1 15 0c0 5.2-7.5 12.2-7.5 12.2z"/><text x="12" y="13.6" text-anchor="middle">${doc.objetos.filter(o => o.tipo === 'pin').reduce((m, o) => Math.max(m, o.n), 0) + 1}</text></svg>`, d => { if (flot) aplicarFlot(); nuevoPin(d); });
 
 // ---- relleno por color (cubeta) ----
 // El contorno sale de TODAS las capas visibles (muros en una capa, color en otra), como en un plano real.
