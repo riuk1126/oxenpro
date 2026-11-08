@@ -17,6 +17,8 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - Sin internet sigue funcionando **7 días** desde la última comprobación.
 - Cada cuenta se puede usar en un número limitado de equipos (por defecto 2).
 - **Panel de clientes:** [riuk1126.github.io/oxenpro/panel.html](https://riuk1126.github.io/oxenpro/panel.html) (se puede instalar como programa) — crear clientes, renovar, bloquear, generar contraseñas, liberar equipos y ver pagos.
+- **Equipos:** desde el panel defines cuántas personas puede tener cada cliente. En la app, *Mi cuenta → Mi equipo* agrega personas por correo (entran con el plan del dueño y reciben una contraseña temporal).
+- **Bocetos compartidos:** menú ⋯ del boceto → *Compartir con mi equipo*. Cada vez que sales del boceto se sube la última versión; el equipo la ve en *Compartidos por mi equipo* (zoom, exportar o hacer una copia).
 - Los datos viven en Supabase (proyecto *oxenpro*). El número de WhatsApp para comprar/renovar se pone en `web/acceso.js` (`WHATSAPP`).
 
 ## Cómo se usa

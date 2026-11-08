@@ -143,16 +143,20 @@
       wa = 'Hola, quiero activar OXEN PRO con el correo ' + email;
     } else if (r.estado === 'vencido') {
       titulo = 'Tu plan venció';
-      txt = `Tu acceso venció el <b>${fecha(r.vence)}</b>. Renueva para seguir dibujando. Tus bocetos siguen guardados en este equipo.`;
+      txt = `Tu acceso venció el <b>${fecha(r.vence)}</b>. Renueva para seguir dibujando. Tus bocetos siguen guardados en este dispositivo.`;
       wa = 'Hola, quiero renovar OXEN PRO. Mi correo es ' + email;
     } else if (r.estado === 'bloqueado') {
       titulo = 'Tu cuenta está suspendida';
-      txt = 'Escríbenos para revisar tu cuenta. Tus bocetos siguen guardados en este equipo.';
+      txt = 'Escríbenos para revisar tu cuenta. Tus bocetos siguen guardados en este dispositivo.';
       wa = 'Hola, mi cuenta de OXEN PRO aparece suspendida. Mi correo es ' + email;
+    } else if (r.estado === 'equipo_vencido') {
+      titulo = 'El plan de tu equipo venció';
+      txt = 'Entras a OXEN PRO como parte de un equipo y su plan ya no está activo. Pide a quien te agregó que lo renueve. Tus bocetos siguen guardados en este dispositivo.';
+      wa = 'Hola, el plan de mi equipo de OXEN PRO venció. Mi correo es ' + email;
     } else if (r.estado === 'limite') {
-      titulo = 'Llegaste al límite de equipos';
-      txt = `Tu plan permite usar OXEN PRO en <b>${r.max}</b> equipo${r.max > 1 ? 's' : ''} y ya está activo en otro${r.max > 1 ? 's' : ''}. Pide que liberemos uno para usarlo aquí.`;
-      wa = 'Hola, quiero cambiar el equipo donde uso OXEN PRO. Mi correo es ' + email;
+      titulo = 'Llegaste al límite de dispositivos';
+      txt = `Tu cuenta permite usar OXEN PRO en <b>${r.max}</b> dispositivo${r.max > 1 ? 's' : ''} y ya está activa en otro${r.max > 1 ? 's' : ''}. Pide que liberemos uno para usarlo aquí.`;
+      wa = 'Hola, quiero cambiar el dispositivo donde uso OXEN PRO. Mi correo es ' + email;
     } else {
       titulo = 'No pudimos comprobar tu acceso';
       txt = esc(r.mensaje || 'Intenta otra vez en un momento.');
@@ -189,7 +193,7 @@
       // compensa si el reloj del equipo está desfasado respecto al servidor
       const desfase = r.ahora ? Date.now() - new Date(r.ahora).getTime() : 0;
       if (r.debe_cambiar) { try { localStorage.removeItem(K_LIC); } catch (e) {} return pasoCrearClave(r); }
-      escribir(K_LIC, { email: r.email, nombre: r.nombre, plan: r.plan, vence: new Date(new Date(r.vence).getTime() + desfase).toISOString(), ok: Date.now() });
+      escribir(K_LIC, { email: r.email, nombre: r.nombre, plan: r.plan, dueno: r.dueno_equipo || null, vence: new Date(new Date(r.vence).getTime() + desfase).toISOString(), ok: Date.now() });
       ocultar(); pintarCuenta();
       return;
     }
@@ -230,20 +234,24 @@
         <div><span>Correo</span><b>${esc(c.email)}</b></div>
         ${c.plan ? `<div><span>Plan</span><b>${esc(c.plan)}</b></div>` : ''}
         <div><span>Vence</span><b>${esc(vence)}</b></div>
-        <div><span>Este equipo</span><b>${esc(nombreDispositivo())}</b></div>
+        <div><span>Este dispositivo</span><b>${esc(nombreDispositivo())}</b></div>
       </div>
       ${d <= 30 && d < 3650 ? btnWhats('Hola, quiero renovar OXEN PRO. Mi correo es ' + c.email) : ''}
       <button class="btn-verde acc-btn" id="accVolver">Volver a dibujar</button>
+      ${window.Equipo ? '<button class="acc-btn acc-sec" id="accEquipo">Mi equipo</button>' : ''}
       <button class="acc-link" id="accCambiarClave">Cambiar mi contraseña</button>
-      <button class="acc-link acc-rojo" id="accSalir">Cerrar sesión en este equipo</button>`, () => {
+      <button class="acc-link acc-rojo" id="accSalir">Cerrar sesión en este dispositivo</button>`, () => {
       $('accVolver').onclick = ocultar;
       $('accCambiarClave').onclick = () => pasoCrearClave(null, true);
+      if ($('accEquipo')) $('accEquipo').onclick = () => window.Equipo.pantalla();
       $('accSalir').onclick = async () => {
-        if (!confirm('¿Cerrar sesión? Tus bocetos se quedan en este equipo, pero tendrás que volver a entrar con tu correo.')) return;
+        if (!confirm('¿Cerrar sesión? Tus bocetos se quedan en este dispositivo, pero tendrás que volver a entrar con tu correo.')) return;
         await A.salir(); try { localStorage.removeItem(K_LIC); } catch (e) {} pasoCorreo();
       };
     });
   }
+
+  window.OxenAcceso = { mostrar, ocultar, verCuenta, licencia: () => leer(K_LIC) };
 
   // ---------- Inicio ----------
   if (!A.sesion()) pasoCorreo();

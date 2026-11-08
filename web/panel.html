@@ -218,13 +218,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
 
   // ---------- Datos ----------
-  let LIC = [], DISP = [], PAGOS = [], filtro = 'todos';
+  let LIC = [], DISP = [], PAGOS = [], MIEM = [], filtro = 'todos';
   async function cargar() {
     try {
-      [LIC, DISP, PAGOS] = await Promise.all([
+      [LIC, DISP, PAGOS, MIEM] = await Promise.all([
         A.tabla('licencias?select=*&order=vence.asc'),
         A.tabla('dispositivos?select=*&order=ultimo_uso.desc'),
-        A.tabla('pagos?select=email,monto,creado&order=creado.desc')
+        A.tabla('pagos?select=email,monto,creado&order=creado.desc'),
+        A.tabla('equipo_miembros?select=*&order=agregado.asc')
       ]);
     } catch (e) { if (e.sinSesion) return verLogin('Tu sesión se cerró. Vuelve a entrar.'); avisar(A.traducir(e)); }
     pintar();
@@ -265,7 +266,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
           <div class="nom">${esc(l.nombre || l.email)}<span class="est ${e.c}">${e.t}</span></div>
           ${l.nombre ? `<div class="mail">${esc(l.email)}</div>` : ''}
           <div class="info"><span>Vence: <b>${venceTxt}</b></span>${l.plan ? `<span>Plan: <b>${esc(l.plan)}</b></span>` : ''}
-            <span>Equipos: <b>${nd}/${l.max_dispositivos}</b></span>${l.telefono ? `<span>Tel: <b>${esc(l.telefono)}</b></span>` : ''}</div>
+            <span>Dispositivos: <b>${nd}/${l.max_dispositivos}</b></span>${l.max_equipo ? `<span>Equipo: <b>${MIEM.filter(m => m.dueno === l.email).length}/${l.max_equipo}</b></span>` : ''}${l.telefono ? `<span>Tel: <b>${esc(l.telefono)}</b></span>` : ''}</div>
         </div>
         <div class="acc">
           <button class="btn btn-v btn-s" data-a="renovar" data-e="${esc(l.email)}">Renovar</button>
@@ -303,7 +304,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <div class="campo oculto" id="fOtro2"><label>Días</label><input id="fDias" type="number" min="0" value="0"></div>
         <div class="campo"><label>Monto pagado (S/)</label><input id="fMonto" type="number" min="0" step="0.01" placeholder="0.00"></div>
         <div class="campo"><label>Método de pago</label><select id="fMet">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
-        ${nuevo ? `<div class="campo"><label>Equipos permitidos</label><select id="fMax"><option>1</option><option selected>2</option><option>3</option></select></div>` : ''}
+        ${nuevo ? `<div class="campo"><label>Dispositivos permitidos</label><select id="fMax"><option>1</option><option selected>2</option><option>3</option></select></div>
+        <div class="campo"><label>Personas en su equipo</label><select id="fEq">${[0, 1, 2, 3, 4, 5, 8, 10, 15, 20].map(n => `<option value="${n}">${n ? n + ' persona' + (n > 1 ? 's' : '') : 'Sin equipo'}</option>`).join('')}</select></div>` : ''}
         <div class="campo ${nuevo ? '' : 'ancho'}"><label>Nota (opcional)</label><input id="fNota" placeholder="N.º de operación, etc."></div>
       </div>
       <div class="resumen" id="fRes"></div>
@@ -340,6 +342,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
             p_monto: $('fMonto').value === '' ? null : +$('fMonto').value, p_metodo: $('fMet').value,
             p_nota: $('fNota').value, p_plan: nombrePlan
           });
+          if (nuevo && +$('fEq').value > 0) await A.tabla('licencias?email=eq.' + q(email), 'PATCH', { max_equipo: +$('fEq').value });
           let clave = null;
           if (nuevo) {
             try { clave = (await A.funcion('admin-contrasena', { email })).clave; }
@@ -392,7 +395,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <div class="campo"><label>Nombre</label><input id="dNom" value="${esc(l.nombre || '')}"></div>
         <div class="campo"><label>WhatsApp</label><input id="dTel" inputmode="tel" value="${esc(l.telefono || '')}"></div>
         <div class="campo"><label>Vence (corrección manual)</label><input id="dVence" type="date" value="${vLocal}"></div>
-        <div class="campo"><label>Equipos permitidos</label><select id="dMax">${[1, 2, 3, 4, 5].map(n => `<option${n === l.max_dispositivos ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="campo"><label>Dispositivos permitidos</label><select id="dMax">${[1, 2, 3, 4, 5].map(n => `<option${n === l.max_dispositivos ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="campo"><label>Personas en su equipo</label><select id="dEq">${[0, 1, 2, 3, 4, 5, 8, 10, 15, 20].concat([0, 1, 2, 3, 4, 5, 8, 10, 15, 20].includes(l.max_equipo) ? [] : [l.max_equipo]).map(n => `<option value="${n}"${n === (l.max_equipo || 0) ? ' selected' : ''}>${n ? n + ' persona' + (n > 1 ? 's' : '') : 'Sin equipo'}</option>`).join('')}</select></div>
         <div class="campo ancho"><label>Notas</label><textarea id="dNotas" rows="2">${esc(l.notas || '')}</textarea></div>
       </div>
       <div class="err" id="dErr"></div>
@@ -403,9 +407,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <small>Genera una nueva si la olvidó; la app le pedirá cambiarla al entrar.</small></div>
         <button class="btn btn-g btn-s" id="dClave">Generar contraseña</button></div></div>
 
-      <div class="seccion">Equipos (${disp.length}/${l.max_dispositivos})</div>
-      <div class="filas">${disp.length ? disp.map(d => `<div class="fila"><div>${esc(d.nombre || 'Equipo')}<small>Último uso: ${fechaHora(d.ultimo_uso)}</small></div>
-        <button class="btn btn-g btn-s" data-lib="${d.id}">Liberar</button></div>`).join('') : '<div class="fila"><small>Todavía no entra desde ningún equipo.</small></div>'}</div>
+      ${l.max_equipo || MIEM.some(m => m.dueno === l.email) ? `<div class="seccion">Su equipo (${MIEM.filter(m => m.dueno === l.email).length}/${l.max_equipo || 0})</div>
+      <div class="filas">${MIEM.filter(m => m.dueno === l.email).map(m => `<div class="fila"><div>${esc(m.miembro)}<small>${m.debe_cambiar ? 'Aún no entra' : 'Activo'} · desde ${fecha(m.agregado)}</small></div>
+        <button class="btn btn-g btn-s" data-quitar-m="${esc(m.miembro)}">Quitar</button></div>`).join('') || '<div class="fila"><small>Todavía no agrega a nadie. Lo hace desde la app: Mi cuenta → Mi equipo.</small></div>'}</div>` : ''}
+      ${MIEM.some(m => m.miembro === l.email) ? `<div class="seccion">Es parte del equipo de</div><div class="filas"><div class="fila"><div>${esc(MIEM.find(m => m.miembro === l.email).dueno)}</div></div></div>` : ''}
+
+      <div class="seccion">Dispositivos (${disp.length}/${l.max_dispositivos})</div>
+      <div class="filas">${disp.length ? disp.map(d => `<div class="fila"><div>${esc(d.nombre || 'Dispositivo')}<small>Último uso: ${fechaHora(d.ultimo_uso)}</small></div>
+        <button class="btn btn-g btn-s" data-lib="${d.id}">Liberar</button></div>`).join('') : '<div class="fila"><small>Todavía no entra desde ningún dispositivo.</small></div>'}</div>
 
       <div class="seccion">Pagos</div>
       <div class="filas">${pagos.length ? pagos.map(p => `<div class="fila"><div>${esc(p.plan || 'Tiempo agregado')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
@@ -424,7 +433,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         const v = $('dVence').value; if (!v) { $('dErr').textContent = 'Pon una fecha.'; return; }
         try {
           await A.tabla(ruta, 'PATCH', { nombre: $('dNom').value.trim() || null, telefono: $('dTel').value.trim() || null,
-            vence: new Date(v + 'T23:59:59').toISOString(), max_dispositivos: +$('dMax').value, notas: $('dNotas').value.trim() || null, actualizado: new Date().toISOString() });
+            vence: new Date(v + 'T23:59:59').toISOString(), max_dispositivos: +$('dMax').value, max_equipo: +$('dEq').value, notas: $('dNotas').value.trim() || null, actualizado: new Date().toISOString() });
           await cargar(); cerrar(); avisar('Cambios guardados');
         } catch (e) { $('dErr').textContent = A.traducir(e); }
       };
@@ -434,13 +443,18 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         catch (e) { $('dErr').textContent = A.traducir(e); }
       };
       $('dClave').onclick = () => generarClave(l);
+      document.querySelectorAll('[data-quitar-m]').forEach(b => b.onclick = async () => {
+        if (!confirm('¿Quitar a ' + b.dataset.quitarM + ' del equipo de ' + l.email + '?')) return;
+        try { await A.tabla('equipo_miembros?miembro=eq.' + q(b.dataset.quitarM), 'DELETE'); await cargar(); detalles(LIC.find(x => x.email === l.email)); avisar('Quitado del equipo'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      });
       $('dBorrar').onclick = async () => {
-        if (!confirm('¿Eliminar a ' + l.email + ' con sus equipos y pagos? No se puede deshacer.')) return;
+        if (!confirm('¿Eliminar a ' + l.email + ' con sus dispositivos, pagos y equipo? No se puede deshacer.')) return;
         try { await A.tabla(ruta, 'DELETE'); await cargar(); cerrar(); avisar('Cliente eliminado'); }
         catch (e) { $('dErr').textContent = A.traducir(e); }
       };
       document.querySelectorAll('[data-lib]').forEach(b => b.onclick = async () => {
-        try { await A.tabla('dispositivos?id=eq.' + b.dataset.lib, 'DELETE'); await cargar(); detalles(LIC.find(x => x.email === l.email)); avisar('Equipo liberado'); }
+        try { await A.tabla('dispositivos?id=eq.' + b.dataset.lib, 'DELETE'); await cargar(); detalles(LIC.find(x => x.email === l.email)); avisar('Dispositivo liberado'); }
         catch (e) { $('dErr').textContent = A.traducir(e); }
       });
     });

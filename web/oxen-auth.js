@@ -92,18 +92,35 @@
     return llamar('/rest/v1/rpc/' + nombre, { cuerpo: args || {}, token: await tokenObligatorio() });
   }
   // Para el panel: leer y cambiar tablas (las reglas de la base deciden qué se permite)
-  async function tabla(ruta, metodo = 'GET', cuerpo) {
-    return llamar('/rest/v1/' + ruta, { metodo, cuerpo, token: await tokenObligatorio(), extra: metodo === 'GET' ? {} : { Prefer: 'return=representation' } });
+  async function tabla(ruta, metodo = 'GET', cuerpo, prefer) {
+    return llamar('/rest/v1/' + ruta, { metodo, cuerpo, token: await tokenObligatorio(),
+      extra: metodo === 'GET' ? {} : { Prefer: 'return=representation' + (prefer ? ',' + prefer : '') } });
   }
   // Para el panel: funciones del servidor (generar contraseña temporal)
   async function funcion(nombre, cuerpo) {
     return llamar('/functions/v1/' + nombre, { cuerpo: cuerpo || {}, token: await tokenObligatorio() });
   }
+  // Archivos de bocetos compartidos (carpeta privada: correo-del-dueño/boceto/versión/archivo)
+  const BUCKET = 'compartidos';
+  const ruta = p => p.split('/').map(encodeURIComponent).join('/');
+  async function crudo(metodo, url, cuerpo, tipo) {
+    const t = await tokenObligatorio(); let r;
+    try {
+      r = await fetch(SB_URL + url, { method: metodo, body: cuerpo,
+        headers: Object.assign({ apikey: SB_KEY, Authorization: 'Bearer ' + t }, tipo ? { 'Content-Type': tipo } : {}, metodo === 'POST' && tipo !== 'application/json' ? { 'x-upsert': 'true' } : {}) });
+    } catch (e) { throw errRed(); }
+    if (!r.ok) { let m = ''; try { m = (await r.json()).message || ''; } catch (e) {} const e = new Error(m || ('Error ' + r.status)); e.status = r.status; throw e; }
+    return r;
+  }
+  async function subirArchivo(p, blob, tipo) { await crudo('POST', '/storage/v1/object/' + BUCKET + '/' + ruta(p), blob, tipo || blob.type || 'application/octet-stream'); }
+  async function bajarArchivo(p) { return (await crudo('GET', '/storage/v1/object/authenticated/' + BUCKET + '/' + ruta(p))).blob(); }
+  async function borrarArchivos(ps) { if (ps.length) await crudo('DELETE', '/storage/v1/object/' + BUCKET, JSON.stringify({ prefixes: ps }), 'application/json'); }
+
   async function salir() {
     const s = leerSesion();
     if (s) { try { await llamar('/auth/v1/logout', { token: s.access_token }); } catch (e) {} }
     borrarSesion();
   }
 
-  window.OxenAuth = { entrar, cambiarClave, token, rpc, tabla, funcion, salir, sesion: leerSesion, traducir, MIN_CLAVE };
+  window.OxenAuth = { entrar, cambiarClave, token, rpc, tabla, funcion, salir, subirArchivo, bajarArchivo, borrarArchivos, sesion: leerSesion, traducir, MIN_CLAVE };
 })();

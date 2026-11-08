@@ -3039,19 +3039,21 @@ async function mostrarGaleria() {
   $('galVacia').classList.toggle('oculto', lista.length > 0);
   for (const r of lista) {
     const u = r.thumb ? URL.createObjectURL(r.thumb) : ''; if (u) urlsMini.push(u);
-    const d = document.createElement('div'); d.className = 'tarjeta';
+    const d = document.createElement('div'); d.className = 'tarjeta'; d.dataset.id = r.id;
     d.innerHTML = `<button class="mini">${u ? `<img src="${u}" alt="">` : ''}</button><div class="t-nom">${escapar(r.nombre)}</div><div class="t-fecha">${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })} · ${r.w}×${r.h}</div><button class="t-mas">⋯</button>`;
     d.querySelector('.mini').onclick = () => abrirDibujo(r.id);
     d.querySelector('.t-mas').onclick = () => menuTarjeta(r);
     g.appendChild(d);
   }
+  if (window.Equipo) Equipo.alPintarGaleria();
 }
 function menuTarjeta(r) {
-  modal(`<h3>${escapar(r.nombre)}</h3><button class="item" id="tRen">Renombrar</button><button class="item" id="tDup">Duplicar</button><button class="item" id="tBor" style="color:#ff6b5e">Eliminar</button><div class="modal-btns"><button id="mNo">Cerrar</button></div>`, cerrar => {
+  modal(`<h3>${escapar(r.nombre)}</h3><button class="item" id="tRen">Renombrar</button><button class="item" id="tDup">Duplicar</button>${window.Equipo ? Equipo.itemMenu(r) : ''}<button class="item" id="tBor" style="color:#ff6b5e">Eliminar</button><div class="modal-btns"><button id="mNo">Cerrar</button></div>`, cerrar => {
     $('mNo').onclick = cerrar;
-    $('tRen').onclick = () => { cerrar(); pedirTexto('Nombre del boceto', r.nombre, async v => { if (!v) return; r.nombre = v; await dbPut(r); mostrarGaleria(); }); };
+    if (window.Equipo) Equipo.enlazarMenu(r, cerrar);
+    $('tRen').onclick = () => { cerrar(); pedirTexto('Nombre del boceto', r.nombre, async v => { if (!v) return; r.nombre = v; await dbPut(r); if (window.Equipo) Equipo.alRenombrar(r); mostrarGaleria(); }); };
     $('tDup').onclick = async () => { cerrar(); await dbPut(Object.assign({}, r, { id: nuevoId(), nombre: r.nombre + ' copia', fecha: Date.now() })); mostrarGaleria(); };
-    $('tBor').onclick = () => { cerrar(); confirmar('Eliminar boceto', `¿Eliminar “${escapar(r.nombre)}”? No se puede recuperar.`, 'Eliminar', async () => { await dbBorrar(r.id); mostrarGaleria(); }); };
+    $('tBor').onclick = () => { cerrar(); confirmar('Eliminar boceto', `¿Eliminar “${escapar(r.nombre)}”? No se puede recuperar.`, 'Eliminar', async () => { await dbBorrar(r.id); if (window.Equipo) Equipo.alBorrar(r.id); mostrarGaleria(); }); };
   });
 }
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -3122,6 +3124,7 @@ async function cerrarDibujo() {
   if (trazo) cancelarTrazo();
   cerrarPaneles(); clearTimeout(tGuardar);
   await guardar();
+  if (window.Equipo) Equipo.alCerrar(doc);
   doc = null; capasDOM.innerHTML = ''; pedirSup();
   mostrarGaleria();
 }
