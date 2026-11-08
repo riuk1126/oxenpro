@@ -11,6 +11,13 @@
 
 La app de Android se actualiza sola: cada mejora que se sube aquí llega a la tableta al abrirla.
 
+## Cuentas y licencias
+- Al abrir, OXEN PRO pide **entrar con el correo** (llega un código, sin contraseñas) y revisa que el plan esté vigente.
+- Sin internet sigue funcionando **7 días** desde la última comprobación.
+- Cada cuenta se puede usar en un número limitado de equipos (por defecto 2).
+- **Panel de clientes:** [riuk1126.github.io/oxenpro/panel.html](https://riuk1126.github.io/oxenpro/panel.html) — crear clientes, renovar, bloquear, liberar equipos y ver pagos.
+- Los datos viven en Supabase (proyecto *oxenpro*). El número de WhatsApp para comprar/renovar se pone en `web/acceso.js` (`WHATSAPP`).
+
 ## Cómo se usa
 - **Lápiz**: dibuja, con presión e inclinación (de lado sombrea como un lápiz real).
 - **Dedo**: con un dedo mueves el lienzo; con dos lo acercas, alejas y giras.

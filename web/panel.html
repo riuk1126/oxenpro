@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="robots" content="noindex,nofollow">
+<title>Panel OXEN PRO</title>
+<link rel="icon" href="icono.png">
+<style>
+:root{--verde:#8ACF00;--verde2:#a4e61a;--negro:#0b0b0c;--g1:#151517;--g2:#1d1d20;--g3:#2b2b30;--linea:rgba(255,255,255,.08);
+  --tx:#f2f2f3;--tx2:#9b9ba1;--rojo:#ff7a6b;--ambar:#ffc24d;--azul:#7fb4ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--negro);color:var(--tx);font-family:-apple-system,"SF Pro Text",Roboto,"Segoe UI",system-ui,sans-serif;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:var(--verde)}
+.oculto{display:none!important}
+.envoltura{max-width:1100px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.marca{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;letter-spacing:-.02em}
+.marca img{width:34px;height:34px;border-radius:9px}
+.marca b{color:var(--verde)} .marca small{color:var(--tx2);font-weight:500;font-size:13px;margin-left:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 16px;border-radius:999px;font-weight:600;white-space:nowrap;text-decoration:none}
+.btn-v{background:var(--verde);color:#0b0b0c}.btn-v:hover{background:var(--verde2)}
+.btn-g{background:var(--g2);border:1px solid var(--g3);color:var(--tx)}.btn-g:hover{border-color:#44444a}
+.btn-r{background:rgba(255,122,107,.12);border:1px solid rgba(255,122,107,.35);color:var(--rojo)}
+.btn-s{padding:7px 12px;font-size:13px}
+.btn:disabled{opacity:.55;cursor:default}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--g1);border:1px solid var(--linea);border-radius:14px;padding:14px 16px}
+.stat span{color:var(--tx2);font-size:12.5px}.stat b{display:block;font-size:24px;margin-top:4px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.buscar{flex:1;min-width:200px;background:var(--g1);border:1px solid var(--g3);border-radius:12px;padding:11px 14px;outline:none}
+.buscar:focus{border-color:var(--verde)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 12px;border-radius:999px;background:var(--g1);border:1px solid var(--g3);color:var(--tx2);font-size:13px}
+.chip.on{border-color:var(--verde);color:var(--verde)}
+.lista{display:grid;gap:10px}
+.cli{background:var(--g1);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:10px 16px;align-items:center}
+.cli .nom{font-weight:650;font-size:15px}.cli .mail{color:var(--tx2);font-size:13px;word-break:break-all}
+.cli .info{display:flex;gap:6px 14px;flex-wrap:wrap;color:var(--tx2);font-size:13px;margin-top:6px}
+.cli .info b{color:var(--tx);font-weight:600}
+.cli .acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.est{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-left:6px;vertical-align:2px;letter-spacing:.02em}
+.e-ok{background:rgba(138,207,0,.14);color:var(--verde)}.e-pronto{background:rgba(255,194,77,.14);color:var(--ambar)}
+.e-venc{background:rgba(255,122,107,.14);color:var(--rojo)}.e-bloq{background:var(--g3);color:var(--tx2)}
+.vacio{color:var(--tx2);text-align:center;padding:40px 10px}
+/* Ventanas */
+.fondo{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:max(20px,env(safe-area-inset-top)) 12px 20px;overflow:auto;z-index:50}
+.ven{width:100%;max-width:520px;background:var(--g1);border:1px solid var(--g3);border-radius:20px;padding:20px;margin:auto 0}
+.ven h3{margin:0 0 4px;font-size:18px}.ven .sub{color:var(--tx2);margin:0 0 16px;font-size:13px;word-break:break-all}
+.campos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.campo{display:flex;flex-direction:column;gap:5px}.campo.ancho{grid-column:1/-1}
+.campo label{color:var(--tx2);font-size:12.5px}
+.campo input,.campo select,.campo textarea{background:var(--negro);border:1px solid var(--g3);border-radius:10px;padding:10px 12px;outline:none;width:100%}
+.campo input:focus,.campo select:focus,.campo textarea:focus{border-color:var(--verde)}
+.planes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.plan{padding:10px 6px;border-radius:10px;background:var(--negro);border:1px solid var(--g3);font-size:13px;text-align:center}
+.plan.on{border-color:var(--verde);color:var(--verde);background:rgba(138,207,0,.07)}
+.resumen{margin:14px 0 0;padding:10px 12px;border-radius:10px;background:var(--negro);color:var(--tx2);font-size:13px}
+.resumen b{color:var(--verde)}
+.pie{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.err{color:var(--rojo);font-size:13px;min-height:16px;margin-top:8px}
+.filas{display:grid;gap:6px;margin:6px 0}
+.fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--negro);border-radius:10px;font-size:13px}
+.fila small{color:var(--tx2);display:block}
+.seccion{color:var(--tx2);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px}
+.aviso{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--g2);border:1px solid var(--g3);padding:11px 16px;border-radius:12px;z-index:80;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+/* Acceso */
+.login{max-width:380px;margin:12vh auto 0;background:var(--g1);border:1px solid var(--g3);border-radius:20px;padding:26px 22px}
+.login h2{margin:18px 0 6px;font-size:19px}.login p{color:var(--tx2);margin:0 0 14px;line-height:1.5}
+.login input{width:100%;background:var(--negro);border:1px solid var(--g3);border-radius:12px;padding:12px 14px;outline:none;font-size:16px;margin-bottom:10px}
+.login input:focus{border-color:var(--verde)}
+.login .btn{width:100%}
+@media (max-width:640px){
+  .cli{grid-template-columns:1fr}.cli .acc{justify-content:flex-start}
+  .campos{grid-template-columns:1fr}.planes{grid-template-columns:repeat(2,1fr)}
+  .stat b{font-size:20px}
+}
+</style>
+</head>
+<body>
+<div class="envoltura">
+  <!-- Acceso -->
+  <section id="vLogin" class="login oculto">
+    <div class="marca"><img src="icono.png" alt=""><span>OXEN<b>PRO</b><small>Panel</small></span></div>
+    <div id="lPaso1">
+      <h2>Panel de clientes</h2>
+      <p>Entra con tu correo de administrador. Te llegará un código.</p>
+      <input id="lMail" type="email" placeholder="tucorreo@gmail.com" autocomplete="email">
+      <button class="btn btn-v" id="lEnviar">Enviarme el código</button>
+    </div>
+    <div id="lPaso2" class="oculto">
+      <h2>Revisa tu correo</h2>
+      <p>Escribe el código que llegó a <b id="lMailTxt"></b>.</p>
+      <input id="lCod" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Código">
+      <button class="btn btn-v" id="lEntrar">Entrar</button>
+      <p style="margin-top:12px"><a href="#" id="lVolver">Cambiar correo</a></p>
+    </div>
+    <div class="err" id="lErr"></div>
+  </section>
+
+  <!-- Panel -->
+  <section id="vPanel" class="oculto">
+    <header>
+      <div class="marca"><img src="icono.png" alt=""><span>OXEN<b>PRO</b><small>Panel de clientes</small></span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-g" id="bRecargar">Actualizar</button>
+        <button class="btn btn-v" id="bNuevo">+ Nuevo cliente</button>
+      </div>
+    </header>
+    <div class="stats" id="stats"></div>
+    <div class="barra">
+      <input class="buscar" id="buscar" placeholder="Buscar por nombre, correo o teléfono">
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="lista" id="lista"></div>
+    <p style="text-align:center;margin-top:28px"><a href="#" id="bSalir" style="color:var(--tx2)">Cerrar sesión</a></p>
+  </section>
+</div>
+<div id="ventana" class="fondo oculto"></div>
+
+<script src="oxen-auth.js"></script>
+<script>
+(function () {
+  const A = window.OxenAuth;
+  const APK = 'https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk';
+  const PLANES = [
+    { id: 'prueba', nombre: 'Prueba 7 días', meses: 0, dias: 7 },
+    { id: '1m', nombre: '1 mes', meses: 1, dias: 0 },
+    { id: '3m', nombre: '3 meses', meses: 3, dias: 0 },
+    { id: '6m', nombre: '6 meses', meses: 6, dias: 0 },
+    { id: '12m', nombre: '1 año', meses: 12, dias: 0 },
+    { id: 'otro', nombre: 'Personalizado', meses: 0, dias: 0 }
+  ];
+  const METODOS = ['Yape', 'Plin', 'Transferencia', 'Efectivo', 'Mercado Pago', 'Otro'];
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fecha = f => new Date(f).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' });
+  const fechaHora = f => new Date(f).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const dias = f => Math.ceil((new Date(f) - Date.now()) / 864e5);
+  const soles = n => 'S/ ' + Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const q = e => encodeURIComponent(e);
+  function avisar(t) { const d = document.createElement('div'); d.className = 'aviso'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
+  function whats(tel, texto) {
+    let n = String(tel || '').replace(/\D/g, ''); if (!n) return '';
+    if (n.length === 9 && n[0] === '9') n = '51' + n;     // celular peruano sin código
+    return 'https://wa.me/' + n + '?text=' + encodeURIComponent(texto);
+  }
+  function estadoDe(l) {
+    if (!l.activo) return { k: 'bloq', t: 'BLOQUEADO', c: 'e-bloq' };
+    const d = dias(l.vence);
+    if (d < 0) return { k: 'venc', t: 'VENCIDO', c: 'e-venc' };
+    if (d <= 7) return { k: 'pronto', t: d <= 0 ? 'VENCE HOY' : 'VENCE EN ' + d + ' D', c: 'e-pronto' };
+    return { k: 'ok', t: 'ACTIVO', c: 'e-ok' };
+  }
+  function msgAcceso(l) {
+    return `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu acceso a OXEN PRO está activo hasta el ${fecha(l.vence)}.\n\n` +
+      `1) Descarga la app: ${APK}\n2) Ábrela y entra con tu correo: ${l.email}\n3) Te llegará un código al correo para entrar.\n\n¡A dibujar!`;
+  }
+
+  // ---------- Acceso ----------
+  let correoLogin = '';
+  function verLogin(msg) {
+    $('vPanel').classList.add('oculto'); $('vLogin').classList.remove('oculto');
+    $('lPaso1').classList.remove('oculto'); $('lPaso2').classList.add('oculto'); $('lErr').textContent = msg || '';
+  }
+  $('lEnviar').onclick = async () => {
+    correoLogin = $('lMail').value.trim().toLowerCase(); if (!correoLogin) return;
+    $('lEnviar').disabled = true; $('lErr').textContent = '';
+    try { await A.pedirCodigo(correoLogin); $('lMailTxt').textContent = correoLogin; $('lPaso1').classList.add('oculto'); $('lPaso2').classList.remove('oculto'); $('lCod').focus(); }
+    catch (e) { $('lErr').textContent = A.traducir(e); }
+    $('lEnviar').disabled = false;
+  };
+  $('lMail').onkeydown = e => { if (e.key === 'Enter') $('lEnviar').click(); };
+  $('lEntrar').onclick = async () => {
+    $('lEntrar').disabled = true; $('lErr').textContent = '';
+    try { await A.verificarCodigo(correoLogin, $('lCod').value); await iniciar(); }
+    catch (e) { $('lErr').textContent = A.traducir(e); }
+    $('lEntrar').disabled = false;
+  };
+  $('lCod').onkeydown = e => { if (e.key === 'Enter') $('lEntrar').click(); };
+  $('lVolver').onclick = e => { e.preventDefault(); verLogin(); };
+  $('bSalir').onclick = async e => { e.preventDefault(); await A.salir(); verLogin(); };
+
+  async function iniciar() {
+    if (!A.sesion()) return verLogin();
+    let admin = false;
+    try { admin = await A.rpc('es_admin'); }
+    catch (e) { return verLogin(e.sinSesion ? '' : A.traducir(e)); }
+    if (!admin) { await A.salir(); return verLogin('Ese correo no es administrador del panel.'); }
+    $('vLogin').classList.add('oculto'); $('vPanel').classList.remove('oculto');
+    cargar();
+  }
+
+  // ---------- Datos ----------
+  let LIC = [], DISP = [], PAGOS = [], filtro = 'todos';
+  async function cargar() {
+    try {
+      [LIC, DISP, PAGOS] = await Promise.all([
+        A.tabla('licencias?select=*&order=vence.asc'),
+        A.tabla('dispositivos?select=*&order=ultimo_uso.desc'),
+        A.tabla('pagos?select=email,monto,creado&order=creado.desc')
+      ]);
+    } catch (e) { if (e.sinSesion) return verLogin('Tu sesión se cerró. Vuelve a entrar.'); avisar(A.traducir(e)); }
+    pintar();
+  }
+  $('bRecargar').onclick = cargar;
+
+  function pintar() {
+    const est = LIC.map(estadoDe);
+    const cuenta = k => est.filter(e => e.k === k).length;
+    const ini = new Date(); ini.setDate(1); ini.setHours(0, 0, 0, 0);
+    const mes = PAGOS.filter(p => new Date(p.creado) >= ini).reduce((s, p) => s + Number(p.monto || 0), 0);
+    $('stats').innerHTML = [
+      ['Activos', cuenta('ok') + cuenta('pronto')], ['Vencen en 7 días', cuenta('pronto')],
+      ['Vencidos', cuenta('venc')], ['Ingresos del mes', soles(mes)]
+    ].map(([t, v]) => `<div class="stat"><span>${t}</span><b>${v}</b></div>`).join('');
+
+    const F = [['todos', 'Todos', LIC.length], ['activos', 'Activos', cuenta('ok') + cuenta('pronto')], ['pronto', 'Por vencer', cuenta('pronto')], ['venc', 'Vencidos', cuenta('venc')], ['bloq', 'Bloqueados', cuenta('bloq')]];
+    $('chips').innerHTML = F.map(([k, t, n]) => `<button class="chip${filtro === k ? ' on' : ''}" data-f="${k}">${t} · ${n}</button>`).join('');
+    $('chips').querySelectorAll('.chip').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
+
+    const txt = $('buscar').value.trim().toLowerCase();
+    const vis = LIC.filter((l, i) => {
+      const k = est[i].k;
+      if (filtro === 'activos' && !(k === 'ok' || k === 'pronto')) return false;
+      if (filtro !== 'todos' && filtro !== 'activos' && k !== filtro) return false;
+      return !txt || [l.email, l.nombre, l.telefono, l.notas].some(x => (x || '').toLowerCase().includes(txt));
+    });
+    if (!LIC.length) { $('lista').innerHTML = '<div class="vacio">Aún no tienes clientes. Toca <b>+ Nuevo cliente</b> cuando alguien te pague.</div>'; return; }
+    if (!vis.length) { $('lista').innerHTML = '<div class="vacio">Nadie coincide con la búsqueda.</div>'; return; }
+    $('lista').innerHTML = vis.map(l => {
+      const e = estadoDe(l), nd = DISP.filter(d => d.email === l.email).length, d = dias(l.vence);
+      const venceTxt = d > 3650 ? 'Sin vencimiento' : fecha(l.vence) + (d >= 0 ? ` · quedan ${d} d` : ` · hace ${-d} d`);
+      const wa = whats(l.telefono, e.k === 'venc' || e.k === 'pronto'
+        ? `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu plan de OXEN PRO ${e.k === 'venc' ? 'venció' : 'vence'} el ${fecha(l.vence)}. ¿Quieres renovarlo?`
+        : msgAcceso(l));
+      return `<div class="cli">
+        <div>
+          <div class="nom">${esc(l.nombre || l.email)}<span class="est ${e.c}">${e.t}</span></div>
+          ${l.nombre ? `<div class="mail">${esc(l.email)}</div>` : ''}
+          <div class="info"><span>Vence: <b>${venceTxt}</b></span>${l.plan ? `<span>Plan: <b>${esc(l.plan)}</b></span>` : ''}
+            <span>Equipos: <b>${nd}/${l.max_dispositivos}</b></span>${l.telefono ? `<span>Tel: <b>${esc(l.telefono)}</b></span>` : ''}</div>
+        </div>
+        <div class="acc">
+          <button class="btn btn-v btn-s" data-a="renovar" data-e="${esc(l.email)}">Renovar</button>
+          ${wa ? `<a class="btn btn-g btn-s" target="_blank" rel="noopener" href="${esc(wa)}">WhatsApp</a>` : ''}
+          <button class="btn btn-g btn-s" data-a="ver" data-e="${esc(l.email)}">Detalles</button>
+        </div></div>`;
+    }).join('');
+    $('lista').querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+      const l = LIC.find(x => x.email === b.dataset.e);
+      if (b.dataset.a === 'renovar') formulario(l); else detalles(l);
+    });
+  }
+  $('buscar').oninput = pintar;
+
+  // ---------- Ventanas ----------
+  function abrir(html, alPintar) {
+    const v = $('ventana'); v.innerHTML = `<div class="ven">${html}</div>`; v.classList.remove('oculto');
+    v.onclick = e => { if (e.target === v) cerrar(); };
+    if (alPintar) alPintar();
+  }
+  function cerrar() { $('ventana').classList.add('oculto'); $('ventana').innerHTML = ''; }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+
+  // Nuevo cliente o renovación
+  function formulario(l) {
+    const nuevo = !l; let plan = nuevo ? PLANES[1] : PLANES[1];
+    abrir(`<h3>${nuevo ? 'Nuevo cliente' : 'Renovar acceso'}</h3>
+      <p class="sub">${nuevo ? 'Registra a quien te pagó. Podrá entrar a la app con este correo.' : esc(l.nombre || '') + ' · ' + esc(l.email)}</p>
+      <div class="campos">
+        ${nuevo ? `<div class="campo ancho"><label>Correo del cliente *</label><input id="fMail" type="email" placeholder="cliente@gmail.com"></div>
+        <div class="campo"><label>Nombre</label><input id="fNom" placeholder="Nombre y apellido"></div>
+        <div class="campo"><label>WhatsApp</label><input id="fTel" inputmode="tel" placeholder="987 654 321"></div>` : ''}
+        <div class="campo ancho"><label>Tiempo que agregas</label><div class="planes" id="fPlanes">${PLANES.map(p => `<button class="plan${p.id === plan.id ? ' on' : ''}" data-p="${p.id}">${p.nombre}</button>`).join('')}</div></div>
+        <div class="campo oculto" id="fOtro1"><label>Meses</label><input id="fMeses" type="number" min="0" value="0"></div>
+        <div class="campo oculto" id="fOtro2"><label>Días</label><input id="fDias" type="number" min="0" value="0"></div>
+        <div class="campo"><label>Monto pagado (S/)</label><input id="fMonto" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="campo"><label>Método de pago</label><select id="fMet">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
+        ${nuevo ? `<div class="campo"><label>Equipos permitidos</label><select id="fMax"><option>1</option><option selected>2</option><option>3</option></select></div>` : ''}
+        <div class="campo ${nuevo ? '' : 'ancho'}"><label>Nota (opcional)</label><input id="fNota" placeholder="N.º de operación, etc."></div>
+      </div>
+      <div class="resumen" id="fRes"></div>
+      <div class="err" id="fErr"></div>
+      <div class="pie"><button class="btn btn-g" id="fNo">Cancelar</button><button class="btn btn-v" id="fSi">${nuevo ? 'Crear acceso' : 'Renovar'}</button></div>`, () => {
+      const meses = () => plan.id === 'otro' ? Math.max(0, +$('fMeses').value || 0) : plan.meses;
+      const ds = () => plan.id === 'otro' ? Math.max(0, +$('fDias').value || 0) : plan.dias;
+      const resumen = () => {
+        const base = !nuevo && new Date(l.vence) > new Date() ? new Date(l.vence) : new Date();
+        const h = new Date(base); h.setMonth(h.getMonth() + meses()); h.setDate(h.getDate() + ds());
+        $('fRes').innerHTML = (meses() || ds()) ? `Tendrá acceso hasta el <b>${fecha(h)}</b>${!nuevo && new Date(l.vence) > new Date() ? ' (se suma a lo que le quedaba)' : ''}.` : 'Elige cuánto tiempo agregar.';
+      };
+      $('fPlanes').querySelectorAll('.plan').forEach(b => b.onclick = () => {
+        plan = PLANES.find(p => p.id === b.dataset.p);
+        $('fPlanes').querySelectorAll('.plan').forEach(x => x.classList.toggle('on', x === b));
+        $('fOtro1').classList.toggle('oculto', plan.id !== 'otro'); $('fOtro2').classList.toggle('oculto', plan.id !== 'otro');
+        if (plan.id === 'prueba') $('fMonto').value = '';
+        resumen();
+      });
+      ['fMeses', 'fDias'].forEach(id => $(id).oninput = resumen);
+      resumen();
+      $('fNo').onclick = cerrar;
+      $('fSi').onclick = async () => {
+        const email = nuevo ? $('fMail').value.trim().toLowerCase() : l.email;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('fErr').textContent = 'Escribe un correo válido.'; return; }
+        if (!meses() && !ds()) { $('fErr').textContent = 'Elige cuánto tiempo agregar.'; return; }
+        if (nuevo && LIC.some(x => x.email === email)) { $('fErr').textContent = 'Ese correo ya es cliente. Búscalo en la lista y usa Renovar.'; return; }
+        $('fSi').disabled = true; $('fErr').textContent = '';
+        try {
+          const nombrePlan = plan.id === 'otro' ? [meses() ? meses() + ' mes(es)' : '', ds() ? ds() + ' día(s)' : ''].filter(Boolean).join(' + ') : plan.nombre;
+          const r = await A.rpc('admin_guardar_licencia', {
+            p_email: email, p_nombre: nuevo ? $('fNom').value : null, p_telefono: nuevo ? $('fTel').value : null,
+            p_meses: meses(), p_dias: ds(), p_max: nuevo ? +$('fMax').value : null,
+            p_monto: $('fMonto').value === '' ? null : +$('fMonto').value, p_metodo: $('fMet').value,
+            p_nota: $('fNota').value, p_plan: nombrePlan
+          });
+          await cargar();
+          listo(r);
+        } catch (e) { $('fErr').textContent = A.traducir(e); $('fSi').disabled = false; }
+      };
+      if (nuevo) setTimeout(() => $('fMail').focus(), 30);
+    });
+  }
+
+  // Después de crear o renovar: enviarle el acceso
+  function listo(l) {
+    const wa = whats(l.telefono, msgAcceso(l));
+    abrir(`<h3>¡Listo!</h3><p class="sub">${esc(l.email)} tiene acceso hasta el <b style="color:var(--verde)">${fecha(l.vence)}</b>.</p>
+      <div class="campo ancho"><label>Mensaje para el cliente</label><textarea id="lMsg" rows="7" readonly>${esc(msgAcceso(l))}</textarea></div>
+      <div class="pie"><button class="btn btn-g" id="lCopiar">Copiar mensaje</button>
+      ${wa ? `<a class="btn btn-v" target="_blank" rel="noopener" href="${esc(wa)}">Enviar por WhatsApp</a>` : ''}
+      <button class="btn btn-g" id="lCerrar">Cerrar</button></div>`, () => {
+      $('lCerrar').onclick = cerrar;
+      $('lCopiar').onclick = async () => { try { await navigator.clipboard.writeText($('lMsg').value); avisar('Mensaje copiado'); } catch (e) { $('lMsg').select(); } };
+    });
+  }
+
+  async function detalles(l) {
+    let pagos = [];
+    try { pagos = await A.tabla('pagos?select=*&email=eq.' + q(l.email) + '&order=creado.desc'); } catch (e) {}
+    const disp = DISP.filter(d => d.email === l.email);
+    const vLocal = new Date(new Date(l.vence).getTime() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+    abrir(`<h3>${esc(l.nombre || l.email)}</h3><p class="sub">${esc(l.email)} · cliente desde ${fecha(l.creado)}</p>
+      <div class="campos">
+        <div class="campo"><label>Nombre</label><input id="dNom" value="${esc(l.nombre || '')}"></div>
+        <div class="campo"><label>WhatsApp</label><input id="dTel" inputmode="tel" value="${esc(l.telefono || '')}"></div>
+        <div class="campo"><label>Vence (corrección manual)</label><input id="dVence" type="date" value="${vLocal}"></div>
+        <div class="campo"><label>Equipos permitidos</label><select id="dMax">${[1, 2, 3, 4, 5].map(n => `<option${n === l.max_dispositivos ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="campo ancho"><label>Notas</label><textarea id="dNotas" rows="2">${esc(l.notas || '')}</textarea></div>
+      </div>
+      <div class="err" id="dErr"></div>
+      <div class="pie"><button class="btn btn-v" id="dGuardar">Guardar cambios</button></div>
+
+      <div class="seccion">Equipos (${disp.length}/${l.max_dispositivos})</div>
+      <div class="filas">${disp.length ? disp.map(d => `<div class="fila"><div>${esc(d.nombre || 'Equipo')}<small>Último uso: ${fechaHora(d.ultimo_uso)}</small></div>
+        <button class="btn btn-g btn-s" data-lib="${d.id}">Liberar</button></div>`).join('') : '<div class="fila"><small>Todavía no entra desde ningún equipo.</small></div>'}</div>
+
+      <div class="seccion">Pagos</div>
+      <div class="filas">${pagos.length ? pagos.map(p => `<div class="fila"><div>${esc(p.plan || 'Tiempo agregado')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
+        <small>${fechaHora(p.creado)} → hasta ${fecha(p.hasta)}${p.nota ? ' · ' + esc(p.nota) : ''}</small></div><b>${p.monto != null ? soles(p.monto) : '—'}</b></div>`).join('') : '<div class="fila"><small>Sin pagos registrados.</small></div>'}</div>
+
+      <div class="pie" style="justify-content:space-between">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn ${l.activo ? 'btn-r' : 'btn-v'} btn-s" id="dBloq">${l.activo ? 'Bloquear acceso' : 'Desbloquear'}</button>
+          <button class="btn btn-r btn-s" id="dBorrar">Eliminar cliente</button>
+        </div>
+        <button class="btn btn-g" id="dCerrar">Cerrar</button>
+      </div>`, () => {
+      const ruta = 'licencias?email=eq.' + q(l.email);
+      $('dCerrar').onclick = cerrar;
+      $('dGuardar').onclick = async () => {
+        const v = $('dVence').value; if (!v) { $('dErr').textContent = 'Pon una fecha.'; return; }
+        try {
+          await A.tabla(ruta, 'PATCH', { nombre: $('dNom').value.trim() || null, telefono: $('dTel').value.trim() || null,
+            vence: new Date(v + 'T23:59:59').toISOString(), max_dispositivos: +$('dMax').value, notas: $('dNotas').value.trim() || null, actualizado: new Date().toISOString() });
+          await cargar(); cerrar(); avisar('Cambios guardados');
+        } catch (e) { $('dErr').textContent = A.traducir(e); }
+      };
+      $('dBloq').onclick = async () => {
+        if (l.activo && !confirm('¿Bloquear a ' + l.email + '? No podrá abrir la app hasta que lo desbloquees.')) return;
+        try { await A.tabla(ruta, 'PATCH', { activo: !l.activo, actualizado: new Date().toISOString() }); await cargar(); cerrar(); avisar(l.activo ? 'Acceso bloqueado' : 'Acceso desbloqueado'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      };
+      $('dBorrar').onclick = async () => {
+        if (!confirm('¿Eliminar a ' + l.email + ' con sus equipos y pagos? No se puede deshacer.')) return;
+        try { await A.tabla(ruta, 'DELETE'); await cargar(); cerrar(); avisar('Cliente eliminado'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      };
+      document.querySelectorAll('[data-lib]').forEach(b => b.onclick = async () => {
+        try { await A.tabla('dispositivos?id=eq.' + b.dataset.lib, 'DELETE'); await cargar(); detalles(LIC.find(x => x.email === l.email)); avisar('Equipo liberado'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      });
+    });
+  }
+
+  $('bNuevo').onclick = () => formulario(null);
+  iniciar();
+})();
+</script>
+</body>
+</html>
