@@ -68,6 +68,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 .filas{display:grid;gap:6px;margin:6px 0}
 .fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--negro);border-radius:10px;font-size:13px}
 .fila small{color:var(--tx2);display:block}
+
+.clave-caja{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;background:rgba(138,207,0,.08);border:1px solid rgba(138,207,0,.35)}
+.clave-caja span{color:var(--tx2);font-size:12.5px}
+.clave-caja b{flex:1;font-size:24px;letter-spacing:.12em;color:var(--verde);font-family:ui-monospace,Consolas,monospace}
 .seccion{color:var(--tx2);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px}
 .aviso{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--g2);border:1px solid var(--g3);padding:11px 16px;border-radius:12px;z-index:80;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 /* Acceso */
@@ -90,16 +94,17 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     <div class="marca"><img src="icono.png" alt=""><span>OXEN<b>PRO</b><small>Panel</small></span></div>
     <div id="lPaso1">
       <h2>Panel de clientes</h2>
-      <p>Entra con tu correo de administrador. Te llegará un código.</p>
-      <input id="lMail" type="email" placeholder="tucorreo@gmail.com" autocomplete="email">
-      <button class="btn btn-v" id="lEnviar">Enviarme el código</button>
+      <p>Entra con tu correo y contraseña de administrador.</p>
+      <input id="lMail" type="email" placeholder="Correo" autocomplete="username">
+      <input id="lClave" type="password" placeholder="Contraseña" autocomplete="current-password">
+      <button class="btn btn-v" id="lEntrar">Entrar</button>
     </div>
     <div id="lPaso2" class="oculto">
-      <h2>Revisa tu correo</h2>
-      <p>Te llegó un correo a <b id="lMailTxt"></b>. <b>Abre el enlace en esta computadora</b> y el panel se abrirá solo.<br><span style="font-size:12.5px">¿Lo abriste en otro equipo? Copia el enlace y pégalo aquí.</span></p>
-      <input id="lCod" autocomplete="one-time-code" placeholder="Código o enlace del correo">
-      <button class="btn btn-v" id="lEntrar">Entrar</button>
-      <p style="margin-top:12px"><a href="#" id="lVolver">Cambiar correo</a></p>
+      <h2>Crea tu contraseña</h2>
+      <p>Es tu primera vez. Cambia la contraseña temporal por una tuya (mínimo 8 caracteres).</p>
+      <input id="lN1" type="password" placeholder="Nueva contraseña" autocomplete="new-password">
+      <input id="lN2" type="password" placeholder="Repítela" autocomplete="new-password">
+      <button class="btn btn-v" id="lGuardar">Guardar</button>
     </div>
     <div class="err" id="lErr"></div>
   </section>
@@ -160,33 +165,37 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     if (d <= 7) return { k: 'pronto', t: d <= 0 ? 'VENCE HOY' : 'VENCE EN ' + d + ' D', c: 'e-pronto' };
     return { k: 'ok', t: 'ACTIVO', c: 'e-ok' };
   }
-  function msgAcceso(l) {
+  function msgAcceso(l, clave) {
     return `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu acceso a OXEN PRO está activo hasta el ${fecha(l.vence)}.\n\n` +
-      `1) Descarga la app: ${APK}\n2) Ábrela y entra con tu correo: ${l.email}\n3) Te llegará un código al correo para entrar.\n\n¡A dibujar!`;
+      `1) Descarga la app: ${APK}\n2) Entra con:\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
+      (clave ? `3) La primera vez la app te pedirá crear tu propia contraseña.\n` : '') + `\n¡A dibujar!`;
   }
 
   // ---------- Acceso ----------
-  let correoLogin = '';
   function verLogin(msg) {
     $('vPanel').classList.add('oculto'); $('vLogin').classList.remove('oculto');
     $('lPaso1').classList.remove('oculto'); $('lPaso2').classList.add('oculto'); $('lErr').textContent = msg || '';
   }
-  $('lEnviar').onclick = async () => {
-    correoLogin = $('lMail').value.trim().toLowerCase(); if (!correoLogin) return;
-    $('lEnviar').disabled = true; $('lErr').textContent = '';
-    try { await A.pedirCodigo(correoLogin); $('lMailTxt').textContent = correoLogin; $('lPaso1').classList.add('oculto'); $('lPaso2').classList.remove('oculto'); $('lCod').focus(); }
-    catch (e) { $('lErr').textContent = A.traducir(e); }
-    $('lEnviar').disabled = false;
-  };
-  $('lMail').onkeydown = e => { if (e.key === 'Enter') $('lEnviar').click(); };
   $('lEntrar').onclick = async () => {
+    const mail = $('lMail').value.trim().toLowerCase(), clave = $('lClave').value.trim();
+    if (!mail || !clave) { $('lErr').textContent = 'Escribe tu correo y contraseña.'; return; }
     $('lEntrar').disabled = true; $('lErr').textContent = '';
-    try { await A.verificarCodigoOEnlace(correoLogin, $('lCod').value); await iniciar(); }
+    try { await A.entrar(mail, clave); $('lClave').value = ''; await iniciar(); }
     catch (e) { $('lErr').textContent = A.traducir(e); }
     $('lEntrar').disabled = false;
   };
-  $('lCod').onkeydown = e => { if (e.key === 'Enter') $('lEntrar').click(); };
-  $('lVolver').onclick = e => { e.preventDefault(); verLogin(); };
+  $('lMail').onkeydown = e => { if (e.key === 'Enter') $('lClave').focus(); };
+  $('lClave').onkeydown = e => { if (e.key === 'Enter') $('lEntrar').click(); };
+  $('lGuardar').onclick = async () => {
+    const n1 = $('lN1').value, n2 = $('lN2').value;
+    if (n1.length < A.MIN_CLAVE) { $('lErr').textContent = 'Usa al menos ' + A.MIN_CLAVE + ' caracteres.'; return; }
+    if (n1 !== n2) { $('lErr').textContent = 'Las dos contraseñas no son iguales.'; return; }
+    $('lGuardar').disabled = true; $('lErr').textContent = '';
+    try { await A.cambiarClave(n1); $('lN1').value = $('lN2').value = ''; await iniciar(); avisar('Contraseña guardada'); }
+    catch (e) { $('lErr').textContent = A.traducir(e); }
+    $('lGuardar').disabled = false;
+  };
+  $('lN2').onkeydown = e => { if (e.key === 'Enter') $('lGuardar').click(); };
   $('bSalir').onclick = async e => { e.preventDefault(); await A.salir(); verLogin(); };
 
   async function iniciar() {
@@ -195,6 +204,15 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     try { admin = await A.rpc('es_admin'); }
     catch (e) { return verLogin(e.sinSesion ? '' : A.traducir(e)); }
     if (!admin) { await A.salir(); return verLogin('Ese correo no es administrador del panel.'); }
+    // ¿todavía tiene la contraseña temporal?
+    try {
+      const yo = await A.tabla('licencias?select=debe_cambiar&email=eq.' + encodeURIComponent(A.sesion().email));
+      if (yo[0] && yo[0].debe_cambiar) {
+        $('vPanel').classList.add('oculto'); $('vLogin').classList.remove('oculto');
+        $('lPaso1').classList.add('oculto'); $('lPaso2').classList.remove('oculto'); $('lErr').textContent = ''; $('lN1').focus();
+        return;
+      }
+    } catch (e) {}
     $('vLogin').classList.add('oculto'); $('vPanel').classList.remove('oculto');
     cargar();
   }
@@ -322,8 +340,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
             p_monto: $('fMonto').value === '' ? null : +$('fMonto').value, p_metodo: $('fMet').value,
             p_nota: $('fNota').value, p_plan: nombrePlan
           });
+          let clave = null;
+          if (nuevo) {
+            try { clave = (await A.funcion('admin-contrasena', { email })).clave; }
+            catch (e) { await cargar(); listo(r, null, 'Se creó el cliente, pero no se pudo generar su contraseña: ' + A.traducir(e)); return; }
+          }
           await cargar();
-          listo(r);
+          listo(r, clave);
         } catch (e) { $('fErr').textContent = A.traducir(e); $('fSi').disabled = false; }
       };
       if (nuevo) setTimeout(() => $('fMail').focus(), 30);
@@ -331,15 +354,31 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
 
   // Después de crear o renovar: enviarle el acceso
-  function listo(l) {
-    const wa = whats(l.telefono, msgAcceso(l));
+  async function generarClave(l) {
+    if (!confirm('¿Generar una contraseña nueva para ' + l.email + '? La anterior dejará de funcionar y la app le pedirá crear la suya al entrar.')) return;
+    try { const r = await A.funcion('admin-contrasena', { email: l.email }); await cargar(); listo(LIC.find(x => x.email === l.email) || l, r.clave); }
+    catch (e) { avisar(A.traducir(e)); }
+  }
+
+  // Después de crear, renovar o generar contraseña: lo que hay que mandarle al cliente
+  function listo(l, clave, error) {
+    const msg = msgAcceso(l, clave), wa = whats(l.telefono, msg);
     abrir(`<h3>¡Listo!</h3><p class="sub">${esc(l.email)} tiene acceso hasta el <b style="color:var(--verde)">${fecha(l.vence)}</b>.</p>
-      <div class="campo ancho"><label>Mensaje para el cliente</label><textarea id="lMsg" rows="7" readonly>${esc(msgAcceso(l))}</textarea></div>
+      ${error ? `<div class="err" style="margin:0 0 12px">${esc(error)}</div>` : ''}
+      ${clave ? `<div class="clave-caja"><span>Contraseña temporal</span><b id="lClaveTxt">${esc(clave)}</b>
+        <button class="btn btn-g btn-s" id="lCopiarClave">Copiar</button></div>
+        <p class="sub" style="margin:8px 0 14px;word-break:normal">Anótala o mándala ahora: por seguridad no se vuelve a mostrar. La primera vez que entre, la app le pedirá crear su propia contraseña.</p>`
+      : `<div class="fila" style="margin-bottom:12px"><div>${l.debe_cambiar ? 'Aún no ha creado su contraseña.' : 'Ya tiene su propia contraseña.'}<small>Si la olvidó o nunca entró, genérale una nueva.</small></div>
+        <button class="btn btn-g btn-s" id="lGenerar">Generar contraseña</button></div>`}
+      <div class="campo ancho"><label>Mensaje para el cliente</label><textarea id="lMsg" rows="8" readonly>${esc(msg)}</textarea></div>
       <div class="pie"><button class="btn btn-g" id="lCopiar">Copiar mensaje</button>
       ${wa ? `<a class="btn btn-v" target="_blank" rel="noopener" href="${esc(wa)}">Enviar por WhatsApp</a>` : ''}
       <button class="btn btn-g" id="lCerrar">Cerrar</button></div>`, () => {
+      const copiar = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); avisar(ok); } catch (e) { $('lMsg').select(); } };
       $('lCerrar').onclick = cerrar;
-      $('lCopiar').onclick = async () => { try { await navigator.clipboard.writeText($('lMsg').value); avisar('Mensaje copiado'); } catch (e) { $('lMsg').select(); } };
+      $('lCopiar').onclick = () => copiar($('lMsg').value, 'Mensaje copiado');
+      if ($('lCopiarClave')) $('lCopiarClave').onclick = () => copiar(clave, 'Contraseña copiada');
+      if ($('lGenerar')) $('lGenerar').onclick = () => generarClave(l);
     });
   }
 
@@ -358,6 +397,11 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       </div>
       <div class="err" id="dErr"></div>
       <div class="pie"><button class="btn btn-v" id="dGuardar">Guardar cambios</button></div>
+
+      <div class="seccion">Contraseña</div>
+      <div class="filas"><div class="fila"><div>${l.debe_cambiar ? 'Aún usa la contraseña temporal (o nunca entró)' : 'Ya creó su propia contraseña'}
+        <small>Genera una nueva si la olvidó; la app le pedirá cambiarla al entrar.</small></div>
+        <button class="btn btn-g btn-s" id="dClave">Generar contraseña</button></div></div>
 
       <div class="seccion">Equipos (${disp.length}/${l.max_dispositivos})</div>
       <div class="filas">${disp.length ? disp.map(d => `<div class="fila"><div>${esc(d.nombre || 'Equipo')}<small>Último uso: ${fechaHora(d.ultimo_uso)}</small></div>
@@ -389,6 +433,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         try { await A.tabla(ruta, 'PATCH', { activo: !l.activo, actualizado: new Date().toISOString() }); await cargar(); cerrar(); avisar(l.activo ? 'Acceso bloqueado' : 'Acceso desbloqueado'); }
         catch (e) { $('dErr').textContent = A.traducir(e); }
       };
+      $('dClave').onclick = () => generarClave(l);
       $('dBorrar').onclick = async () => {
         if (!confirm('¿Eliminar a ' + l.email + ' con sus equipos y pagos? No se puede deshacer.')) return;
         try { await A.tabla(ruta, 'DELETE'); await cargar(); cerrar(); avisar('Cliente eliminado'); }
@@ -402,8 +447,6 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
 
   $('bNuevo').onclick = () => formulario(null);
-  // si el enlace del correo se abrió en otra pestaña, esta también entra
-  addEventListener('storage', e => { if (e.key === 'oxen-sesion' && e.newValue && !$('vLogin').classList.contains('oculto')) iniciar(); });
 
   // ---------- Instalar como programa ----------
   const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;

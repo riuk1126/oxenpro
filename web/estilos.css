@@ -358,3 +358,8 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 @keyframes accGira{to{transform:rotate(360deg)}}
 #accAviso a.btn-verde{text-decoration:none}
 .acc-codigo.acc-enlace{font-size:13px;letter-spacing:0;text-align:left}
+.acc-lbl{display:block;color:var(--texto2);font-size:12.5px;margin:10px 0 6px}
+.acc-clave{position:relative}
+.acc-clave .acc-input{padding-right:78px}
+.acc-ojo{position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:6px 10px;border-radius:8px;color:var(--texto2);font-size:12.5px}
+.acc-ojo:hover{color:var(--texto)}

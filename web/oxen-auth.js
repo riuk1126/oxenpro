@@ -5,6 +5,7 @@
   const SB_URL = 'https://jwvownzuatsjsmcpzocr.supabase.co';
   const SB_KEY = 'sb_publishable_wDinCENDW2cIEa50TXGavw_PG2PYrwY';
   const K_SES = 'oxen-sesion';
+  const MIN_CLAVE = 8;
 
   function errRed() { const e = new Error('Sin conexión a internet'); e.red = true; return e; }
 
@@ -44,46 +45,20 @@
   function traducir(e) {
     if (e.red) return 'No hay conexión a internet. Revisa tu wifi o datos e intenta otra vez.';
     const m = (e.message || '').toLowerCase(), c = (e.codigo || '') + '';
-    if (c === 'over_email_send_rate_limit' || m.includes('rate limit') || e.status === 429)
-      return 'Se pidieron muchos códigos seguidos. Espera un minuto y vuelve a intentar.';
-    if (m.includes('not authorized')) return 'Todavía no se pueden enviar códigos a este correo. Escríbenos para activarlo.';
-    if (c === 'otp_expired' || m.includes('expired') || m.includes('invalid')) return 'El código no es correcto o ya venció. Revisa el último correo o pide uno nuevo.';
-    if (m.includes('email')) return 'Revisa que el correo esté bien escrito.';
+    if (c === 'invalid_credentials' || m.includes('invalid login')) return 'Correo o contraseña incorrectos. Revisa mayúsculas y que no haya espacios.';
+    if (c === 'same_password' || m.includes('different from the old')) return 'La nueva contraseña tiene que ser distinta a la que te dieron.';
+    if (c === 'weak_password' || m.includes('password should')) return 'La contraseña es muy débil. Usa al menos ' + MIN_CLAVE + ' caracteres, mezclando letras y números.';
+    if (c === 'over_request_rate_limit' || m.includes('rate limit') || e.status === 429) return 'Demasiados intentos seguidos. Espera un minuto y vuelve a intentar.';
+    if (c === 'user_banned') return 'Esta cuenta está suspendida.';
+    if (e.sinSesion) return 'Tu sesión se cerró. Vuelve a entrar.';
     return 'Algo salió mal (' + e.message + '). Intenta otra vez.';
   }
 
-  async function pedirCodigo(email) {
-    const volver = location.protocol === 'https:' ? '?redirect_to=' + encodeURIComponent(location.origin + location.pathname) : '';
-    await llamar('/auth/v1/otp' + volver, { cuerpo: { email: email.trim().toLowerCase(), create_user: true } });
-  }
-  async function verificarCodigo(email, codigo) {
-    const d = await llamar('/auth/v1/verify', { cuerpo: { type: 'email', email: email.trim().toLowerCase(), token: codigo.replace(/\D/g, '') } });
+  // Entrar con correo y contraseña (la temporal que da el administrador, o la propia)
+  async function entrar(email, clave) {
+    const d = await llamar('/auth/v1/token?grant_type=password', { cuerpo: { email: email.trim().toLowerCase(), password: clave } });
     return guardarSesion(d);
   }
-
-  // El correo trae un enlace en vez de código (plantilla por defecto de Supabase):
-  // se puede pegar el enlace completo y se canjea aquí, sin abrirlo en el navegador.
-  function pareceEnlace(t) { return /https?:\/\/|token=/.test(t || ''); }
-  async function verificarEnlace(texto) {
-    let u; try { u = new URL(texto.trim()); } catch (e) { u = new URL('https://x/?' + texto.trim().replace(/^.*\?/, '')); }
-    const hash = u.searchParams.get('token') || u.searchParams.get('token_hash');
-    if (!hash) { const e = new Error('invalid link'); e.codigo = 'otp_expired'; throw e; }
-    let tipo = u.searchParams.get('type') || 'email';
-    if (tipo === 'magiclink') tipo = 'email';
-    const d = await llamar('/auth/v1/verify', { cuerpo: { type: tipo, token_hash: hash } });
-    return guardarSesion(d);
-  }
-  // Si se abrió el enlace del correo y Supabase nos devolvió aquí con la sesión en la dirección (#access_token=…)
-  function capturarDireccion() {
-    if (!/access_token=/.test(location.hash)) return;
-    const p = new URLSearchParams(location.hash.slice(1));
-    let email = '';
-    try { email = JSON.parse(atob(p.get('access_token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email || ''; } catch (e) {}
-    guardarSesion({ access_token: p.get('access_token'), refresh_token: p.get('refresh_token'),
-      expires_at: +p.get('expires_at') || undefined, expires_in: +p.get('expires_in') || 3600, user: { email } });
-    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
-  }
-  capturarDireccion();
 
   // Devuelve un token vigente (lo renueva si hace falta). null = hay que volver a entrar.
   let renovando = null;
@@ -101,15 +76,28 @@
     })();
     return renovando;
   }
+  async function tokenObligatorio() {
+    const t = await token(); if (!t) { const e = new Error('Sesión cerrada'); e.sinSesion = true; throw e; }
+    return t;
+  }
+
+  // Crear la contraseña propia (la primera vez) y avisar al servidor
+  async function cambiarClave(nueva) {
+    if ((nueva || '').length < MIN_CLAVE) { const e = new Error('Password should be longer'); e.codigo = 'weak_password'; throw e; }
+    await llamar('/auth/v1/user', { metodo: 'PUT', cuerpo: { password: nueva }, token: await tokenObligatorio() });
+    await rpc('contrasena_cambiada');
+  }
 
   async function rpc(nombre, args) {
-    const t = await token(); if (!t) { const e = new Error('Sesión cerrada'); e.sinSesion = true; throw e; }
-    return llamar('/rest/v1/rpc/' + nombre, { cuerpo: args || {}, token: t });
+    return llamar('/rest/v1/rpc/' + nombre, { cuerpo: args || {}, token: await tokenObligatorio() });
   }
   // Para el panel: leer y cambiar tablas (las reglas de la base deciden qué se permite)
   async function tabla(ruta, metodo = 'GET', cuerpo) {
-    const t = await token(); if (!t) { const e = new Error('Sesión cerrada'); e.sinSesion = true; throw e; }
-    return llamar('/rest/v1/' + ruta, { metodo, cuerpo, token: t, extra: metodo === 'GET' ? {} : { Prefer: 'return=representation' } });
+    return llamar('/rest/v1/' + ruta, { metodo, cuerpo, token: await tokenObligatorio(), extra: metodo === 'GET' ? {} : { Prefer: 'return=representation' } });
+  }
+  // Para el panel: funciones del servidor (generar contraseña temporal)
+  async function funcion(nombre, cuerpo) {
+    return llamar('/functions/v1/' + nombre, { cuerpo: cuerpo || {}, token: await tokenObligatorio() });
   }
   async function salir() {
     const s = leerSesion();
@@ -117,10 +105,5 @@
     borrarSesion();
   }
 
-  // Acepta lo que pegue la persona: el código de números o el enlace del correo
-  async function verificarCodigoOEnlace(email, texto) {
-    return pareceEnlace(texto) ? verificarEnlace(texto) : verificarCodigo(email, texto);
-  }
-
-  window.OxenAuth = { pedirCodigo, verificarCodigo, verificarCodigoOEnlace, pareceEnlace, token, rpc, tabla, salir, sesion: leerSesion, traducir };
+  window.OxenAuth = { entrar, cambiarClave, token, rpc, tabla, funcion, salir, sesion: leerSesion, traducir, MIN_CLAVE };
 })();

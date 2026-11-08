@@ -67,56 +67,70 @@
   const pieCorreo = () => `<button class="acc-link" id="accOtro">Usar otro correo</button>`;
   function enlazarOtro() { const b = $('accOtro'); if (b) b.onclick = async () => { await A.salir(); try { localStorage.removeItem(K_LIC); } catch (e) {} pasoCorreo(); }; }
 
+  const ojo = id => `<button type="button" class="acc-ojo" data-ver="${id}" aria-label="Mostrar contraseña">Ver</button>`;
+  function enlazarOjos() {
+    document.querySelectorAll('#acceso [data-ver]').forEach(b => b.onclick = () => {
+      const i = $(b.dataset.ver); i.type = i.type === 'password' ? 'text' : 'password'; b.textContent = i.type === 'password' ? 'Ver' : 'Ocultar';
+    });
+  }
+
   function pasoCorreo(msg) {
     const previo = leer(K_MAIL) || '';
     mostrar(`
       <h2>Entra a tu cuenta</h2>
-      <p class="acc-txt">Escribe el correo con el que compraste OXEN PRO. Te enviaremos un código para entrar, sin contraseñas.</p>
-      <input id="accMail" class="acc-input" type="email" inputmode="email" autocomplete="email" placeholder="tucorreo@gmail.com" value="${esc(previo)}">
+      <p class="acc-txt">Usa el correo y la contraseña que te dimos al comprar OXEN PRO.</p>
+      <label class="acc-lbl" for="accMail">Correo</label>
+      <input id="accMail" class="acc-input" type="email" inputmode="email" autocomplete="username" placeholder="tucorreo@gmail.com" value="${esc(previo)}">
+      <label class="acc-lbl" for="accClave">Contraseña</label>
+      <div class="acc-clave"><input id="accClave" class="acc-input" type="password" autocomplete="current-password" placeholder="Tu contraseña">${ojo('accClave')}</div>
       <p id="accErr" class="acc-err">${esc(msg || '')}</p>
-      <button id="accEnviar" class="btn-verde acc-btn">Enviarme el código</button>
-      <p class="acc-mini">¿Aún no tienes OXEN PRO?${WHATSAPP ? ' <a target="_blank" rel="noopener" href="https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent('Hola, quiero comprar OXEN PRO') + '">Cómpralo aquí</a>' : ' Pide tu acceso a quien te vendió la app.'}</p>`,
-      () => {
-        const inp = $('accMail'), btn = $('accEnviar');
-        const enviar = async () => {
-          const email = inp.value.trim().toLowerCase();
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('accErr').textContent = 'Revisa que el correo esté bien escrito.'; return; }
-          btn.disabled = true; btn.textContent = 'Enviando…'; $('accErr').textContent = '';
-          try { await A.pedirCodigo(email); escribir(K_MAIL, email); pasoCodigo(email); }
-          catch (e) { $('accErr').textContent = A.traducir(e); btn.disabled = false; btn.textContent = 'Enviarme el código'; }
-        };
-        btn.onclick = enviar; inp.onkeydown = e => { if (e.key === 'Enter') enviar(); };
-        setTimeout(() => inp.focus(), 50);
-      });
-  }
-
-  function pasoCodigo(email) {
-    mostrar(`
-      <h2>Revisa tu correo</h2>
-      <p class="acc-txt">Enviamos un código a <b>${esc(email)}</b>. Si no aparece, mira en Spam o Promociones.</p>
-      <input id="accCod" class="acc-input acc-codigo" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••">
-      <p class="acc-mini" style="text-align:left;margin:8px 0 0">¿Te llegó un enlace en vez de un código? No lo abras: mantenlo presionado, elige <b>Copiar enlace</b> y pégalo aquí.</p>
-      <p id="accErr" class="acc-err"></p>
       <button id="accEntrar" class="btn-verde acc-btn">Entrar</button>
-      <div class="acc-fila"><button class="acc-link" id="accReenviar">Enviar otro código</button><button class="acc-link" id="accCambiar">Cambiar correo</button></div>`,
+      <p class="acc-mini">¿Olvidaste tu contraseña?${WHATSAPP ? ' <a target="_blank" rel="noopener" href="https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent('Hola, olvidé mi contraseña de OXEN PRO') + '">Pide una nueva</a>' : ' Pide una nueva a quien te vendió la app.'}</p>
+      <p class="acc-mini" style="margin-top:6px">¿Aún no tienes OXEN PRO?${WHATSAPP ? ' <a target="_blank" rel="noopener" href="https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent('Hola, quiero comprar OXEN PRO') + '">Cómpralo aquí</a>' : ''}</p>`,
       () => {
-        const inp = $('accCod'), btn = $('accEntrar');
+        enlazarOjos();
+        const mail = $('accMail'), clave = $('accClave'), btn = $('accEntrar');
         const entrar = async () => {
-          const val = inp.value.trim();
-          if (!A.pareceEnlace(val) && val.replace(/\D/g, '').length < 6) { $('accErr').textContent = 'El código tiene 6 números o más.'; return; }
+          const email = mail.value.trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('accErr').textContent = 'Revisa que el correo esté bien escrito.'; return; }
+          if (!clave.value) { $('accErr').textContent = 'Escribe tu contraseña.'; clave.focus(); return; }
           btn.disabled = true; btn.textContent = 'Entrando…'; $('accErr').textContent = '';
-          try { await A.verificarCodigoOEnlace(email, val); await comprobar(true); }
+          try { await A.entrar(email, clave.value.trim()); escribir(K_MAIL, email); await comprobar(true); }
           catch (e) { $('accErr').textContent = A.traducir(e); btn.disabled = false; btn.textContent = 'Entrar'; }
         };
         btn.onclick = entrar;
-        inp.oninput = () => inp.classList.toggle('acc-enlace', A.pareceEnlace(inp.value));
-        inp.onkeydown = e => { if (e.key === 'Enter') entrar(); };
-        $('accCambiar').onclick = () => pasoCorreo();
-        $('accReenviar').onclick = async () => {
-          try { await A.pedirCodigo(email); $('accErr').textContent = 'Listo, te enviamos un código nuevo.'; }
-          catch (e) { $('accErr').textContent = A.traducir(e); }
+        mail.onkeydown = e => { if (e.key === 'Enter') clave.focus(); };
+        clave.onkeydown = e => { if (e.key === 'Enter') entrar(); };
+        setTimeout(() => (previo ? clave : mail).focus(), 50);
+      });
+  }
+
+  // Primera vez: el cliente reemplaza la contraseña temporal por una suya
+  function pasoCrearClave(r, cambio) {
+    mostrar(`
+      <h2>${cambio ? 'Cambiar mi contraseña' : 'Crea tu contraseña'}</h2>
+      <p class="acc-txt">${cambio ? 'Escribe tu nueva contraseña.' : 'Es tu primera vez. Cambia la contraseña que te dimos por una tuya; solo te la pediremos esta vez.'}</p>
+      <label class="acc-lbl" for="accN1">Nueva contraseña (mínimo ${A.MIN_CLAVE} caracteres)</label>
+      <div class="acc-clave"><input id="accN1" class="acc-input" type="password" autocomplete="new-password">${ojo('accN1')}</div>
+      <label class="acc-lbl" for="accN2">Repítela</label>
+      <div class="acc-clave"><input id="accN2" class="acc-input" type="password" autocomplete="new-password">${ojo('accN2')}</div>
+      <p id="accErr" class="acc-err"></p>
+      <button id="accGuardar" class="btn-verde acc-btn">Guardar y empezar a dibujar</button>
+      ${cambio ? '<button class="acc-link" id="accVolver">Volver</button>' : pieCorreo()}`,
+      () => {
+        enlazarOjos(); enlazarOtro(); if ($('accVolver')) $('accVolver').onclick = verCuenta;
+        const n1 = $('accN1'), n2 = $('accN2'), btn = $('accGuardar');
+        const guardar = async () => {
+          if (n1.value.length < A.MIN_CLAVE) { $('accErr').textContent = 'Usa al menos ' + A.MIN_CLAVE + ' caracteres.'; return; }
+          if (n1.value !== n2.value) { $('accErr').textContent = 'Las dos contraseñas no son iguales.'; return; }
+          btn.disabled = true; btn.textContent = 'Guardando…'; $('accErr').textContent = '';
+          try { await A.cambiarClave(n1.value); await comprobar(true); }
+          catch (e) { $('accErr').textContent = A.traducir(e); btn.disabled = false; btn.textContent = 'Guardar y empezar a dibujar'; }
         };
-        setTimeout(() => inp.focus(), 50);
+        btn.onclick = guardar;
+        n1.onkeydown = e => { if (e.key === 'Enter') n2.focus(); };
+        n2.onkeydown = e => { if (e.key === 'Enter') guardar(); };
+        setTimeout(() => n1.focus(), 50);
       });
   }
 
@@ -174,6 +188,7 @@
     if (r && r.estado === 'ok') {
       // compensa si el reloj del equipo está desfasado respecto al servidor
       const desfase = r.ahora ? Date.now() - new Date(r.ahora).getTime() : 0;
+      if (r.debe_cambiar) { try { localStorage.removeItem(K_LIC); } catch (e) {} return pasoCrearClave(r); }
       escribir(K_LIC, { email: r.email, nombre: r.nombre, plan: r.plan, vence: new Date(new Date(r.vence).getTime() + desfase).toISOString(), ok: Date.now() });
       ocultar(); pintarCuenta();
       return;
@@ -219,17 +234,16 @@
       </div>
       ${d <= 30 && d < 3650 ? btnWhats('Hola, quiero renovar OXEN PRO. Mi correo es ' + c.email) : ''}
       <button class="btn-verde acc-btn" id="accVolver">Volver a dibujar</button>
+      <button class="acc-link" id="accCambiarClave">Cambiar mi contraseña</button>
       <button class="acc-link acc-rojo" id="accSalir">Cerrar sesión en este equipo</button>`, () => {
       $('accVolver').onclick = ocultar;
+      $('accCambiarClave').onclick = () => pasoCrearClave(null, true);
       $('accSalir').onclick = async () => {
         if (!confirm('¿Cerrar sesión? Tus bocetos se quedan en este equipo, pero tendrás que volver a entrar con tu correo.')) return;
         await A.salir(); try { localStorage.removeItem(K_LIC); } catch (e) {} pasoCorreo();
       };
     });
   }
-
-  // si el enlace del correo se abrió en otra pestaña del mismo navegador, entrar solo
-  addEventListener('storage', e => { if (e.key === 'oxen-sesion' && e.newValue && !capa.classList.contains('oculto')) { mostrarCargando(); comprobar(true); } });
 
   // ---------- Inicio ----------
   if (!A.sesion()) pasoCorreo();

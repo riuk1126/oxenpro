@@ -12,10 +12,11 @@
 La app de Android se actualiza sola: cada mejora que se sube aquí llega a la tableta al abrirla.
 
 ## Cuentas y licencias
-- Al abrir, OXEN PRO pide **entrar con el correo** (llega un código, sin contraseñas) y revisa que el plan esté vigente.
+- Al abrir, OXEN PRO pide **correo y contraseña** y revisa que el plan esté vigente.
+- En el **panel** registras al cliente y se genera su **contraseña temporal**; la primera vez que entra, la app le pide crear la suya.
 - Sin internet sigue funcionando **7 días** desde la última comprobación.
 - Cada cuenta se puede usar en un número limitado de equipos (por defecto 2).
-- **Panel de clientes:** [riuk1126.github.io/oxenpro/panel.html](https://riuk1126.github.io/oxenpro/panel.html) — crear clientes, renovar, bloquear, liberar equipos y ver pagos.
+- **Panel de clientes:** [riuk1126.github.io/oxenpro/panel.html](https://riuk1126.github.io/oxenpro/panel.html) (se puede instalar como programa) — crear clientes, renovar, bloquear, generar contraseñas, liberar equipos y ver pagos.
 - Los datos viven en Supabase (proyecto *oxenpro*). El número de WhatsApp para comprar/renovar se pone en `web/acceso.js` (`WHATSAPP`).
 
 ## Cómo se usa
