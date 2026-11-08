@@ -94,20 +94,22 @@
     mostrar(`
       <h2>Revisa tu correo</h2>
       <p class="acc-txt">Enviamos un código a <b>${esc(email)}</b>. Si no aparece, mira en Spam o Promociones.</p>
-      <input id="accCod" class="acc-input acc-codigo" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="••••••">
+      <input id="accCod" class="acc-input acc-codigo" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••">
+      <p class="acc-mini" style="text-align:left;margin:8px 0 0">¿Te llegó un enlace en vez de un código? No lo abras: mantenlo presionado, elige <b>Copiar enlace</b> y pégalo aquí.</p>
       <p id="accErr" class="acc-err"></p>
       <button id="accEntrar" class="btn-verde acc-btn">Entrar</button>
       <div class="acc-fila"><button class="acc-link" id="accReenviar">Enviar otro código</button><button class="acc-link" id="accCambiar">Cambiar correo</button></div>`,
       () => {
         const inp = $('accCod'), btn = $('accEntrar');
         const entrar = async () => {
-          const cod = inp.value.replace(/\D/g, '');
-          if (cod.length < 6) { $('accErr').textContent = 'El código tiene 6 números o más.'; return; }
+          const val = inp.value.trim();
+          if (!A.pareceEnlace(val) && val.replace(/\D/g, '').length < 6) { $('accErr').textContent = 'El código tiene 6 números o más.'; return; }
           btn.disabled = true; btn.textContent = 'Entrando…'; $('accErr').textContent = '';
-          try { await A.verificarCodigo(email, cod); await comprobar(true); }
+          try { await A.verificarCodigoOEnlace(email, val); await comprobar(true); }
           catch (e) { $('accErr').textContent = A.traducir(e); btn.disabled = false; btn.textContent = 'Entrar'; }
         };
         btn.onclick = entrar;
+        inp.oninput = () => inp.classList.toggle('acc-enlace', A.pareceEnlace(inp.value));
         inp.onkeydown = e => { if (e.key === 'Enter') entrar(); };
         $('accCambiar').onclick = () => pasoCorreo();
         $('accReenviar').onclick = async () => {

@@ -94,7 +94,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     <div id="lPaso2" class="oculto">
       <h2>Revisa tu correo</h2>
       <p>Escribe el código que llegó a <b id="lMailTxt"></b>.</p>
-      <input id="lCod" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Código">
+      <input id="lCod" autocomplete="one-time-code" placeholder="Código o enlace del correo">
+      <p style="font-size:12.5px;margin:-2px 0 12px">¿Llegó un enlace en vez de código? No lo abras: cópialo y pégalo aquí.</p>
       <button class="btn btn-v" id="lEntrar">Entrar</button>
       <p style="margin-top:12px"><a href="#" id="lVolver">Cambiar correo</a></p>
     </div>
@@ -177,7 +178,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   $('lMail').onkeydown = e => { if (e.key === 'Enter') $('lEnviar').click(); };
   $('lEntrar').onclick = async () => {
     $('lEntrar').disabled = true; $('lErr').textContent = '';
-    try { await A.verificarCodigo(correoLogin, $('lCod').value); await iniciar(); }
+    try { await A.verificarCodigoOEnlace(correoLogin, $('lCod').value); await iniciar(); }
     catch (e) { $('lErr').textContent = A.traducir(e); }
     $('lEntrar').disabled = false;
   };

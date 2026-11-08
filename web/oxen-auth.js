@@ -60,6 +60,30 @@
     return guardarSesion(d);
   }
 
+  // El correo trae un enlace en vez de código (plantilla por defecto de Supabase):
+  // se puede pegar el enlace completo y se canjea aquí, sin abrirlo en el navegador.
+  function pareceEnlace(t) { return /https?:\/\/|token=/.test(t || ''); }
+  async function verificarEnlace(texto) {
+    let u; try { u = new URL(texto.trim()); } catch (e) { u = new URL('https://x/?' + texto.trim().replace(/^.*\?/, '')); }
+    const hash = u.searchParams.get('token') || u.searchParams.get('token_hash');
+    if (!hash) { const e = new Error('invalid link'); e.codigo = 'otp_expired'; throw e; }
+    let tipo = u.searchParams.get('type') || 'email';
+    if (tipo === 'magiclink') tipo = 'email';
+    const d = await llamar('/auth/v1/verify', { cuerpo: { type: tipo, token_hash: hash } });
+    return guardarSesion(d);
+  }
+  // Si se abrió el enlace del correo y Supabase nos devolvió aquí con la sesión en la dirección (#access_token=…)
+  function capturarDireccion() {
+    if (!/access_token=/.test(location.hash)) return;
+    const p = new URLSearchParams(location.hash.slice(1));
+    let email = '';
+    try { email = JSON.parse(atob(p.get('access_token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email || ''; } catch (e) {}
+    guardarSesion({ access_token: p.get('access_token'), refresh_token: p.get('refresh_token'),
+      expires_at: +p.get('expires_at') || undefined, expires_in: +p.get('expires_in') || 3600, user: { email } });
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  }
+  capturarDireccion();
+
   // Devuelve un token vigente (lo renueva si hace falta). null = hay que volver a entrar.
   let renovando = null;
   async function token() {
@@ -92,5 +116,10 @@
     borrarSesion();
   }
 
-  window.OxenAuth = { pedirCodigo, verificarCodigo, token, rpc, tabla, salir, sesion: leerSesion, traducir };
+  // Acepta lo que pegue la persona: el código de números o el enlace del correo
+  async function verificarCodigoOEnlace(email, texto) {
+    return pareceEnlace(texto) ? verificarEnlace(texto) : verificarCodigo(email, texto);
+  }
+
+  window.OxenAuth = { pedirCodigo, verificarCodigo, verificarCodigoOEnlace, pareceEnlace, token, rpc, tabla, salir, sesion: leerSesion, traducir };
 })();

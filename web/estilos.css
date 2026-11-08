@@ -357,3 +357,4 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 .acc-carga span{width:28px;height:28px;border-radius:50%;border:3px solid var(--gris3);border-top-color:var(--verde);animation:accGira .8s linear infinite}
 @keyframes accGira{to{transform:rotate(360deg)}}
 #accAviso a.btn-verde{text-decoration:none}
+.acc-codigo.acc-enlace{font-size:13px;letter-spacing:0;text-align:left}
