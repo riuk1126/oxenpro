@@ -96,9 +96,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     </div>
     <div id="lPaso2" class="oculto">
       <h2>Revisa tu correo</h2>
-      <p>Escribe el código que llegó a <b id="lMailTxt"></b>.</p>
+      <p>Te llegó un correo a <b id="lMailTxt"></b>. <b>Abre el enlace en esta computadora</b> y el panel se abrirá solo.<br><span style="font-size:12.5px">¿Lo abriste en otro equipo? Copia el enlace y pégalo aquí.</span></p>
       <input id="lCod" autocomplete="one-time-code" placeholder="Código o enlace del correo">
-      <p style="font-size:12.5px;margin:-2px 0 12px">¿Llegó un enlace en vez de código? No lo abras: cópialo y pégalo aquí.</p>
       <button class="btn btn-v" id="lEntrar">Entrar</button>
       <p style="margin-top:12px"><a href="#" id="lVolver">Cambiar correo</a></p>
     </div>
@@ -403,6 +402,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
 
   $('bNuevo').onclick = () => formulario(null);
+  // si el enlace del correo se abrió en otra pestaña, esta también entra
+  addEventListener('storage', e => { if (e.key === 'oxen-sesion' && e.newValue && !$('vLogin').classList.contains('oculto')) iniciar(); });
 
   // ---------- Instalar como programa ----------
   const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;

@@ -53,7 +53,8 @@
   }
 
   async function pedirCodigo(email) {
-    await llamar('/auth/v1/otp', { cuerpo: { email: email.trim().toLowerCase(), create_user: true } });
+    const volver = location.protocol === 'https:' ? '?redirect_to=' + encodeURIComponent(location.origin + location.pathname) : '';
+    await llamar('/auth/v1/otp' + volver, { cuerpo: { email: email.trim().toLowerCase(), create_user: true } });
   }
   async function verificarCodigo(email, codigo) {
     const d = await llamar('/auth/v1/verify', { cuerpo: { type: 'email', email: email.trim().toLowerCase(), token: codigo.replace(/\D/g, '') } });

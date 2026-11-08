@@ -228,6 +228,9 @@
     });
   }
 
+  // si el enlace del correo se abrió en otra pestaña del mismo navegador, entrar solo
+  addEventListener('storage', e => { if (e.key === 'oxen-sesion' && e.newValue && !capa.classList.contains('oculto')) { mostrarCargando(); comprobar(true); } });
+
   // ---------- Inicio ----------
   if (!A.sesion()) pasoCorreo();
   else if (licenciaGuardadaValida()) { pintarCuenta(); comprobar(false); }
