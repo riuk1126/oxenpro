@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0c">
 <meta name="robots" content="noindex,nofollow">
-<title>Panel OXEN PRO</title>
-<link rel="icon" href="icono.png">
+<title>OXEN Panel</title>
+<link rel="manifest" href="panel.webmanifest">
+<link rel="icon" href="panel-icono-192.png">
+<link rel="apple-touch-icon" href="panel-icono.png">
+<meta name="apple-mobile-web-app-title" content="OXEN Panel">
 <style>
 :root{--verde:#8ACF00;--verde2:#a4e61a;--negro:#0b0b0c;--g1:#151517;--g2:#1d1d20;--g3:#2b2b30;--linea:rgba(255,255,255,.08);
   --tx:#f2f2f3;--tx2:#9b9ba1;--rojo:#ff7a6b;--ambar:#ffc24d;--azul:#7fb4ff}
@@ -107,6 +110,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     <header>
       <div class="marca"><img src="icono.png" alt=""><span>OXEN<b>PRO</b><small>Panel de clientes</small></span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-g oculto" id="bInstalar">⬇ Instalar en esta computadora</button>
         <button class="btn btn-g" id="bRecargar">Actualizar</button>
         <button class="btn btn-v" id="bNuevo">+ Nuevo cliente</button>
       </div>
@@ -399,6 +403,30 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
 
   $('bNuevo').onclick = () => formulario(null);
+
+  // ---------- Instalar como programa ----------
+  const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  let pedido = null;
+  if (!instalado()) $('bInstalar').classList.remove('oculto');
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedido = e; if (!instalado()) $('bInstalar').classList.remove('oculto'); });
+  addEventListener('appinstalled', () => { $('bInstalar').classList.add('oculto'); avisar('¡Panel instalado! Ya lo tienes en tu escritorio.'); });
+  $('bInstalar').onclick = async () => {
+    if (pedido) { pedido.prompt(); await pedido.userChoice; pedido = null; return; }
+    const mac = /Mac/.test(navigator.userAgent) && !/Chrome|Edg/.test(navigator.userAgent);
+    abrir(`<h3>Instalar el panel</h3><p class="sub">Así queda como un programa, con su ícono y su propia ventana.</p>
+      <div class="filas">${mac
+        ? `<div class="fila"><div>En Safari: menú <b>Archivo → Agregar al Dock</b>.</div></div>`
+        : `<div class="fila"><div><b>Chrome o Edge:</b> toca el ícono de instalar ⊕ al final de la barra de direcciones, o el menú <b>⋮ → Transmitir, guardar y compartir → Instalar página como app</b>.</div></div>
+           <div class="fila"><div>Si usas otro navegador, abre esta página en Chrome o Edge.</div></div>`}</div>
+      <div class="pie"><button class="btn btn-v" id="iOk">Entendido</button></div>`, () => { $('iOk').onclick = cerrar; });
+  };
+  // atajo: N = nuevo cliente, / = buscar
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input,textarea,select') || e.ctrlKey || e.metaKey || $('vPanel').classList.contains('oculto') || !$('ventana').classList.contains('oculto')) return;
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); formulario(null); }
+    if (e.key === '/') { e.preventDefault(); $('buscar').focus(); }
+  });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   iniciar();
 })();
 </script>
