@@ -88,6 +88,16 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 }
 .marca-raiki{display:flex;flex-direction:column;align-items:flex-start;gap:8px}.marca-raiki small{color:var(--tx2);font-size:12px}
 #vLogin .marca-raiki{align-items:center}.raiki-logo{width:180px;height:auto;color:var(--tx)}.raiki-logo.chico{width:120px}
+.prod{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.04em;vertical-align:2px}
+.p-oxen{background:rgba(138,207,0,.14);color:var(--verde)}.p-kivo{background:rgba(127,180,255,.14);color:var(--azul)}
+.p-combo{background:linear-gradient(90deg,rgba(182,253,14,.2),rgba(127,180,255,.2));color:#e9ffd0}.p-uso{background:var(--g2);color:var(--tx2);font-weight:600}
+.chips .sep{display:inline-block;width:1px;height:20px;background:var(--g3);margin:0 6px;vertical-align:middle}
+.productos .plan{flex:1 1 auto}
+.tabla-precios{display:grid;grid-template-columns:auto repeat(3,1fr);gap:8px;align-items:center;margin-top:6px}
+.tabla-precios b{font-size:12px;color:var(--tx2);text-align:center}.tabla-precios span{color:var(--tx2)}
+.tabla-precios input{width:100%;background:var(--negro);border:1px solid var(--g3);border-radius:10px;padding:9px 10px;outline:none;text-align:right}
+.tabla-precios input:focus{border-color:var(--verde)}
+.ven p.sub{word-break:normal;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -121,6 +131,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <button class="btn btn-g" id="bRecargar">Actualizar</button>
         <button class="btn btn-g" id="bCuentas">👥 Cuentas RAIKI</button>
         <button class="btn btn-g" id="bPagos">💰 Pagos</button>
+        <button class="btn btn-g" id="bPrecios">🏷️ Precios</button>
         <button class="btn btn-g" id="bPrueba">🎁 Prueba gratis 7 días</button>
         <button class="btn btn-v" id="bNuevo">+ Nuevo cliente</button>
       </div>
@@ -141,6 +152,19 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 (function () {
   const A = window.OxenAuth;
   const APK = 'https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk';
+  const KIVO = {
+    win: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo-Setup.exe',
+    apk: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo.apk',
+    web: 'https://riuk1126.github.io/kivo/'
+  };
+  // Lo que puede comprar un cliente con su cuenta RAIKI
+  const PRODUCTOS = {
+    oxen:  { n: 'OXEN PRO', corto: 'OXEN', c: 'p-oxen', oxen: true, kivo: false },
+    kivo:  { n: 'Kivo', corto: 'Kivo', c: 'p-kivo', oxen: false, kivo: true },
+    combo: { n: 'Combo OXEN PRO + Kivo', corto: 'Combo', c: 'p-combo', oxen: true, kivo: true }
+  };
+  const prod = l => PRODUCTOS[(l && l.producto) || 'oxen'] || PRODUCTOS.oxen;
+  const etiqueta = l => `<span class="prod ${prod(l).c}">${prod(l).corto}</span>`;
   const PLANES = [
     { id: 'prueba', nombre: 'Prueba 7 días', meses: 0, dias: 7 },
     { id: '1m', nombre: '1 mes', meses: 1, dias: 0 },
@@ -175,9 +199,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     return { k: 'ok', t: 'ACTIVO', c: 'e-ok' };
   }
   function msgAcceso(l, clave) {
-    return `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu acceso a OXEN PRO está activo hasta el ${fecha(l.vence)}.\n\n` +
-      `1) Descarga la app: ${APK}\n2) Entra con tu cuenta RAIKI (sirve también para Kivo):\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
-      (clave ? `3) La primera vez la app te pedirá crear tu propia contraseña.\n` : '') + `\n¡A dibujar!`;
+    const P = prod(l);
+    const desc = [];
+    if (P.oxen) desc.push(`• OXEN PRO (tableta Android): ${APK}`);
+    if (P.kivo) desc.push(`• Kivo para Windows: ${KIVO.win}\n• Kivo para Android: ${KIVO.apk}\n• Kivo en el navegador: ${KIVO.web}`);
+    return `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu acceso a ${P.n} está activo hasta el ${fecha(l.vence)}.\n\n` +
+      `1) Descarga:\n${desc.join('\n')}\n\n2) Entra con tu cuenta RAIKI (${P.oxen && P.kivo ? 'la misma para las dos apps' : 'sirve para todas las apps RAIKI'}):\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
+      (clave ? `3) La primera vez la app te pedirá crear tu propia contraseña.\n` : '') + `\n¡Bienvenido a RAIKI!`;
   }
 
   // ---------- Acceso ----------
@@ -227,7 +255,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
 
   // ---------- Datos ----------
-  let LIC = [], DISP = [], PAGOS = [], MIEM = [], filtro = 'todos';
+  let LIC = [], DISP = [], PAGOS = [], MIEM = [], PRECIOS = [], filtro = 'todos', filtroProd = 'todos';
+  const precioDe = (producto, planId) => { const x = PRECIOS.find(p => p.producto === producto && p.plan === planId); return x ? Number(x.monto) : null; };
   async function cargar() {
     try {
       [LIC, DISP, PAGOS, MIEM] = await Promise.all([
@@ -236,6 +265,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         A.tabla('pagos?select=*&order=creado.desc'),
         A.tabla('equipo_miembros?select=*&order=agregado.asc')
       ]);
+      try { PRECIOS = await A.tabla('precios?select=*'); } catch (e) { PRECIOS = []; }
     } catch (e) { if (e.sinSesion) return verLogin('Tu sesión se cerró. Vuelve a entrar.'); avisar(A.traducir(e)); }
     pintar();
   }
@@ -248,34 +278,38 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     const mes = PAGOS.filter(p => new Date(p.creado) >= ini).reduce((s, p) => s + Number(p.monto || 0), 0);
     $('stats').innerHTML = [
       ['Activos (pagan)', cuenta('ok') + cuenta('pronto')], ['En prueba', cuenta('prueba')], ['Vencen en 7 días', cuenta('pronto')],
-      ['Vencidos', cuenta('venc')], ['Ingresos del mes', soles(mes)]
+      ['Vencidos', cuenta('venc')], ['Combos activos', LIC.filter((l, i) => l.producto === 'combo' && (est[i].k === 'ok' || est[i].k === 'pronto')).length], ['Ingresos del mes', soles(mes)]
     ].map(([t, v]) => `<div class="stat"><span>${t}</span><b>${v}</b></div>`).join('');
 
     const F = [['todos', 'Todos', LIC.length], ['activos', 'Activos', cuenta('ok') + cuenta('pronto')], ['prueba', 'En prueba', cuenta('prueba')], ['pronto', 'Por vencer', cuenta('pronto')], ['venc', 'Vencidos', cuenta('venc')], ['bloq', 'Bloqueados', cuenta('bloq')]];
     $('chips').innerHTML = F.map(([k, t, n]) => `<button class="chip${filtro === k ? ' on' : ''}" data-f="${k}">${t} · ${n}</button>`).join('');
-    $('chips').querySelectorAll('.chip').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
+    const FP = [['todos', 'Todo'], ['oxen', 'OXEN PRO'], ['kivo', 'Kivo'], ['combo', 'Combo']];
+    $('chips').innerHTML += '<span class="sep"></span>' + FP.map(([k, t]) => `<button class="chip${filtroProd === k ? ' on' : ''}" data-fp="${k}">${t} · ${k === 'todos' ? LIC.length : LIC.filter(l => (l.producto || 'oxen') === k).length}</button>`).join('');
+    $('chips').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
+    $('chips').querySelectorAll('[data-fp]').forEach(b => b.onclick = () => { filtroProd = b.dataset.fp; pintar(); });
 
     const txt = $('buscar').value.trim().toLowerCase();
     const vis = LIC.filter((l, i) => {
       const k = est[i].k;
       if (filtro === 'activos' && !(k === 'ok' || k === 'pronto')) return false;
       if (filtro !== 'todos' && filtro !== 'activos' && k !== filtro) return false;
+      if (filtroProd !== 'todos' && (l.producto || 'oxen') !== filtroProd) return false;
       return !txt || [l.email, l.nombre, l.telefono, l.notas].some(x => (x || '').toLowerCase().includes(txt));
     });
-    if (!LIC.length) { $('lista').innerHTML = '<div class="vacio">Aún no tienes clientes. Toca <b>+ Nuevo cliente</b> cuando alguien te pague.</div>'; return; }
+    if (!LIC.length) { $('lista').innerHTML = '<div class="vacio">Aún no tienes clientes. Toca <b>+ Nuevo cliente</b> cuando alguien te pague (OXEN PRO, Kivo o el combo).</div>'; return; }
     if (!vis.length) { $('lista').innerHTML = '<div class="vacio">Nadie coincide con la búsqueda.</div>'; return; }
     $('lista').innerHTML = vis.map(l => {
       const e = estadoDe(l), nd = DISP.filter(d => d.email === l.email).length, d = dias(l.vence);
       const venceTxt = d > 3650 ? 'Sin vencimiento' : fecha(l.vence) + (d >= 0 ? ` · quedan ${d} d` : ` · hace ${-d} d`);
       const wa = whats(l.telefono, e.k === 'venc' || e.k === 'pronto'
-        ? `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu plan de OXEN PRO ${e.k === 'venc' ? 'venció' : 'vence'} el ${fecha(l.vence)}. ¿Quieres renovarlo?`
+        ? `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu plan de ${prod(l).n} ${e.k === 'venc' ? 'venció' : 'vence'} el ${fecha(l.vence)}. ¿Quieres renovarlo?`
         : msgAcceso(l));
       return `<div class="cli">
         <div>
-          <div class="nom">${esc(l.nombre || l.email)}<span class="est ${e.c}">${e.t}</span></div>
+          <div class="nom">${esc(l.nombre || l.email)}${etiqueta(l)}<span class="est ${e.c}">${e.t}</span></div>
           ${l.nombre ? `<div class="mail">${esc(l.email)}</div>` : ''}
           <div class="info"><span>Vence: <b>${venceTxt}</b></span>${l.plan ? `<span>Plan: <b>${esc(l.plan)}</b></span>` : ''}
-            <span>Dispositivos: <b>${nd}/${l.max_dispositivos}</b></span>${l.max_equipo ? `<span>Equipo: <b>${MIEM.filter(m => m.dueno === l.email).length}/${l.max_equipo}</b></span>` : ''}${l.telefono ? `<span>Tel: <b>${esc(l.telefono)}</b></span>` : ''}</div>
+            ${prod(l).oxen ? `<span>Dispositivos: <b>${nd}/${l.max_dispositivos}</b></span>` : ''}${l.max_equipo ? `<span>Equipo: <b>${MIEM.filter(m => m.dueno === l.email).length}/${l.max_equipo}</b></span>` : ''}${l.telefono ? `<span>Tel: <b>${esc(l.telefono)}</b></span>` : ''}</div>
         </div>
         <div class="acc">
           <button class="btn btn-v btn-s" data-a="renovar" data-e="${esc(l.email)}">${e.k === 'prueba' ? 'Activar plan' : 'Renovar'}</button>
@@ -297,16 +331,16 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     try { C = await A.rpc('raiki_cuentas'); } catch (e) { return avisar(A.traducir(e)); }
     const chip = (t, ok) => `<span class="est ${ok ? 'e-ok' : 'e-venc'}" style="margin-left:6px">${t}</span>`;
     const filas = C.map(c => {
-      const ox = c.oxen ? chip('OXEN PRO' + (c.oxen.activo ? '' : ' vencido'), c.oxen.activo)
+      const ox = c.licencia ? chip(PRODUCTOS[c.licencia.producto].corto + (c.licencia.activo ? '' : ' vencido'), c.licencia.activo)
         : c.oxen_equipo_de ? chip('OXEN · equipo', true) : '';
       return `<div class="cli"><div>
-        <div class="nom">${esc(c.email)}${c.kivo ? chip('Kivo', true) : ''}${ox}</div>
+        <div class="nom">${esc(c.email)}${ox}${c.kivo ? '<span class="prod p-uso">usa Kivo</span>' : ''}</div>
         <div class="info"><span>${c.cuenta ? 'Último ingreso: <b>' + (c.ultimo_ingreso ? fechaHora(c.ultimo_ingreso) : 'nunca') + '</b>' : '<b>Cuenta sin crear</b> · genera su contraseña'}</span></div>
       </div>
       <div class="acc"><button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? 'Nueva contraseña' : 'Crear cuenta'}</button></div></div>`;
     }).join('');
     abrir(`<h3>Cuentas RAIKI</h3>
-      <p class="sub">Cada persona tiene una sola cuenta para OXEN PRO y Kivo. Kivo es libre; OXEN PRO necesita un plan activo.</p>
+      <p class="sub">Cada persona tiene una sola cuenta para OXEN PRO y Kivo. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>.</p>
       <div style="display:flex;gap:8px;margin:12px 0">
         <input class="buscar" id="cNueva" type="email" placeholder="correo@ejemplo.com (cuenta nueva para Kivo)" style="flex:1">
         <button class="btn btn-v btn-s" id="cCrear">Crear cuenta</button>
@@ -343,10 +377,12 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   // Nuevo cliente o renovación
   function formulario(l, prueba) {
     const nuevo = !l; let plan = prueba ? PLANES[0] : PLANES[1];
+    let producto = l ? (l.producto || 'oxen') : 'combo';
     abrir(`<h3>${prueba ? '🎁 Prueba gratis de 7 días' : nuevo ? 'Nuevo cliente' : esPrueba(l) ? 'Activar plan (terminó o sigue en prueba)' : 'Renovar acceso'}</h3>
       ${prueba ? '<p class="sub">Crea su acceso por 7 días sin pago. Cuando te pague (Yape, Plin…), búscalo en la lista y toca <b>Activar plan</b>.</p>' : ''}
-      <p class="sub">${nuevo ? 'Registra a quien te pagó. Podrá entrar a la app con este correo.' : esc(l.nombre || '') + ' · ' + esc(l.email)}</p>
+      <p class="sub">${nuevo ? 'Registra a quien te pagó. Con este correo tendrá su cuenta RAIKI.' : esc(l.nombre || '') + ' · ' + esc(l.email) + ' · ahora tiene ' + esc(prod(l).n)}</p>
       <div class="campos">
+        <div class="campo ancho"><label>¿Qué compró?</label><div class="planes productos" id="fProd">${Object.entries(PRODUCTOS).map(([k, p]) => `<button class="plan${k === producto ? ' on' : ''}" data-prod="${k}">${k === 'combo' ? '⭐ ' : ''}${p.n}</button>`).join('')}</div></div>
         ${nuevo ? `<div class="campo ancho"><label>Correo del cliente *</label><input id="fMail" type="email" placeholder="cliente@gmail.com"></div>
         <div class="campo"><label>Nombre</label><input id="fNom" placeholder="Nombre y apellido"></div>
         <div class="campo"><label>WhatsApp</label><input id="fTel" inputmode="tel" placeholder="987 654 321"></div>` : ''}
@@ -355,8 +391,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <div class="campo oculto" id="fOtro2"><label>Días</label><input id="fDias" type="number" min="0" value="0"></div>
         <div class="campo"><label>Monto pagado (S/)</label><input id="fMonto" type="number" min="0" step="0.01" placeholder="0.00"></div>
         <div class="campo"><label>Método de pago</label><select id="fMet">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
-        ${nuevo ? `<div class="campo"><label>Dispositivos permitidos</label><select id="fMax"><option>1</option><option selected>2</option><option>3</option></select></div>
-        <div class="campo"><label>Personas en su equipo</label><select id="fEq">${[0, 1, 2, 3, 4, 5, 8, 10, 15, 20].map(n => `<option value="${n}">${n ? n + ' persona' + (n > 1 ? 's' : '') : 'Sin equipo'}</option>`).join('')}</select></div>` : ''}
+        ${nuevo ? `<div class="campo solo-oxen"><label>Dispositivos de OXEN</label><select id="fMax"><option>1</option><option selected>2</option><option>3</option></select></div>
+        <div class="campo solo-oxen"><label>Personas en su equipo OXEN</label><select id="fEq">${[0, 1, 2, 3, 4, 5, 8, 10, 15, 20].map(n => `<option value="${n}">${n ? n + ' persona' + (n > 1 ? 's' : '') : 'Sin equipo'}</option>`).join('')}</select></div>` : ''}
         <div class="campo ${nuevo ? '' : 'ancho'}"><label>Nota (opcional)</label><input id="fNota" placeholder="N.º de operación, etc."></div>
       </div>
       <div class="resumen" id="fRes"></div>
@@ -367,17 +403,26 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       const resumen = () => {
         const base = !nuevo && new Date(l.vence) > new Date() ? new Date(l.vence) : new Date();
         const h = new Date(base); h.setMonth(h.getMonth() + meses()); h.setDate(h.getDate() + ds());
-        $('fRes').innerHTML = (meses() || ds()) ? `Tendrá acceso hasta el <b>${fecha(h)}</b>${!nuevo && new Date(l.vence) > new Date() ? ' (se suma a lo que le quedaba)' : ''}.` : 'Elige cuánto tiempo agregar.';
+        const final = !nuevo && l.producto && l.producto !== producto ? 'combo' : producto;
+        $('fRes').innerHTML = (meses() || ds()) ? `Tendrá <b>${esc(PRODUCTOS[final].n)}</b> hasta el <b>${fecha(h)}</b>${!nuevo && new Date(l.vence) > new Date() ? ' (se suma a lo que le quedaba)' : ''}.` +
+          (final !== producto ? '<br><small>Ya tenía ' + esc(prod(l).n) + ', así que pasa al combo.</small>' : '') : 'Elige cuánto tiempo agregar.';
+        document.querySelectorAll('#ventana .solo-oxen').forEach(x => x.classList.toggle('oculto', !PRODUCTOS[final].oxen));
       };
+      const ponerPrecio = () => { const v = plan.id === 'prueba' ? null : precioDe(producto, plan.id); if (v != null) $('fMonto').value = v.toFixed(2); };
+      $('fProd').querySelectorAll('.plan').forEach(b => b.onclick = () => {
+        producto = b.dataset.prod;
+        $('fProd').querySelectorAll('.plan').forEach(x => x.classList.toggle('on', x === b));
+        ponerPrecio(); resumen();
+      });
       $('fPlanes').querySelectorAll('.plan').forEach(b => b.onclick = () => {
         plan = PLANES.find(p => p.id === b.dataset.p);
         $('fPlanes').querySelectorAll('.plan').forEach(x => x.classList.toggle('on', x === b));
         $('fOtro1').classList.toggle('oculto', plan.id !== 'otro'); $('fOtro2').classList.toggle('oculto', plan.id !== 'otro');
-        if (plan.id === 'prueba') $('fMonto').value = '';
+        if (plan.id === 'prueba') $('fMonto').value = ''; else ponerPrecio();
         resumen();
       });
       ['fMeses', 'fDias'].forEach(id => $(id).oninput = resumen);
-      resumen();
+      ponerPrecio(); resumen();
       $('fNo').onclick = cerrar;
       $('fSi').onclick = async () => {
         const email = nuevo ? $('fMail').value.trim().toLowerCase() : l.email;
@@ -391,9 +436,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
             p_email: email, p_nombre: nuevo ? $('fNom').value : null, p_telefono: nuevo ? $('fTel').value : null,
             p_meses: meses(), p_dias: ds(), p_max: nuevo ? +$('fMax').value : null,
             p_monto: $('fMonto').value === '' ? null : +$('fMonto').value, p_metodo: plan.id === 'prueba' && !+$('fMonto').value ? 'Prueba gratis' : $('fMet').value,
-            p_nota: $('fNota').value, p_plan: nombrePlan
+            p_nota: $('fNota').value, p_plan: nombrePlan, p_producto: producto
           });
-          if (nuevo && +$('fEq').value > 0) await A.tabla('licencias?email=eq.' + q(email), 'PATCH', { max_equipo: +$('fEq').value });
+          if (nuevo && PRODUCTOS[producto].oxen && +$('fEq').value > 0) await A.tabla('licencias?email=eq.' + q(email), 'PATCH', { max_equipo: +$('fEq').value });
           let clave = null;
           if (nuevo) {
             try { clave = (await A.funcion('admin-contrasena', { email })).clave; }
@@ -417,7 +462,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   // Después de crear, renovar o generar contraseña: lo que hay que mandarle al cliente
   function listo(l, clave, error) {
     const msg = msgAcceso(l, clave), wa = whats(l.telefono, msg);
-    abrir(`<h3>¡Listo!</h3><p class="sub">${esc(l.email)} tiene acceso hasta el <b style="color:var(--verde)">${fecha(l.vence)}</b>.</p>
+    abrir(`<h3>¡Listo!</h3><p class="sub">${esc(l.email)} tiene <b>${esc(prod(l).n)}</b> hasta el <b style="color:var(--verde)">${fecha(l.vence)}</b>.</p>
       ${error ? `<div class="err" style="margin:0 0 12px">${esc(error)}</div>` : ''}
       ${clave ? `<div class="clave-caja"><span>Contraseña temporal</span><b id="lClaveTxt">${esc(clave)}</b>
         <button class="btn btn-g btn-s" id="lCopiarClave">Copiar</button></div>
@@ -441,8 +486,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     try { pagos = await A.tabla('pagos?select=*&email=eq.' + q(l.email) + '&order=creado.desc'); } catch (e) {}
     const disp = DISP.filter(d => d.email === l.email);
     const vLocal = new Date(new Date(l.vence).getTime() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-    abrir(`<h3>${esc(l.nombre || l.email)}</h3><p class="sub">${esc(l.email)} · cliente desde ${fecha(l.creado)}</p>
+    abrir(`<h3>${esc(l.nombre || l.email)} ${etiqueta(l)}</h3><p class="sub">${esc(l.email)} · cliente desde ${fecha(l.creado)}</p>
       <div class="campos">
+        <div class="campo"><label>Producto</label><select id="dProd">${Object.entries(PRODUCTOS).map(([k, p]) => `<option value="${k}"${k === (l.producto || 'oxen') ? ' selected' : ''}>${p.n}</option>`).join('')}</select></div>
         <div class="campo"><label>Nombre</label><input id="dNom" value="${esc(l.nombre || '')}"></div>
         <div class="campo"><label>WhatsApp</label><input id="dTel" inputmode="tel" value="${esc(l.telefono || '')}"></div>
         <div class="campo"><label>Vence (corrección manual)</label><input id="dVence" type="date" value="${vLocal}"></div>
@@ -468,7 +514,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <button class="btn btn-g btn-s" data-lib="${d.id}">Liberar</button></div>`).join('') : '<div class="fila"><small>Todavía no entra desde ningún dispositivo.</small></div>'}</div>
 
       <div class="seccion">Pagos</div>
-      <div class="filas">${pagos.length ? pagos.map(p => `<div class="fila"><div>${esc(p.plan || 'Tiempo agregado')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
+      <div class="filas">${pagos.length ? pagos.map(p => `<div class="fila"><div>${p.producto ? esc(PRODUCTOS[p.producto].corto) + ' · ' : ''}${esc(p.plan || 'Tiempo agregado')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
         <small>${fechaHora(p.creado)} → hasta ${fecha(p.hasta)}${p.nota ? ' · ' + esc(p.nota) : ''}</small></div><b>${p.monto != null ? soles(p.monto) : '—'}</b></div>`).join('') : '<div class="fila"><small>Sin pagos registrados.</small></div>'}</div>
 
       <div class="pie" style="justify-content:space-between">
@@ -484,7 +530,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         const v = $('dVence').value; if (!v) { $('dErr').textContent = 'Pon una fecha.'; return; }
         try {
           await A.tabla(ruta, 'PATCH', { nombre: $('dNom').value.trim() || null, telefono: $('dTel').value.trim() || null,
-            vence: new Date(v + 'T23:59:59').toISOString(), max_dispositivos: +$('dMax').value, max_equipo: +$('dEq').value, notas: $('dNotas').value.trim() || null, actualizado: new Date().toISOString() });
+            vence: new Date(v + 'T23:59:59').toISOString(), producto: $('dProd').value, max_dispositivos: +$('dMax').value, max_equipo: +$('dEq').value, notas: $('dNotas').value.trim() || null, actualizado: new Date().toISOString() });
           await cargar(); cerrar(); avisar('Cambios guardados');
         } catch (e) { $('dErr').textContent = A.traducir(e); }
       };
@@ -514,6 +560,30 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   $('bNuevo').onclick = () => formulario(null);
   $('bPrueba').onclick = () => formulario(null, true);
   $('bPagos').onclick = verPagos;
+  $('bPrecios').onclick = verPrecios;
+
+  // ---------- Lista de precios (se pone sola al registrar un pago) ----------
+  function verPrecios() {
+    const planes = PLANES.filter(p => p.id !== 'prueba' && p.id !== 'otro');
+    abrir(`<h3>🏷️ Precios</h3><p class="sub">Pon cuánto cobras. Al registrar un cliente, el monto se llena solo (igual puedes cambiarlo).</p>
+      <div class="tabla-precios"><div></div>${Object.values(PRODUCTOS).map(p => `<b>${esc(p.corto)}</b>`).join('')}
+      ${planes.map(pl => `<span>${esc(pl.nombre)}</span>${Object.keys(PRODUCTOS).map(k => { const v = precioDe(k, pl.id);
+        return `<input type="number" min="0" step="0.5" inputmode="decimal" placeholder="S/" data-pr="${k}|${pl.id}" value="${v == null ? '' : v}">`; }).join('')}`).join('')}</div>
+      <p class="sub" style="margin-top:10px">Consejo: el combo suele ir con descuento frente a comprar las dos por separado.</p>
+      <div class="err" id="prErr"></div>
+      <div class="pie"><button class="btn btn-g" id="prNo">Cerrar</button><button class="btn btn-v" id="prSi">Guardar precios</button></div>`, () => {
+      $('prNo').onclick = cerrar;
+      $('prSi').onclick = async () => {
+        const filas = [...document.querySelectorAll('[data-pr]')].filter(i => i.value !== '').map(i => { const [producto, plan] = i.dataset.pr.split('|'); return { producto, plan, monto: +i.value, actualizado: new Date().toISOString() }; });
+        const vacios = [...document.querySelectorAll('[data-pr]')].filter(i => i.value === '').map(i => i.dataset.pr.split('|'));
+        try {
+          if (filas.length) await A.tabla('precios?on_conflict=producto,plan', 'POST', filas, 'resolution=merge-duplicates');
+          for (const [producto, plan] of vacios) if (precioDe(producto, plan) != null) await A.tabla('precios?producto=eq.' + producto + '&plan=eq.' + plan, 'DELETE');
+          PRECIOS = await A.tabla('precios?select=*'); cerrar(); avisar('Precios guardados');
+        } catch (e) { $('prErr').textContent = A.traducir(e); }
+      };
+    });
+  }
 
   // ---------- Pagos: todos los cobros, por mes y por método ----------
   function verPagos() {
@@ -525,14 +595,16 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       const del = PAGOS.filter(p => p.creado.startsWith(mes)), cob = del.filter(p => Number(p.monto) > 0);
       const total = cob.reduce((s, p) => s + Number(p.monto), 0), porMet = {};
       for (const p of cob) porMet[p.metodo || 'Otro'] = (porMet[p.metodo || 'Otro'] || 0) + Number(p.monto);
+      const porProd = {}; for (const p of cob) { const k = PRODUCTOS[p.producto] ? PRODUCTOS[p.producto].corto : 'OXEN'; porProd[k] = (porProd[k] || 0) + Number(p.monto); }
       const anual = PAGOS.filter(p => p.creado.startsWith(mes.slice(0, 4))).reduce((s, p) => s + Number(p.monto || 0), 0);
       $('pgCuerpo').innerHTML = `<div class="stats" style="margin:10px 0">
           <div class="stat"><span>Cobrado en ${nomMes(mes)}</span><b>${soles(total)}</b></div>
           <div class="stat"><span>Pagos</span><b>${cob.length}</b></div>
           <div class="stat"><span>Pruebas gratis</span><b>${del.filter(p => !(Number(p.monto) > 0)).length}</b></div>
           <div class="stat"><span>Total ${mes.slice(0, 4)}</span><b>${soles(anual)}</b></div></div>
+        ${Object.keys(porProd).length ? `<div class="chips" style="margin-bottom:8px">${Object.entries(porProd).map(([m, v]) => `<span class="chip on">${esc(m)} · ${soles(v)}</span>`).join('')}</div>` : ''}
         ${Object.keys(porMet).length ? `<div class="chips" style="margin-bottom:10px">${Object.entries(porMet).map(([m, v]) => `<span class="chip">${esc(m)} · ${soles(v)}</span>`).join('')}</div>` : ''}
-        <div class="filas">${del.length ? del.map(p => `<div class="fila"><div><b>${esc(nombreDe(p.email))}</b> · ${esc(p.plan || 'Tiempo')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
+        <div class="filas">${del.length ? del.map(p => `<div class="fila"><div><b>${esc(nombreDe(p.email))}</b> · ${p.producto ? esc(PRODUCTOS[p.producto].corto) + ' · ' : ''}${esc(p.plan || 'Tiempo')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
           <small>${fechaHora(p.creado)} · hasta ${fecha(p.hasta)}${p.nota ? ' · ' + esc(p.nota) : ''}</small></div><b>${Number(p.monto) > 0 ? soles(p.monto) : 'Gratis'}</b></div>`).join('')
           : '<div class="fila"><small>No hay pagos este mes. Se registran solos al crear, renovar o activar a un cliente con su monto.</small></div>'}</div>`;
     };
@@ -544,9 +616,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       $('pgCerrar').onclick = cerrar;
       $('pgCsv').onclick = () => {
         const c = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-        const filas = [['Fecha', 'Cliente', 'Correo', 'Plan', 'Método', 'Monto (S/)', 'Desde', 'Hasta', 'Nota']].concat(PAGOS.map(p => [p.creado.slice(0, 10), nombreDe(p.email), p.email, p.plan, p.metodo, p.monto, (p.desde || '').slice(0, 10), (p.hasta || '').slice(0, 10), p.nota]));
+        const filas = [['Fecha', 'Cliente', 'Correo', 'Producto', 'Plan', 'Método', 'Monto (S/)', 'Desde', 'Hasta', 'Nota']].concat(PAGOS.map(p => [p.creado.slice(0, 10), nombreDe(p.email), p.email, p.producto ? PRODUCTOS[p.producto].n : 'OXEN PRO', p.plan, p.metodo, p.monto, (p.desde || '').slice(0, 10), (p.hasta || '').slice(0, 10), p.nota]));
         const b = new Blob(['\ufeff' + filas.map(f => f.map(c).join(';')).join('\r\n')], { type: 'text/csv' }), a = document.createElement('a');
-        a.href = URL.createObjectURL(b); a.download = 'pagos-oxen-pro.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        a.href = URL.createObjectURL(b); a.download = 'pagos-raiki.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       };
       pintarP();
     });
