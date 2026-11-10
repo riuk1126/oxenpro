@@ -452,5 +452,7 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 body > #aviso{position:fixed;z-index:210;pointer-events:none}
 
 /* Marca RAIKI en el acceso */
-.acc-raiki{margin:0 0 4px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9b9ba1}
-.acc-raiki b{color:#f2f2f3;font-weight:800}
+.acc-marca:has(.raiki-logo){flex-direction:column;align-items:center;gap:12px;margin-bottom:24px}
+.raiki-logo{display:block;width:190px;max-width:70%;height:auto;color:var(--texto)}
+.acc-app{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--texto2);letter-spacing:0}
+.acc-app img{width:20px;height:20px;border-radius:6px}
