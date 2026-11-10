@@ -32,6 +32,7 @@
     <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
     <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
     <symbol id="i-actualizar" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/></symbol>
+    <symbol id="i-muro" viewBox="0 0 24 24"><path d="M3 5h18v5H3zM3 14h18v5H3z"/><path d="M8 5v5M15 5v5M5.5 14v5M12 14v5M18.5 14v5"/></symbol>
     <symbol id="i-cota" viewBox="0 0 24 24"><path d="M3 8v8M21 8v8M3 12h18"/><path d="M6.5 9.5 4 12l2.5 2.5M17.5 9.5 20 12l-2.5 2.5"/></symbol>
     <symbol id="i-texto" viewBox="0 0 24 24"><path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6"/></symbol>
     <symbol id="i-simbolo" viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20V8"/><path d="M6 8a12 12 0 0 1 12 12"/></symbol>
@@ -82,6 +83,7 @@
       <button class="ib herr" data-h="relleno" id="bRelleno" title="Relleno con textura"><svg><use href="#i-relleno"/></svg></button>
       <button class="ib herr" data-h="seleccion" id="bSeleccion" title="Seleccionar y transformar (mover, escalar, girar)"><svg><use href="#i-seleccion"/></svg></button>
       <span class="sep"></span>
+      <button class="ib herr oculto" data-h="muro" id="bMuro" title="Muro (editable)"><svg><use href="#i-muro"/></svg></button>
       <button class="ib herr" data-h="cota" id="bCota" title="Cota a escala"><svg><use href="#i-cota"/></svg></button>
       <button class="ib herr" data-h="texto" id="bTexto" title="Nota / texto"><svg><use href="#i-texto"/></svg></button>
  <button class="ib herr" data-h="pin" id="bPin" title="Nota en el plano: arrástrala al punto o toca la hoja"><svg><use href="#i-pin"/></svg></button>
@@ -104,7 +106,7 @@
   <div id="aviso" class="oculto"></div>
   <div id="selBar" class="sel-bar oculto">
     <button id="selGirar15">↻ 15°</button><button id="selGirar">↻ 90°</button><button id="selVoltear">⇋ Voltear</button>
-    <button id="selAncho">Ancho…</button><button id="selSeccion">Sección…</button><button id="selTexto">Texto…</button><button id="selDup">Duplicar</button><button id="selBorrar" class="peligro">Eliminar</button>
+    <button id="selAncho">Ancho…</button><button id="selSeccion">Sección…</button><button id="selAlto">Alturas…</button><button id="selTexto">Texto…</button><button id="selDup">Duplicar</button><button id="selBorrar" class="peligro">Eliminar</button>
   </div>
   <div id="transfBar" class="sel-bar transf-bar oculto">
     <button id="tfVoltH">⇋ Voltear</button><button id="tfVoltV">⇅ Voltear</button><button id="tfGirar">↻ 90°</button><button id="tfDup">Duplicar</button><button id="tfBorrar" class="peligro">Borrar</button><button id="tfCancelar">Cancelar</button><button id="tfListo" class="ok">Listo</button>
@@ -189,6 +191,7 @@
       <div class="campo"><label>Levantó / dibujó</label><input type="text" id="nAutor" data-k="autor" placeholder="Tu nombre"></div>
       <div class="campo"><label>Fecha</label><input type="text" id="nFecha" data-k="fecha"></div>
       <label class="interruptor"><input type="checkbox" id="nRotulo"><span></span>Mostrar rótulo y escala gráfica</label>
+      <div class="logo-fila"><button class="item n-logo" id="nLogo"></button><button class="item oculto" id="nLogoQuitar">Quitar</button></div>
       <label class="interruptor"><input type="checkbox" id="nCotaAuto"><span></span>Cota automática al trazar líneas rectas</label>
       <label class="interruptor"><input type="checkbox" id="nPedir"><span></span>Pedir la medida real al crear una cota</label>
       <label class="interruptor"><input type="checkbox" id="nVerAnot"><span></span>Ver cotas y notas</label>
@@ -206,6 +209,8 @@
   </div>
   <div id="pMenu" class="panel oculto">
     <button class="item" id="mImportar">Imagen de referencia (foto o plano para calcar)…</button>
+    <button class="item" id="mPdfFondo">PDF de fondo (plano para revisar o calcar)…</button>
+    <button class="item" id="mVanos">Cuadro de vanos (puertas y ventanas)</button>
     <button class="item" id="mCopiar">Copiar y pegar…</button>
     <button class="item" id="mTerreno">Terreno por medidas…</button>
     <button class="item" id="mMoverTodo">Mover o centrar todo el dibujo…</button>
@@ -213,6 +218,8 @@
     <button class="item" id="mSinUI">Pantalla completa</button>
     <button class="item" id="mExportar">Exportar imagen PNG</button>
     <button class="item" id="mExportarJpg">Exportar imagen JPG</button>
+    <button class="item" id="mExportarPdf">Exportar PDF (a escala, para imprimir)</button>
+    <button class="item" id="mExportarDxf">Exportar a CAD (DXF para AutoCAD)</button>
     <button class="item" id="mPapel">Cambiar papel…</button>
     <button class="item" id="mVoltear">Voltear vista horizontal</button>
     <button class="item" id="mAjustar">Ajustar a la pantalla</button>
@@ -230,6 +237,8 @@
   </div>
 
   <input type="file" id="fImportar" accept="image/*" hidden>
+  <input type="file" id="fPdf" accept="application/pdf,.pdf" hidden>
+  <input type="file" id="fLogo" accept="image/*" hidden>
   <input type="file" id="fPinceles" multiple hidden>
 </section>
 
@@ -249,7 +258,10 @@
 <script src="simbolos.js?v=__PD_VERSION__"></script>
 <script src="oxen-auth.js?v=__PD_VERSION__"></script>
 <script src="acceso.js?v=__PD_VERSION__"></script>
+<script src="muros.js?v=__PD_VERSION__"></script>
+<script src="exportar.js?v=__PD_VERSION__"></script>
 <script src="app.js?v=__PD_VERSION__"></script>
 <script src="equipo.js?v=__PD_VERSION__"></script>
+<script src="nube.js?v=__PD_VERSION__"></script>
 </body>
 </html>

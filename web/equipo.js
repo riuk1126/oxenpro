@@ -210,18 +210,25 @@
   function crearVisor() {
     visor = document.createElement('div'); visor.id = 'visorEq'; visor.className = 'visor-eq oculto';
     visor.innerHTML = `<header><button class="ib" id="veCerrar" title="Cerrar">✕</button><div class="ve-tit"><b id="veNom"></b><span id="veDe"></span></div>
-      <button class="ve-btn" id="veExportar">Exportar</button><button class="btn-verde" id="veCopiar">Hacer una copia</button></header>
-      <div class="ve-area" id="veArea"><img id="veImg" alt=""><div class="ve-carga" id="veCarga"><span></span>Descargando…</div></div>`;
+      <button class="ve-btn" id="veCom">💬 Comentarios</button><button class="ve-btn" id="veExportar">Exportar</button><button class="btn-verde" id="veCopiar">Hacer una copia</button></header>
+      <div class="ve-cuerpo"><div class="ve-area" id="veArea"><img id="veImg" alt=""><div class="ve-pines" id="vePines"></div><div class="ve-carga" id="veCarga"><span></span>Descargando…</div></div>
+      <aside class="ve-lado oculto" id="veLado"></aside></div>`;
     document.body.appendChild(visor);
     const area = $('veArea'), img = $('veImg');
     let s = 1, x = 0, y = 0; const pts = new Map(); let ini = null;
-    const aplicar = () => { img.style.transform = `translate(${x}px,${y}px) scale(${s})`; };
+    const aplicar = () => { img.style.transform = `translate(${x}px,${y}px) scale(${s})`; colocarPines(); };
+    // pines de comentarios sobre la imagen (coordenadas de la hoja → pantalla)
+    const colocarPines = () => { for (const el of $('vePines').children) { el.style.left = (x + +el.dataset.x * s) + 'px'; el.style.top = (y + +el.dataset.y * s) + 'px'; } };
+    visor.colocarPines = colocarPines;
+    visor.aImagen = (cx, cy) => { const r = area.getBoundingClientRect(); return { x: (cx - r.left - x) / s, y: (cy - r.top - y) / s }; };
+    visor.centrar = (ix, iy) => { const W = area.clientWidth, H = area.clientHeight; if (s < 0.6) s = 0.6; x = W / 2 - ix * s; y = H / 2 - iy * s; aplicar(); };
     visor.ajustar = () => {
       const W = area.clientWidth, H = area.clientHeight, w = img.naturalWidth || 1, h = img.naturalHeight || 1;
       s = Math.min(W / w, H / h) * 0.96; x = (W - w * s) / 2; y = (H - h * s) / 2; aplicar();
     };
     const zoomEn = (cx, cy, ns) => { ns = Math.max(0.05, Math.min(8, ns)); x = cx - (cx - x) * ns / s; y = cy - (cy - y) * ns / s; s = ns; aplicar(); };
-    area.addEventListener('pointerdown', e => { area.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); ini = null; });
+    let toque = null;
+    area.addEventListener('pointerdown', e => { area.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); ini = null; toque = pts.size === 1 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null; });
     area.addEventListener('pointermove', e => {
       if (!pts.has(e.pointerId)) return;
       const p = pts.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -231,7 +238,14 @@
       if (ini) { x += cx - ini.cx; y += cy - ini.cy; zoomEn(cx, cy, s * dist / ini.dist); }
       ini = { dist, cx, cy };
     });
-    const fin = e => { pts.delete(e.pointerId); ini = null; };
+    const fin = e => {
+      // un toque (sin arrastrar) en modo comentar: pone el punto del comentario
+      if (e.type === 'pointerup' && toque && pts.size === 1 && Math.hypot(e.clientX - toque.x, e.clientY - toque.y) < 8 && performance.now() - toque.t < 500 && visor.comentando) {
+        const p = visor.aImagen(e.clientX, e.clientY), w = img.naturalWidth, h = img.naturalHeight;
+        if (p.x >= 0 && p.y >= 0 && p.x <= w && p.y <= h) visor.comentando(p);
+      }
+      pts.delete(e.pointerId); ini = null; toque = null;
+    };
     area.addEventListener('pointerup', fin); area.addEventListener('pointercancel', fin);
     area.addEventListener('wheel', e => { e.preventDefault(); const r = area.getBoundingClientRect(); zoomEn(e.clientX - r.left, e.clientY - r.top, s * Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
     area.addEventListener('dblclick', e => { const r = area.getBoundingClientRect(); s > 1.2 ? visor.ajustar() : zoomEn(e.clientX - r.left, e.clientY - r.top, Math.max(2, s * 2.5)); });
@@ -240,7 +254,7 @@
     $('veCerrar').onclick = cerrarVisor;
   }
   function cerrarVisor() {
-    visor.classList.add('oculto');
+    visor.classList.add('oculto'); visor.comentando = null; $('vePines').innerHTML = ''; $('veLado').classList.add('oculto');
     const img = $('veImg'); if (img.src) URL.revokeObjectURL(img.src); img.removeAttribute('src');
   }
   async function verCompartido(c) {
@@ -251,6 +265,8 @@
     $('veCarga').classList.remove('oculto'); $('veCarga').lastChild.textContent = 'Descargando…';
     const base = `${c.dueno}/${c.dibujo_id}/${c.version}/`;
     let vista = null;
+    $('veCom').onclick = () => { const l = $('veLado'); l.classList.toggle('oculto'); if (!l.classList.contains('oculto')) panelVisor(c); };
+    panelVisor(c, true);
     try { vista = await A.bajarArchivo(base + 'vista.jpg'); $('veImg').src = URL.createObjectURL(vista); }
     catch (e) { $('veCarga').lastChild.textContent = e.red ? 'Sin internet. Conéctate para ver este boceto.' : 'Este boceto se está actualizando. Vuelve a intentar en un momento.'; return; }
     const nombreArchivo = (c.nombre || 'Boceto').replace(/[^\w\- áéíóúñÁÉÍÓÚÑ]/g, '').trim().replace(/\s+/g, '_') + '.jpg';
@@ -271,6 +287,97 @@
       } catch (e) { avisar(e.red ? 'Necesitas internet para copiar' : 'No se pudo copiar'); console.error(e); }
       b.disabled = false; b.textContent = 'Hacer una copia';
     };
+  }
+
+  // =================================================================
+  //  COMENTARIOS del equipo (con un punto en el plano o generales)
+  // =================================================================
+  const enc = encodeURIComponent;
+  const leerComs = (dueno, id) => A.tabla(`comentarios?select=*&dueno=eq.${enc(dueno)}&dibujo_id=eq.${enc(id)}&order=creado.asc`).then(l => l || []);
+  async function nuevoCom(dueno, id, texto, p) { const r = await A.tabla('comentarios', 'POST', { dueno, dibujo_id: id, autor: yo(), texto, x: p ? p.x : null, y: p ? p.y : null }); return r && r[0]; }
+  const itemCom = (c, i, dueno) => `<div class="com${c.resuelto ? ' res' : ''}" data-id="${c.id}">
+      <div class="com-cab">${c.x != null ? `<span class="com-n">${i + 1}</span>` : '<span class="com-n gen">·</span>'}<b>${esc(corto(c.autor))}</b><small>${hace(c.creado)}${c.resuelto ? ' · resuelto' : ''}</small></div>
+      <p>${esc(c.texto)}</p>
+      <div class="com-acc">${c.x != null ? '<button data-a="ver">Ver en el plano</button>' : ''}${dueno === yo() ? `<button data-a="res">${c.resuelto ? 'Reabrir' : '✓ Resuelto'}</button>` : ''}${c.autor === yo() || dueno === yo() ? '<button data-a="bor">Borrar</button>' : ''}</div></div>`;
+  async function accionCom(lista, b, recargar, ver) {
+    const c = lista.find(x => String(x.id) === b.closest('.com').dataset.id); if (!c) return;
+    const a = b.dataset.a;
+    try {
+      if (a === 'ver') return ver(c);
+      if (a === 'res') { await A.tabla('comentarios?id=eq.' + c.id, 'PATCH', { resuelto: !c.resuelto }); }
+      if (a === 'bor') { if (!confirm('¿Borrar este comentario?')) return; await A.tabla('comentarios?id=eq.' + c.id, 'DELETE'); }
+      recargar();
+    } catch (e) { avisar(e.red ? 'Necesitas internet' : 'No se pudo cambiar'); }
+  }
+  // ---- en el visor (miembros del equipo, o el dueño viendo su compartido) ----
+  async function panelVisor(c, soloPines) {
+    const lado = $('veLado'); let lista = [];
+    try { lista = await leerComs(c.dueno, c.dibujo_id); } catch (e) { if (!soloPines) lado.innerHTML = '<p class="com-vacio">Necesitas internet para ver los comentarios.</p>'; return; }
+    const pend = lista.filter(x => !x.resuelto).length; $('veCom').textContent = '💬 ' + (pend ? pend : 'Comentarios');
+    const conPunto = lista.filter(x => x.x != null);
+    $('vePines').innerHTML = conPunto.map(x => `<span class="ve-pin${x.resuelto ? ' res' : ''}" data-x="${x.x}" data-y="${x.y}">${lista.indexOf(x) + 1}</span>`).join('');
+    visor.colocarPines();
+    if (soloPines) return;
+    let punto = null;
+    const pintar = () => {
+      lado.innerHTML = `<div class="com-tit"><b>Comentarios</b><button class="ib" id="veLadoX">✕</button></div>
+        <div class="com-lista">${lista.length ? lista.map((x, i) => itemCom(x, i, c.dueno)).join('') : '<p class="com-vacio">Aún no hay comentarios. Toca “Comentar en un punto” y luego el lugar del plano.</p>'}</div>
+        <div class="com-nuevo"><button class="ve-btn${punto || visor.comentando ? ' activo' : ''}" id="vePunto">${punto ? '📍 Punto elegido' : visor.comentando ? 'Toca el plano…' : '📍 Comentar en un punto'}</button>
+        <textarea id="veTxt" rows="3" placeholder="${punto ? 'Escribe el comentario para ese punto…' : 'Comentario general (o elige un punto)…'}"></textarea>
+        <button class="btn-verde" id="veEnviar">Enviar</button></div>`;
+      $('veLadoX').onclick = () => { lado.classList.add('oculto'); visor.comentando = null; };
+      $('vePunto').onclick = () => { punto = null; visor.comentando = p => { punto = p; visor.comentando = null; const t = $('veTxt').value; pintar(); $('veTxt').value = t; $('veTxt').focus();
+        $('vePines').insertAdjacentHTML('beforeend', `<span class="ve-pin nuevo" data-x="${p.x}" data-y="${p.y}">+</span>`); visor.colocarPines(); }; pintar(); };
+      $('veEnviar').onclick = async () => {
+        const t = $('veTxt').value.trim(); if (!t) return $('veTxt').focus();
+        $('veEnviar').disabled = true;
+        try { await nuevoCom(c.dueno, c.dibujo_id, t, punto); punto = null; panelVisor(c); }
+        catch (e) { avisar(e.red ? 'Necesitas internet para comentar' : 'No se pudo enviar'); $('veEnviar').disabled = false; }
+      };
+      lado.querySelector('.com-lista').onclick = ev => { const b = ev.target.closest('button[data-a]'); if (b) accionCom(lista, b, () => panelVisor(c), x => visor.centrar(x.x, x.y)); };
+    };
+    pintar();
+  }
+  // ---- en el editor (el dueño, con su boceto compartido abierto) ----
+  let comEd = null; // { dueno, id, lista }
+  async function alAbrir(d) {
+    comEd = null; const b = $('bComent'); if (b) b.classList.add('oculto');
+    const c = d && compartidoMio(d.id); if (!c || !A.sesion()) return;
+    try { comEd = { dueno: c.dueno, id: d.id, lista: await leerComs(c.dueno, d.id) }; } catch (e) { return; }
+    if (!doc || doc.id !== d.id) return;
+    pintarBotonCom(); if (comEd.lista.some(x => !x.resuelto)) { avisar('Tu equipo dejó ' + comEd.lista.filter(x => !x.resuelto).length + ' comentario(s) en este boceto'); }
+    pedirSup();
+  }
+  function pintarBotonCom() {
+    let b = $('bComent');
+    if (!b) { b = document.createElement('button'); b.id = 'bComent'; b.className = 'act-pill'; $('bNotas').insertAdjacentElement('afterend', b); b.onclick = () => abrirPanelCom(); }
+    const n = comEd ? comEd.lista.filter(x => !x.resuelto).length : 0;
+    b.classList.toggle('oculto', !comEd); b.textContent = '💬 ' + (n || comEd && comEd.lista.length || '');
+  }
+  function abrirPanelCom() {
+    let P = $('pComent');
+    if (!P) { P = document.createElement('div'); P.id = 'pComent'; P.className = 'panel oculto'; $('editor').appendChild(P); }
+    abrirPanel('pComent', $('bComent')); if (P.classList.contains('oculto')) return;
+    const pintar = () => {
+      const l = comEd.lista;
+      P.innerHTML = `<div class="com-tit"><b>Comentarios del equipo</b></div><div class="com-lista">${l.length ? l.map((x, i) => itemCom(x, i, comEd.dueno)).join('') : '<p class="com-vacio">Sin comentarios.</p>'}</div>
+        <div class="com-nuevo"><textarea id="pcTxt" rows="2" placeholder="Responder al equipo…"></textarea><button class="btn-verde" id="pcEnviar">Enviar</button></div>`;
+      $('pcEnviar').onclick = async () => { const t = $('pcTxt').value.trim(); if (!t) return;
+        try { await nuevoCom(comEd.dueno, comEd.id, t, null); await recargar(); } catch (e) { avisar(e.red ? 'Necesitas internet' : 'No se pudo enviar'); } };
+      P.querySelector('.com-lista').onclick = ev => { const b = ev.target.closest('button[data-a]'); if (b) accionCom(l, b, recargar, x => { cerrarPaneles(); centrarEn(x.x, x.y); }); };
+    };
+    const recargar = async () => { try { comEd.lista = await leerComs(comEd.dueno, comEd.id); } catch (e) {} pintarBotonCom(); pedirSup(); if (!P.classList.contains('oculto')) pintar(); };
+    pintar();
+  }
+  function centrarEn(x, y) { const s = Math.max(escalaVista(), 0.5); M = [s, 0, 0, s, innerWidth / 2 - x * s, innerHeight / 2 - y * s]; aplicarVista(); }
+  // pines numerados en el plano (sobre la capa de pantalla)
+  function dibujarComentarios(c) {
+    if (!comEd || !doc || doc.id !== comEd.id) return;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    comEd.lista.forEach((x, i) => { if (x.x == null) return; const p = mApl(M, x.x, x.y);
+      c.beginPath(); c.arc(p.x, p.y - 16, 12, 0, 6.2832); c.moveTo(p.x - 6, p.y - 7); c.lineTo(p.x, p.y); c.lineTo(p.x + 6, p.y - 7);
+      c.fillStyle = x.resuelto ? 'rgba(120,120,125,.85)' : '#ff9f0a'; c.fill(); c.fillStyle = '#0b0b0c'; c.font = '700 12px -apple-system,Roboto,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(i + 1), p.x, p.y - 16); });
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }
 
   // =================================================================
@@ -358,6 +465,6 @@
     });
   }
 
-  window.Equipo = { alCerrar, alBorrar, alRenombrar, alPintarGaleria, itemMenu, enlazarMenu, pantalla, refrescar };
+  window.Equipo = { alCerrar, alBorrar, alRenombrar, alPintarGaleria, itemMenu, enlazarMenu, pantalla, refrescar, alAbrir, dibujarComentarios };
   if ($('galeria') && !$('galeria').classList.contains('oculto')) alPintarGaleria(); else refrescar();
 })();

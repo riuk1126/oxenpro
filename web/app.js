@@ -231,6 +231,7 @@ const escalaVista = () => Math.hypot(M[0], M[1]);
 function aDoc(x, y) { return mApl(mInv(M), x, y); }
 function aplicarVista() {
   docEl.style.transform = `matrix(${M.join(',')})`;
+  if (muroSel) ponerBarraMuro();
   if (pinVisto) ubicarGloboPin();
   if (!trazo) limpiarCursor();
   pedirSup();
@@ -351,7 +352,7 @@ function aplicarHist(e, atras) {
 function hacerDeshacer() {
   if (trazo) return;
   if (flot) { cancelarFlot(); return avisar('Selección cancelada'); } const e = deshacer.pop(); if (!e) return avisar('Nada que deshacer');
-  ultPto = null; cotaSel = null;
+  ultPto = null; cotaSel = null; muroSel = null; areaVista = null; ponerBarraMuro();
   aplicarHist(e, true); rehacer.push(e); avisar('Deshacer'); marcarCambio(); refrescarCapasSiAbierto();
 }
 function hacerRehacer() {
@@ -514,7 +515,12 @@ function finPuntero(e) {
     if (toques.size === 0) {
       const dt = performance.now() - gestoTap.t;
       if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz() && terreno && !terreno.v0) { terreno.v0 = imanCota(aDoc(e.clientX, e.clientY)); pintarTerreno(); pedirSup(); }
-      else if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz()) { const dd = aDoc(e.clientX, e.clientY), o = pinEn(dd) || fotoEn(dd); if (o) verPin(o); else if (pinVisto) ocultarPin(); }
+      else if (gestoTap.max === 1 && !gestoTap.movido && dt < 350 && soloLapiz()) { const dd = aDoc(e.clientX, e.clientY), o = pinEn(dd) || fotoEn(dd);
+        if (o) verPin(o); else if (pinVisto) ocultarPin();
+        else { const mu = muroEn(dd), ob = objetoEn(dd);
+          if (ob && ob.tipo === 'ambiente') dialogoAmbiente(ob);
+          else if (mu) { elegirHerramienta('muro'); elegirMuro(mu); }
+          else if (!mostrarArea(dd)) { ocultarArea(); if (muroSel) elegirMuro(null); } } }
       if (gestoTap.max >= 2 && !gestoTap.movido && dt < 380) { gestoTap.max >= 4 ? alternarInterfaz() : gestoTap.max === 3 ? hacerRehacer() : hacerDeshacer(); }
       gestoTap.max = 0; gestoTap.menu3 = false;
     }
@@ -523,7 +529,7 @@ function finPuntero(e) {
 escenario.addEventListener('pointerup', finPuntero);
 // eventos crudos del lápiz: llegan antes que pointermove → menos retraso
 const RAW = 'onpointerrawupdate' in window;
-if (RAW) escenario.addEventListener('pointerrawupdate', e => { if (doc && trazo && trazo.id === e.pointerId && !trazo.gotero && !trazo.arq && !trazo.manija) moverTrazo(e); });
+if (RAW) escenario.addEventListener('pointerrawupdate', e => { if (doc && trazo && trazo.id === e.pointerId && !trazo.gotero && !trazo.arq && !trazo.manija && !trazo.muro) moverTrazo(e); });
 escenario.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') { hover = null; pedirCursor(); } });
 escenario.addEventListener('pointercancel', finPuntero);
 escenario.addEventListener('contextmenu', e => e.preventDefault());
@@ -584,16 +590,32 @@ function puntoDesde(e, t) {
   return { x: d.x, y: d.y, s: Math.max(0.35, s), a, pr };
 }
 
+// El respaldo (cómo estaba la capa antes del trazo) se copia por cuadros de 256 px, solo donde el trazo
+// va pasando. Antes se copiaba la capa entera al apoyar el lápiz (≈17 MB en A3) y eso daba una pausa.
+const CUADRO = 256; let respCapa = null, respHechos = null;
 function copiarRespaldo(capa) {
   if (respaldo.width !== doc.w) respaldo.width = doc.w;
   if (respaldo.height !== doc.h) respaldo.height = doc.h;
-  respCtx.globalCompositeOperation = 'copy'; respCtx.drawImage(capa.cv, 0, 0); respCtx.globalCompositeOperation = 'source-over';
+  respCapa = capa; respHechos = new Set();
+}
+function asegurarRespaldo(r) {
+  if (!respCapa || !r) return;
+  const x0 = Math.max(0, Math.floor(r[0] / CUADRO)), y0 = Math.max(0, Math.floor(r[1] / CUADRO));
+  const x1 = Math.floor((r[0] + r[2] - 1) / CUADRO), y1 = Math.floor((r[1] + r[3] - 1) / CUADRO);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    const k = ty * 4096 + tx; if (respHechos.has(k)) continue; respHechos.add(k);
+    const x = tx * CUADRO, y = ty * CUADRO, w = Math.min(CUADRO, doc.w - x), h = Math.min(CUADRO, doc.h - y); if (w <= 0 || h <= 0) continue;
+    respCtx.clearRect(x, y, w, h); respCtx.drawImage(respCapa.cv, x, y, w, h, x, y, w, h);
+  }
 }
 
 function iniciarTrazo(e) {
   const h = manijaEn(e.clientX, e.clientY);
   if (h) { trazo = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, manija: h, sx: e.clientX, sy: e.clientY, antes: snapObj(), movido: false }; return; }
   const cotaAntes = cotaSel; if (cotaSel) { cotaSel = null; pedirSup(); }
+  ocultarArea();
+  if (herramienta === 'muro') return iniciarMuro(e);
+  if (muroSel) elegirMuro(null);
   if (herramienta === 'gotero') { trazo = { id: e.pointerId, tipo: e.pointerType, gotero: true, t0: performance.now(), largo: 0 }; tomarColor(e); return; }
   if (terreno && !terreno.v0) { terreno.v0 = imanCota(aDoc(e.clientX, e.clientY)); pintarTerreno(); pedirSup(); return; }
   if (herramienta === 'cota' || herramienta === 'texto' || herramienta === 'simbolo' || herramienta === 'pin') { iniciarArq(e); if (trazo) trazo.cotaAntes = cotaAntes; return; }
@@ -654,6 +676,7 @@ function moverTrazo(e, soloPrediccion) {
   if (t.transf) return moverTransf(e);
   if (t.arq) return moverArq(e);
   if (t.manija) return moverManija(e);
+  if (t.muro) return moverMuro(e);
   if (t.gotero) { tomarColor(e); return; }
   if (!soloPrediccion) {
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
@@ -716,7 +739,7 @@ function componerTrazo(t) {
   if (!r) return;
   const c = t.capa.ctx;
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
-  c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
+  asegurarRespaldo(r); c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
   c.globalAlpha = t.op; c.globalCompositeOperation = t.gco;
   if (t.pin && t.pin.granoImg) { conGrano(t.pin, r); c.drawImage(granoCv, 0, 0, r[2], r[3], r[0], r[1], r[2], r[3]); }
   else c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
@@ -738,6 +761,7 @@ function terminarTrazo(e) {
   clearTimeout(t.gotT);
   if (t.transf) return terminarTransf(t);
   if (t.manija) return terminarManija(t);
+  if (t.muro) return terminarMuro(t);
   if (t.arq) return terminarArq(t, e);
   if (t.gotero) { ponerColor(aj.color); if (herrPrevia !== 'gotero') elegirHerramienta(herrPrevia); return; }
   if (t.lazo && t.sel) { trazoCtx.clearRect(0, 0, doc.w, doc.h); pedirSup(); if (t.pts.length > 3) levantarSeleccion(t.capa, t.pts); return; }
@@ -748,6 +772,9 @@ function terminarTrazo(e) {
     const pn = pinEn(t.inicio) || fotoEn(t.inicio); if (pn) { trazo = t; cancelarTrazo(); verPin(pn); return; }
     const oc = objetoEn(t.inicio);
     if (oc && oc.tipo === 'cota') { trazo = t; cancelarTrazo(); if (t.cotaAntes === oc) editarCota(oc); else { cotaSel = oc; pedirSup(); } return; }
+    if (oc && oc.tipo === 'ambiente') { trazo = t; cancelarTrazo(); dialogoAmbiente(oc); return; }
+    const mu = muroEn(t.inicio); if (mu) { trazo = t; cancelarTrazo(); elegirHerramienta('muro'); elegirMuro(mu); return; }
+    if (aEscala() && figuraEn(t.inicio)) { trazo = t; cancelarTrazo(); mostrarArea(t.inicio); return; }
     const o = simEn(t.inicio);
     if (o) { trazo = t; cancelarTrazo(); herrAntesSim = herramienta; elegirHerramienta('simbolo'); seleccionar(o); avisarSuave('Arrastra para mover · manija verde para girar · toca fuera para seguir dibujando'); return; }
   }
@@ -761,7 +788,7 @@ function terminarTrazo(e) {
   cancelAnimationFrame(rafComp); rafComp = 0;
   componerTrazo(t); limpiarCursor();
   const r = bbEntero(bbTrazo(t)); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
-  const antes = recorte(respaldo, r);
+  asegurarRespaldo(r); const antes = recorte(respaldo, r);
   if (!t.borrar) sumarTrazoALineas(t, r); else invalidarLineas(t.capa, r);
   histPx(t.capa, r, antes, true);
   trazoCtx.clearRect(r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4);
@@ -782,12 +809,13 @@ function cancelarTrazo() {
   const t = trazo; trazo = null; clearTimeout(qsTimer); if (!t) return;
   clearTimeout(t.gotT);
   if (t.transf) { cancelarTransf(t); return; }
+  if (t.muro) { cancelarMuro(t); return; }
   if (t.manija) { if (t.movido && cotaSel) { doc.objetos = JSON.parse(t.antes); cotaSel = null; renderObjetos(); pedirSup(); } return; }
   if (t.arq) { cancelarArq(t); return; }
   cancelAnimationFrame(rafComp); rafComp = 0;
   if (t.motor) {
     const r = bbEntero(bbTrazo(t));
-    if (r) { const c = t.capa.ctx; c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); }
+    if (r) { asegurarRespaldo(r); const c = t.capa.ctx; c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); }
   }
   trazoCtx.clearRect(0, 0, doc.w, doc.h); trazoCv.style.display = 'none'; pedirSup(); limpiarCursor();
 }
@@ -1284,6 +1312,7 @@ function dibujarRotulo(c) {
   const mm = doc.pxmm, W = 92 * mm, H = 34 * mm, x = doc.w - W - 8 * mm, y = doc.h - H - 8 * mm, inf = doc.info || {};
   const col = papelOscuro() ? '#f2f2f3' : '#1d1d1f';
   c.save(); c.strokeStyle = c.fillStyle = col; c.lineWidth = Math.max(1, 0.35 * mm);
+  if (logoImg) { c.fillStyle = papelDe(doc.papel).color; c.fillRect(x - H, y, H, H); dibujarLogo(c, x - H, y, H, H); c.strokeRect(x - H, y, H, H); }
   c.fillStyle = papelDe(doc.papel).color; c.fillRect(x, y, W, H); c.fillStyle = col;
   c.strokeRect(x, y, W, H);
   const fil = [['PROYECTO', inf.proyecto], ['PLANO', inf.plano || ({ levantamiento: 'Levantamiento', planta: 'Planta', elevacion: 'Elevación', corte: 'Corte' }[doc.tipo] || '')], ['UBICACIÓN', inf.ubicacion], ['LEVANTÓ / DIBUJÓ', inf.autor]];
@@ -1310,7 +1339,9 @@ function renderObjetos(previa, previaSim) {
   if (anotCv.width !== doc.w || anotCv.height !== doc.h) { anotCv.width = doc.w; anotCv.height = doc.h; anotCv.style.width = doc.w + 'px'; anotCv.style.height = doc.h + 'px'; }
   const c = anotCtx; c.clearRect(0, 0, doc.w, doc.h);
   if (doc.rotulo) dibujarRotulo(c);
-  for (const o of doc.objetos) { if (o.tipo === 'cota') dibujarCota(c, o); else if (o.tipo === 'texto') dibujarTexto(c, o); else if (o.tipo === 'simbolo') dibujarSim(c, o); else if (o.tipo === 'angulo') dibujarAngulo(c, o); }
+  dibujarMuros(c);
+  for (const o of doc.objetos) { if (o.tipo === 'cota') dibujarCota(c, o); else if (o.tipo === 'texto') dibujarTexto(c, o); else if (o.tipo === 'simbolo') dibujarSim(c, o); else if (o.tipo === 'angulo') dibujarAngulo(c, o); else if (o.tipo === 'ambiente') dibujarAmbiente(c, o); else if (o.tipo === 'cuadroVanos') dibujarCuadroVanos(c, o); }
+  dibujarCodigosVanos(c);
   for (const o of doc.objetos) if (o.tipo === 'pin') dibujarPin(c, o); // las notas siempre encima
   if (previa) dibujarCota(c, previa, true);
   if (previaSim) dibujarSim(c, previaSim);
@@ -1320,6 +1351,7 @@ function objetoEn(d) {
   const tol = 16 / escalaVista();
   for (let i = doc.objetos.length - 1; i >= 0; i--) {
     const o = doc.objetos[i];
+    if ((o.tipo === 'ambiente' || o.tipo === 'cuadroVanos') && o._bb && d.x >= o._bb[0] - tol / 2 && d.x <= o._bb[2] + tol / 2 && d.y >= o._bb[1] - tol / 2 && d.y <= o._bb[3] + tol / 2) return o;
     if (o.tipo === 'texto' && o._bb && d.x >= o._bb[0] - tol / 2 && d.x <= o._bb[2] + tol / 2 && d.y >= o._bb[1] - tol / 2 && d.y <= o._bb[3] + tol / 2) return o;
     if (o.tipo === 'angulo' && o._t && Math.hypot(d.x - o._t.x, d.y - o._t.y) < tol + 4 * doc.pxmm) return o;
     if (o.tipo === 'cota') {
@@ -1470,6 +1502,7 @@ function agregarCota(a, b, off, auto, preguntar, linea) {
   const antes = snapObj();
   const o = { tipo: 'cota', a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, off: off || 0, color: aj.color, id: Date.now() + Math.random() };
   if (linea) o.lid = linea.id;
+  if (auto) o.auto = true;
   doc.objetos.push(o);
   if (auto) acomodarCotas(o);
   if (auto && deshacer.length && deshacer[deshacer.length - 1].t === 'px') { // un solo deshacer para línea + cota
@@ -1505,7 +1538,7 @@ function descartarCota(o) {
 //  · Cota de ángulo: tres toques (vértice, un punto de cada muro).
 //  · Terreno por medidas: lado por lado (largo y ángulo interior), como en topografía.
 // =====================================================================
-const aEscala = () => doc && (doc.tipo === 'levantamiento' || doc.tipo === 'planta' || doc.tipo === 'corte' || doc.tipo === 'elevacion');
+const aEscala = () => doc && (doc.tipo === 'levantamiento' || doc.tipo === 'levarq' || doc.tipo === 'planta' || doc.tipo === 'corte' || doc.tipo === 'elevacion');
 const esCorte = () => doc && (doc.tipo === 'corte' || doc.tipo === 'elevacion');
 const gradosDe = (dx, dy) => ((Math.atan2(-dy, dx) * 180 / Math.PI) % 360 + 360) % 360; // 0° = derecha, 90° = arriba
 const fmtG = g => (Math.round(g * 10) / 10).toString().replace(/\.0$/, '') + '°';
@@ -1514,6 +1547,18 @@ function pintarChipLev() {
   const ch = $('chipLev'), ver = aEscala() && !flot;
   ch.classList.toggle('oculto', !ver); if (!ver) return;
   const recto = !!doc.guias.asist, esCota = herramienta === 'cota', modo = aj.cotaModo || 'lineal';
+  if (herramienta === 'muro') {
+    const e = espMuro();
+    ch.innerHTML = `<span class="cl-et">Muro</span>` + ESPESORES.map(v => `<button data-e="${v}" class="${Math.abs(e - v) < 1e-6 ? 'activo' : ''}">${fmtM(v)}</button>`).join('')
+      + `<button data-e="otro" class="${ESPESORES.some(v => Math.abs(e - v) < 1e-6) ? '' : 'activo'}">${ESPESORES.some(v => Math.abs(e - v) < 1e-6) ? 'Otro' : fmtM(e)}</button><span class="cl-sep"></span>`
+      + `<button data-a="recto" class="${recto ? 'activo' : ''}">Rectas</button><button data-a="libre" class="${recto ? '' : 'activo'}">Libres</button>`;
+    ch.onclick = ev => { const b = ev.target.closest('button'); if (!b) return;
+      if (b.dataset.e === 'otro') return pedirTexto('Espesor del muro (m)', fmtM(espMuro()), v => { const n = numM(v); if (n) { aj.muroEsp = n; guardarAjustes(); pintarChipLev(); } }, 'decimal');
+      if (b.dataset.e) { aj.muroEsp = +b.dataset.e; guardarAjustes(); avisarSuave('Muros de ' + fmtM(aj.muroEsp) + ' m'); }
+      if (b.dataset.a) { doc.guias.asist = b.dataset.a === 'recto'; marcarCambio(); }
+      pintarChipLev(); };
+    return;
+  }
   ch.innerHTML = (esCota
     ? `<span class="cl-et">Cota</span>` + [['lineal', 'Lineal'], ['nivel', 'Nivel'], ['angulo', 'Ángulo']].map(([v, n]) => `<button data-a="${v}" class="${modo === v ? 'activo' : ''}">${n}</button>`).join('')
     : `<span class="cl-et">Líneas</span><button data-a="recto" class="${recto ? 'activo' : ''}">Rectas</button><button data-a="libre" class="${recto ? '' : 'activo'}">Libres</button>`)
@@ -1628,7 +1673,7 @@ function dibujarTerreno(cerrar) {
   // una cota por lado (por fuera del terreno) y los ángulos interiores
   const antesObj = snapObj(), lados = v.length - 1, area = v.slice(0, -1).reduce((acc, p, i) => acc + p.x * v[i + 1].y - v[i + 1].x * p.y, 0);
   const fuera = cerrar && area < 0 ? 1 : -1; // en la hoja (y hacia abajo) el signo del área dice para dónde queda "afuera"
-  for (let k = 0; k < lados; k++) doc.objetos.push({ tipo: 'cota', a: { ...v[k] }, b: { ...v[k + 1] }, off: (cerrar ? fuera : -1) * 6 * doc.pxmm, color: aj.color, id: Date.now() + Math.random() + k });
+  for (let k = 0; k < lados; k++) doc.objetos.push({ tipo: 'cota', borde: true, a: { ...v[k] }, b: { ...v[k + 1] }, off: (cerrar ? fuera : -1) * 6 * doc.pxmm, color: aj.color, id: Date.now() + Math.random() + k });
   if (cerrar && lados >= 3) for (let k = 0; k < lados; k++) {
     const prev = v[(k - 1 + lados) % lados], cur = v[k], next = v[k + 1];
     doc.objetos.push({ tipo: 'angulo', v: { ...cur }, a: { ...next }, b: { ...prev }, dir: area > 0 ? 1 : -1, color: aj.color, id: Date.now() + Math.random() + 100 + k });
@@ -1918,6 +1963,7 @@ function ponerBarraSel() {
   $('selTexto').classList.toggle('oculto', !(sim.id === 'nivel' || sim.id === 'corte' || sim.estructura));
   $('selTexto').textContent = sim.estructura ? 'Nombre…' : 'Texto…';
   $('selSeccion').classList.toggle('oculto', !sim.estructura);
+  $('selAlto').classList.toggle('oculto', !TIPO_VANO[selSim.sid]);
   if (sim.estructura) { const q = seccionSim(selSim); $('selSeccion').textContent = 'Medidas ' + (sim.circular ? 'Ø' + fmtM(q.sw) : sim.id === 'placa' ? fmtM(q.sw) : fmtM(q.sw) + '×' + fmtM(q.sh)); }
   $('selAncho').textContent = sim.estructura ? 'Largo…' : 'Ancho…';
   const w = bar.offsetWidth; bar.style.left = clamp(cx / n - w / 2, 8, innerWidth - w - 8) + 'px'; bar.style.top = clamp(maxY + 14, 60, innerHeight - 60) + 'px';
@@ -1969,6 +2015,7 @@ function dialogoSeccion(o, nuevo) {
   });
 }
 $('selSeccion').onclick = () => { if (selSim) dialogoSeccion(selSim, false); };
+$('selAlto').onclick = () => { if (selSim) dialogoAltoVano(selSim); };
 
 function iniciarArq(e) {
   const d = aDoc(e.clientX, e.clientY);
@@ -1976,7 +2023,7 @@ function iniciarArq(e) {
   if (herramienta === 'cota') { t.a = imanCota(d); t.b = t.a; if (aj.cotaModo === 'angulo' || aj.cotaModo === 'nivel') t.angulo = true; }
   if (herramienta === 'pin') { t.obj = pinEn(d); if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; }
     else { const f = fotoEn(d); if (f) { t.obj = f; t.caja = true; t.antes = snapObj(); t.ox = f.fx - d.x; t.oy = f.fy - d.y; } } }
-  if (herramienta === 'texto') { t.obj = objetoEn(d); if (t.obj && t.obj.tipo !== 'texto') t.obj = null; if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
+  if (herramienta === 'texto') { t.obj = objetoEn(d); if (t.obj && !['texto', 'cuadroVanos', 'ambiente'].includes(t.obj.tipo)) t.obj = null; if (t.obj) { t.antes = snapObj(); t.ox = t.obj.x - d.x; t.oy = t.obj.y - d.y; } }
   if (herramienta === 'simbolo') {
     t.antes = snapObj();
     const h = selSim && manijaGiro(selSim);
@@ -2003,7 +2050,7 @@ function moverArq(e) {
     t.b = d;
     if (t.modo === 'soltar' && t.movido && !herrAntesSim) t.modo = 'poner';
     if (t.modo === 'poner' && (aj.simbolo === 'viga' || aj.simbolo === 'placa')) t.b = imanColumna(d);
-    if (t.modo === 'mover' && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; pegarSimbolo(t.obj); renderObjetos(); pedirSup(); }
+    if (t.modo === 'mover' && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; pegarSimbolo(t.obj); pegarAbertura(t.obj); renderObjetos(); pedirSup(); }
     else if (t.modo === 'girar') { let an = Math.atan2(d.y - t.obj.y, d.x - t.obj.x) + (t.obj.flip ? -1 : 1) * Math.PI / 2; const p = Math.PI / 12, ob = Math.round(an / p) * p; if (Math.abs(an - ob) < 0.07) an = ob; t.obj.ang = an; renderObjetos(); pedirSup(); avisarSuave(Math.round(((an * 180 / Math.PI) % 360 + 360) % 360) + '°'); }
     else if (t.modo === 'poner') renderObjetos(null, nuevoSim(t));
   }
@@ -2020,6 +2067,7 @@ function nuevoSim(t) {
   const o = { tipo: 'simbolo', sid: sim.id, x: t.a.x, y: t.a.y, ang, w, flip: false, color: aj.color };
   if (sim.id === 'nivel') { o.pref = 'NPT'; if (doc.nivel0 == null) { doc.nivel0 = t.a.y; avisar('Este es el nivel ±0.00'); } }
   if (sim.estructura) { const u = aj.secciones && aj.secciones[sim.id]; o.sw = u ? u.sw : sim.sw; o.sh = u ? u.sh : sim.sh; }
+  if (sim.tipo === 'abertura' && !sim.estructura) pegarAbertura(o);
   return o;
 }
 function terminarArq(t) {
@@ -2045,6 +2093,8 @@ function terminarArq(t) {
     nuevoPin(t.a);
   } else if (t.arq === 'texto') {
     if (t.obj && t.movido) { histObj(t.antes); return; }
+    if (t.obj && t.obj.tipo === 'ambiente') return dialogoAmbiente(t.obj);
+    if (t.obj && t.obj.tipo === 'cuadroVanos') { const ob = t.obj; return confirmar('Cuadro de vanos', 'Se actualiza solo. ¿Quitarlo de la hoja?', 'Quitar', () => { const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(ob), 1); histObj(antes); renderObjetos(); }); }
     if (t.obj) return editarTexto(t.obj);
     const o = objetoEn(t.a); if (o && o.tipo === 'cota') return editarCota(o);
     editarTexto(null, t.a);
@@ -2098,6 +2148,7 @@ function editarCota(o, nueva) {
       const mag = Math.max(Math.abs(o.off || 0), 6 * doc.pxmm), sg = signoFuera(o) || sg0;
       o.off = lado === 0 ? 0 : lado * sg * mag;
       acomodarCotas(o);
+      if (o.auto) setTimeout(() => avisarArea(o), 80);
       if (nueva && lineaDe.get(o) && lineaDe.get(o).ent.t === 'multi') ultPto = { x: o.b.x, y: o.b.y }; // la siguiente línea sigue desde aquí
       if (lado !== 0) { cotaSel = o; setTimeout(pedirSup, 0); }
       cerrar();
@@ -2293,6 +2344,9 @@ function dibujarSup() {
     }
   }
   if (cotaSel) dibujarManijas(c);
+  if (muroSel) dibujarSelMuro(c); dibujarPuntoMuro(c);
+  if (window.Equipo && Equipo.dibujarComentarios) Equipo.dibujarComentarios(c);
+  dibujarAreaVista(c);
   if (imanSim) { const p = mApl(M, imanSim.x, imanSim.y); c.setTransform(DPR, 0, 0, DPR, 0, 0); c.beginPath(); c.arc(p.x, p.y, 11, 0, 6.2832); c.lineWidth = 2.5; c.strokeStyle = '#8ACF00'; c.stroke(); }
   if (ultPto && aEscala() && herramienta === 'pincel' && !(trazo && trazo.lazo)) { // dónde sigue la siguiente línea
     const p = mApl(M, ultPto.x, ultPto.y); c.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -2339,6 +2393,7 @@ function avisar(txt) {
 }
 function elegirHerramienta(h) {
   if (h !== 'gotero') herrPrevia = h;
+  if (h !== 'muro' && muroSel) { muroSel = null; ponerBarraMuro(); }
   if (h !== 'simbolo') herrAntesSim = null;
   if (flot && h !== 'seleccion') aplicarFlot();
   setTimeout(() => { pintarVentanaPines(); pintarChipLev(); }, 0); angPend = [];
@@ -2906,6 +2961,15 @@ $('mAjustar').onclick = () => { cerrarPaneles(); ajustarPantalla(); };
 $('mVoltear').onclick = () => { cerrarPaneles(); const cx = innerWidth / 2; M = mMul([-1, 0, 0, 1, 2 * cx, 0], M); aplicarVista(); avisar('Vista volteada'); };
 $('mExportar').onclick = () => { cerrarPaneles(); exportar('png'); };
 $('mExportarJpg').onclick = () => { cerrarPaneles(); exportar('jpg'); };
+$('mExportarPdf').onclick = () => { cerrarPaneles(); exportarPdf().catch(e => { console.error(e); avisar('No se pudo exportar el PDF'); }); };
+$('mExportarDxf').onclick = () => { cerrarPaneles(); try { exportarDxf(); } catch (e) { console.error(e); avisar('No se pudo exportar a CAD'); } };
+$('mPdfFondo').onclick = () => { cerrarPaneles(); $('fPdf').click(); };
+$('fPdf').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importarPdf(f); };
+$('mVanos').onclick = () => { cerrarPaneles(); insertarCuadroVanos(); };
+$('nLogo').onclick = () => $('fLogo').click();
+$('fLogo').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) elegirLogo(f); };
+$('nLogoQuitar').onclick = () => { aj.logo = null; guardarAjustes(); cargarLogo(); pintarLogoNotas(); renderObjetos(); };
+cargarLogo();
 $('mImportar').onclick = () => { cerrarPaneles(); $('fImportar').click(); };
 $('mCopiar').onclick = () => { cerrarPaneles(); menuCopiarPegar(); };
 $('mHoja').onclick = () => { cerrarPaneles(); dialogoHoja(); };
@@ -2983,6 +3047,7 @@ function opcionesHtml(lista, sel, extra) {
 }
 const TIPOS = [
   { id: 'boceto', n: 'Boceto libre', d: 'Dibujo a mano alzada' }, { id: 'levantamiento', n: 'Levantamiento', d: 'Cotas, notas y lista' },
+  { id: 'levarq', n: 'Levantamiento arquitectónico', d: 'Muros editables, áreas y cuadro de vanos' },
   { id: 'planta', n: 'Planta', d: 'Distribución a escala' }, { id: 'corte', n: 'Corte', d: 'Secciones con niveles y alturas' }, { id: 'elevacion', n: 'Elevación', d: 'Fachadas' },
   { id: 'perspectiva', n: 'Perspectiva', d: 'Guía de 2 puntos' },
 ];
@@ -3172,7 +3237,7 @@ function componer(k, d = doc) {
   if (d === doc && d.verAnot !== false) c.drawImage(anotCv, 0, 0, cv.width, cv.height);
   return cv;
 }
-addEventListener('visibilitychange', () => { if (document.hidden) guardar(); });
+addEventListener('visibilitychange', () => { if (document.hidden) { const d = doc; guardar().then(() => { if (d && window.Nube) Nube.alCerrar(d); }); } });
 addEventListener('pagehide', () => guardar());
 
 // ---------- exportar ----------
@@ -3226,14 +3291,15 @@ async function mostrarGaleria() {
     g.appendChild(d);
   }
   if (window.Equipo) Equipo.alPintarGaleria();
+  if (window.Nube) Nube.alPintarGaleria();
 }
 function menuTarjeta(r) {
   modal(`<h3>${escapar(r.nombre)}</h3><button class="item" id="tRen">Renombrar</button><button class="item" id="tDup">Duplicar</button>${window.Equipo ? Equipo.itemMenu(r) : ''}<button class="item" id="tBor" style="color:#ff6b5e">Eliminar</button><div class="modal-btns"><button id="mNo">Cerrar</button></div>`, cerrar => {
     $('mNo').onclick = cerrar;
     if (window.Equipo) Equipo.enlazarMenu(r, cerrar);
-    $('tRen').onclick = () => { cerrar(); pedirTexto('Nombre del boceto', r.nombre, async v => { if (!v) return; r.nombre = v; await dbPut(r); if (window.Equipo) Equipo.alRenombrar(r); mostrarGaleria(); }); };
+    $('tRen').onclick = () => { cerrar(); pedirTexto('Nombre del boceto', r.nombre, async v => { if (!v) return; r.nombre = v; await dbPut(r); if (window.Equipo) Equipo.alRenombrar(r); if (window.Nube) Nube.alRenombrar(r); mostrarGaleria(); }); };
     $('tDup').onclick = async () => { cerrar(); await dbPut(Object.assign({}, r, { id: nuevoId(), nombre: r.nombre + ' copia', fecha: Date.now() })); mostrarGaleria(); };
-    $('tBor').onclick = () => { cerrar(); confirmar('Eliminar boceto', `¿Eliminar “${escapar(r.nombre)}”? No se puede recuperar.`, 'Eliminar', async () => { await dbBorrar(r.id); if (window.Equipo) Equipo.alBorrar(r.id); mostrarGaleria(); }); };
+    $('tBor').onclick = () => { cerrar(); confirmar('Eliminar boceto', `¿Eliminar “${escapar(r.nombre)}”? No se puede recuperar.`, 'Eliminar', async () => { await dbBorrar(r.id); if (window.Equipo) Equipo.alBorrar(r.id); if (window.Nube) Nube.alBorrar(r.id); mostrarGaleria(); }); };
   });
 }
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -3252,6 +3318,9 @@ function prepararEditor() {
   ventanaPines = false; pinVisto = null; $('pinGlobo').classList.add('oculto'); pintarVentanaPines();
   terreno = null; $('terrenoPanel').classList.add('oculto'); angPend = []; pintarChipLev(); pintarSimbolos.elegida = false; catSim = null;
   movTodo = null; movArr = null; $('moverBar').classList.add('oculto');
+  muroSel = null; ultMuro = null; previaMuro = null; areaVista = null; ponerBarraMuro();
+  $('bMuro').classList.toggle('oculto', doc.tipo !== 'levarq');
+  if (doc.tipo !== 'levarq' && herramienta === 'muro') elegirHerramienta('pincel');
 }
 function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   r = r || {};
@@ -3259,7 +3328,7 @@ function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   d.info = r.info || {}; d.notas = r.notas || ''; d.lista = r.lista || []; d.rotulo = !!r.rotulo;
   d.cotasAuto = !!r.cotasAuto; d.pedirMedida = r.pedirMedida !== false; d.verAnot = r.verAnot !== false;
   // planta, corte y elevación también llevan cota automática (como el levantamiento); las hojas antiguas se actualizan una vez
-  if (!r.cotasV110 && ['planta', 'corte', 'elevacion', 'levantamiento'].includes(d.tipo)) { d.cotasAuto = true; d.pedirMedida = true; }
+  if (!r.cotasV110 && ['planta', 'corte', 'elevacion', 'levantamiento', 'levarq'].includes(d.tipo)) { d.cotasAuto = true; d.pedirMedida = true; }
   d.cotasV110 = true;
   d.nivel0 = typeof r.nivel0 === 'number' ? r.nivel0 : null; // altura (en la hoja) del nivel ±0.00
 }
@@ -3271,7 +3340,11 @@ function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
   datosArq(doc, { tipo, escala: esc });
   doc.info.fecha = n.toLocaleDateString('es-PE');
   const unM = pxDeMetros(1);
-  if (tipo === 'levantamiento') {
+  if (tipo === 'levarq') { // los muros son objetos; las capas quedan para detalles y color
+    ['Detalles', 'Color'].forEach(nm => doc.capas.push(crearCapa(nm, w, h))); doc.activa = 0;
+    doc.rotulo = true; doc.cotasAuto = true; doc.lista = LISTA_LEV.map(t => ({ t, ok: false })); doc.info.plano = 'Levantamiento arquitectónico';
+    Object.assign(doc.guias, { modo: 'cuadricula', asist: true, tam: unM, op: 0.3 });
+  } else if (tipo === 'levantamiento') {
     ['Muros', 'Detalles'].forEach(nm => doc.capas.push(crearCapa(nm, w, h))); doc.activa = 0;
     doc.rotulo = true; doc.cotasAuto = true; doc.lista = LISTA_LEV.map(t => ({ t, ok: false }));
     Object.assign(doc.guias, { modo: 'cuadricula', asist: true, tam: unM, op: 0.3 });
@@ -3286,11 +3359,13 @@ function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
   } else doc.capas.push(crearCapa('Boceto', w, h));
   prepararEditor(); doc.cambio = true; guardar();
   if (tipo === 'levantamiento') avisar('Levantamiento a 1/' + esc + ': usa la cota para medir');
+  if (tipo === 'levarq') { elegirHerramienta('muro'); avisar('Arrastra para dibujar cada muro · toca un muro para editarlo · toca dentro de un ambiente para ver su área'); }
   if (tipo === 'corte') avisar('Corte a 1/' + esc + ': pon el nivel ±0.00 con Cota → Nivel; los demás niveles se calculan solos');
 }
 async function abrirDibujo(id) {
   const r = await dbUno(id); if (!r) return;
   ultPto = null; cotaSel = null;
+  setTimeout(() => { if (window.Equipo && Equipo.alAbrir && doc && doc.id === id) Equipo.alAbrir(doc); }, 400);
   doc = { id: r.id, nombre: r.nombre, w: r.w, h: r.h, papel: r.papel, grano: r.grano, creado: r.creado, activa: r.activa || 0, guias: Object.assign(guiasPorDefecto(r.w, r.h), r.guias || {}), capas: [] };
   datosArq(doc, r);
   for (const l of r.capas) {
@@ -3307,6 +3382,7 @@ async function cerrarDibujo() {
   cerrarPaneles(); clearTimeout(tGuardar);
   await guardar();
   if (window.Equipo) Equipo.alCerrar(doc);
+  if (window.Nube) Nube.alCerrar(doc);
   doc = null; capasDOM.innerHTML = ''; pedirSup();
   mostrarGaleria();
 }
@@ -3339,7 +3415,7 @@ function pintarNotas() {
   });
 }
 document.querySelectorAll('#segNotas button').forEach(b => b.onclick = () => { tabNotas = b.dataset.v; pintarNotas(); });
-$('bNotas').addEventListener('click', e => { abrirPanel('pNotas', e.currentTarget); if (panelAbierto('pNotas')) pintarNotas(); });
+$('bNotas').addEventListener('click', e => { abrirPanel('pNotas', e.currentTarget); if (panelAbierto('pNotas')) { pintarNotas(); pintarLogoNotas(); } });
 $('nTipo').onchange = e => { doc.tipo = e.target.value; marcarCambio(); renderObjetos(); };
 $('nEscala').onchange = e => { const v = e.target.value; if (v === 'otra') { pintarNotas(); pedirEscala(cambiarEscala); } else cambiarEscala(+v); };
 document.querySelectorAll('#nHoja input[data-k]').forEach(i => i.addEventListener('input', () => { doc.info[i.dataset.k] = i.value; marcarCambio(); if (doc.rotulo) renderObjetos(); }));

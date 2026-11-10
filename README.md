@@ -21,6 +21,26 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Bocetos compartidos:** menú ⋯ del boceto → *Compartir con…* y eliges a qué personas del equipo (o a todo el equipo). En la galería, debajo del boceto, aparece con quiénes lo compartes; desde el mismo menú puedes cambiar las personas. Cada vez que sales del boceto se sube la última versión; el equipo la ve en *Compartidos por mi equipo* (zoom, exportar o hacer una copia).
 - Los datos viven en Supabase (proyecto *oxenpro*). El número de WhatsApp para comprar/renovar se pone en `web/acceso.js` (`WHATSAPP`).
 
+## Levantamiento arquitectónico (nuevo tipo de hoja)
+- **Muros editables**: arrastra para dibujar cada muro (pide largo y espesor: 0.10, 0.15, 0.25 u otro). El siguiente muro sigue desde el punto verde. Toca un muro para estirarlo desde sus extremos, moverlo, cambiar largo o espesor, o quitar su cota. Las esquinas y las "T" se unen solas.
+- **Puertas y ventanas** se pegan al muro y lo cortan, con sus jambas.
+- **Áreas**: toca dentro de un ambiente cerrado y ves su área libre y perímetro (transparente). Tócalo otra vez para ponerle nombre (Sala, Baño…) y dejar el área en el plano; se actualiza sola si mueves un muro. Al cerrar una figura, la app avisa su área.
+- **Cuadro de vanos** (menú): tabla automática de puertas y ventanas con códigos P-1, V-1… En cada abertura, *Alturas…* para el alto y el alféizar.
+
+## Exportar e importar
+- **PDF a escala**: con el tamaño real del papel (A4, A3…); impreso al 100 % la escala es exacta.
+- **CAD (DXF)**: muros, cotas, puertas, ventanas, estructura, textos y ambientes, en metros y por capas. Los trazos a mano alzada no pasan (son dibujo, no líneas).
+- **PDF de fondo**: abre un plano en PDF a tamaño real (calza con la escala de la hoja) o ajustado, para revisarlo o calcarlo.
+- **Logo en el rótulo**: Notas → *Poner mi logo en el rótulo* (cada cuenta pone el suyo).
+
+## Nube y comentarios
+- **Nube**: cada boceto se respalda en tu cuenta al salir de él. En otro equipo, la galería muestra *En la nube* y un toque lo descarga. *Mi cuenta* muestra cuántos hay respaldados.
+- **Comentarios del equipo**: en un boceto compartido, el equipo toca *Comentarios → Comentar en un punto* y marca el lugar. El dueño ve los pines numerados al abrir el boceto, responde y los marca como resueltos.
+
+## Panel
+- **🎁 Prueba gratis 7 días** en un toque; los clientes en prueba salen en azul con *Activar plan* para cuando paguen.
+- **💰 Pagos**: lo cobrado por mes y por método (Yape, Plin…), y descarga a Excel. Cada pago se registra al crear, renovar o activar a un cliente con su monto.
+
 ## Cómo se usa
 - **Lápiz**: dibuja, con presión e inclinación (de lado sombrea como un lápiz real).
 - **Dedo**: con un dedo mueves el lienzo; con dos lo acercas, alejas y giras.

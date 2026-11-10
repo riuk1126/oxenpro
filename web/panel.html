@@ -60,6 +60,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 .campo input:focus,.campo select:focus,.campo textarea:focus{border-color:var(--verde)}
 .planes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .plan{padding:10px 6px;border-radius:10px;background:var(--negro);border:1px solid var(--g3);font-size:13px;text-align:center}
+.e-prueba{background:rgba(10,132,255,.16);color:#64a8ff}
 .plan.on{border-color:var(--verde);color:var(--verde);background:rgba(138,207,0,.07)}
 .resumen{margin:14px 0 0;padding:10px 12px;border-radius:10px;background:var(--negro);color:var(--tx2);font-size:13px}
 .resumen b{color:var(--verde)}
@@ -116,6 +117,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-g oculto" id="bInstalar">⬇ Instalar en esta computadora</button>
         <button class="btn btn-g" id="bRecargar">Actualizar</button>
+        <button class="btn btn-g" id="bPagos">💰 Pagos</button>
+        <button class="btn btn-g" id="bPrueba">🎁 Prueba gratis 7 días</button>
         <button class="btn btn-v" id="bNuevo">+ Nuevo cliente</button>
       </div>
     </header>
@@ -158,10 +161,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     if (n.length === 9 && n[0] === '9') n = '51' + n;     // celular peruano sin código
     return 'https://wa.me/' + n + '?text=' + encodeURIComponent(texto);
   }
+  // en prueba: su único tiempo fue la prueba gratis (aún no paga)
+  const esPrueba = l => /prueba/i.test(l.plan || '') && !PAGOS.some(p => p.email === l.email && Number(p.monto) > 0);
   function estadoDe(l) {
     if (!l.activo) return { k: 'bloq', t: 'BLOQUEADO', c: 'e-bloq' };
     const d = dias(l.vence);
     if (d < 0) return { k: 'venc', t: 'VENCIDO', c: 'e-venc' };
+    if (esPrueba(l)) return { k: 'prueba', t: d <= 0 ? 'PRUEBA: VENCE HOY' : 'EN PRUEBA · ' + d + ' D', c: 'e-prueba' };
     if (d <= 7) return { k: 'pronto', t: d <= 0 ? 'VENCE HOY' : 'VENCE EN ' + d + ' D', c: 'e-pronto' };
     return { k: 'ok', t: 'ACTIVO', c: 'e-ok' };
   }
@@ -224,7 +230,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       [LIC, DISP, PAGOS, MIEM] = await Promise.all([
         A.tabla('licencias?select=*&order=vence.asc'),
         A.tabla('dispositivos?select=*&order=ultimo_uso.desc'),
-        A.tabla('pagos?select=email,monto,creado&order=creado.desc'),
+        A.tabla('pagos?select=*&order=creado.desc'),
         A.tabla('equipo_miembros?select=*&order=agregado.asc')
       ]);
     } catch (e) { if (e.sinSesion) return verLogin('Tu sesión se cerró. Vuelve a entrar.'); avisar(A.traducir(e)); }
@@ -238,11 +244,11 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     const ini = new Date(); ini.setDate(1); ini.setHours(0, 0, 0, 0);
     const mes = PAGOS.filter(p => new Date(p.creado) >= ini).reduce((s, p) => s + Number(p.monto || 0), 0);
     $('stats').innerHTML = [
-      ['Activos', cuenta('ok') + cuenta('pronto')], ['Vencen en 7 días', cuenta('pronto')],
+      ['Activos (pagan)', cuenta('ok') + cuenta('pronto')], ['En prueba', cuenta('prueba')], ['Vencen en 7 días', cuenta('pronto')],
       ['Vencidos', cuenta('venc')], ['Ingresos del mes', soles(mes)]
     ].map(([t, v]) => `<div class="stat"><span>${t}</span><b>${v}</b></div>`).join('');
 
-    const F = [['todos', 'Todos', LIC.length], ['activos', 'Activos', cuenta('ok') + cuenta('pronto')], ['pronto', 'Por vencer', cuenta('pronto')], ['venc', 'Vencidos', cuenta('venc')], ['bloq', 'Bloqueados', cuenta('bloq')]];
+    const F = [['todos', 'Todos', LIC.length], ['activos', 'Activos', cuenta('ok') + cuenta('pronto')], ['prueba', 'En prueba', cuenta('prueba')], ['pronto', 'Por vencer', cuenta('pronto')], ['venc', 'Vencidos', cuenta('venc')], ['bloq', 'Bloqueados', cuenta('bloq')]];
     $('chips').innerHTML = F.map(([k, t, n]) => `<button class="chip${filtro === k ? ' on' : ''}" data-f="${k}">${t} · ${n}</button>`).join('');
     $('chips').querySelectorAll('.chip').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
 
@@ -269,7 +275,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
             <span>Dispositivos: <b>${nd}/${l.max_dispositivos}</b></span>${l.max_equipo ? `<span>Equipo: <b>${MIEM.filter(m => m.dueno === l.email).length}/${l.max_equipo}</b></span>` : ''}${l.telefono ? `<span>Tel: <b>${esc(l.telefono)}</b></span>` : ''}</div>
         </div>
         <div class="acc">
-          <button class="btn btn-v btn-s" data-a="renovar" data-e="${esc(l.email)}">Renovar</button>
+          <button class="btn btn-v btn-s" data-a="renovar" data-e="${esc(l.email)}">${e.k === 'prueba' ? 'Activar plan' : 'Renovar'}</button>
           ${wa ? `<a class="btn btn-g btn-s" target="_blank" rel="noopener" href="${esc(wa)}">WhatsApp</a>` : ''}
           <button class="btn btn-g btn-s" data-a="ver" data-e="${esc(l.email)}">Detalles</button>
         </div></div>`;
@@ -291,9 +297,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
 
   // Nuevo cliente o renovación
-  function formulario(l) {
-    const nuevo = !l; let plan = nuevo ? PLANES[1] : PLANES[1];
-    abrir(`<h3>${nuevo ? 'Nuevo cliente' : 'Renovar acceso'}</h3>
+  function formulario(l, prueba) {
+    const nuevo = !l; let plan = prueba ? PLANES[0] : PLANES[1];
+    abrir(`<h3>${prueba ? '🎁 Prueba gratis de 7 días' : nuevo ? 'Nuevo cliente' : esPrueba(l) ? 'Activar plan (terminó o sigue en prueba)' : 'Renovar acceso'}</h3>
+      ${prueba ? '<p class="sub">Crea su acceso por 7 días sin pago. Cuando te pague (Yape, Plin…), búscalo en la lista y toca <b>Activar plan</b>.</p>' : ''}
       <p class="sub">${nuevo ? 'Registra a quien te pagó. Podrá entrar a la app con este correo.' : esc(l.nombre || '') + ' · ' + esc(l.email)}</p>
       <div class="campos">
         ${nuevo ? `<div class="campo ancho"><label>Correo del cliente *</label><input id="fMail" type="email" placeholder="cliente@gmail.com"></div>
@@ -339,7 +346,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
           const r = await A.rpc('admin_guardar_licencia', {
             p_email: email, p_nombre: nuevo ? $('fNom').value : null, p_telefono: nuevo ? $('fTel').value : null,
             p_meses: meses(), p_dias: ds(), p_max: nuevo ? +$('fMax').value : null,
-            p_monto: $('fMonto').value === '' ? null : +$('fMonto').value, p_metodo: $('fMet').value,
+            p_monto: $('fMonto').value === '' ? null : +$('fMonto').value, p_metodo: plan.id === 'prueba' && !+$('fMonto').value ? 'Prueba gratis' : $('fMet').value,
             p_nota: $('fNota').value, p_plan: nombrePlan
           });
           if (nuevo && +$('fEq').value > 0) await A.tabla('licencias?email=eq.' + q(email), 'PATCH', { max_equipo: +$('fEq').value });
@@ -461,6 +468,45 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
 
   $('bNuevo').onclick = () => formulario(null);
+  $('bPrueba').onclick = () => formulario(null, true);
+  $('bPagos').onclick = verPagos;
+
+  // ---------- Pagos: todos los cobros, por mes y por método ----------
+  function verPagos() {
+    const meses = [...new Set(PAGOS.map(p => p.creado.slice(0, 7)))].sort().reverse();
+    let mes = meses[0] || new Date().toISOString().slice(0, 7);
+    const nomMes = m => new Date(m + '-15').toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+    const nombreDe = e => { const l = LIC.find(x => x.email === e); return l && l.nombre ? l.nombre : e; };
+    const pintarP = () => {
+      const del = PAGOS.filter(p => p.creado.startsWith(mes)), cob = del.filter(p => Number(p.monto) > 0);
+      const total = cob.reduce((s, p) => s + Number(p.monto), 0), porMet = {};
+      for (const p of cob) porMet[p.metodo || 'Otro'] = (porMet[p.metodo || 'Otro'] || 0) + Number(p.monto);
+      const anual = PAGOS.filter(p => p.creado.startsWith(mes.slice(0, 4))).reduce((s, p) => s + Number(p.monto || 0), 0);
+      $('pgCuerpo').innerHTML = `<div class="stats" style="margin:10px 0">
+          <div class="stat"><span>Cobrado en ${nomMes(mes)}</span><b>${soles(total)}</b></div>
+          <div class="stat"><span>Pagos</span><b>${cob.length}</b></div>
+          <div class="stat"><span>Pruebas gratis</span><b>${del.filter(p => !(Number(p.monto) > 0)).length}</b></div>
+          <div class="stat"><span>Total ${mes.slice(0, 4)}</span><b>${soles(anual)}</b></div></div>
+        ${Object.keys(porMet).length ? `<div class="chips" style="margin-bottom:10px">${Object.entries(porMet).map(([m, v]) => `<span class="chip">${esc(m)} · ${soles(v)}</span>`).join('')}</div>` : ''}
+        <div class="filas">${del.length ? del.map(p => `<div class="fila"><div><b>${esc(nombreDe(p.email))}</b> · ${esc(p.plan || 'Tiempo')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
+          <small>${fechaHora(p.creado)} · hasta ${fecha(p.hasta)}${p.nota ? ' · ' + esc(p.nota) : ''}</small></div><b>${Number(p.monto) > 0 ? soles(p.monto) : 'Gratis'}</b></div>`).join('')
+          : '<div class="fila"><small>No hay pagos este mes. Se registran solos al crear, renovar o activar a un cliente con su monto.</small></div>'}</div>`;
+    };
+    abrir(`<h3>💰 Pagos</h3>
+      <div class="campo"><label>Mes</label><select id="pgMes">${(meses.length ? meses : [mes]).map(m => `<option value="${m}">${nomMes(m)}</option>`).join('')}</select></div>
+      <div id="pgCuerpo"></div>
+      <div class="pie"><button class="btn btn-g" id="pgCsv">Descargar Excel (CSV)</button><button class="btn btn-g" id="pgCerrar">Cerrar</button></div>`, () => {
+      $('pgMes').onchange = () => { mes = $('pgMes').value; pintarP(); };
+      $('pgCerrar').onclick = cerrar;
+      $('pgCsv').onclick = () => {
+        const c = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        const filas = [['Fecha', 'Cliente', 'Correo', 'Plan', 'Método', 'Monto (S/)', 'Desde', 'Hasta', 'Nota']].concat(PAGOS.map(p => [p.creado.slice(0, 10), nombreDe(p.email), p.email, p.plan, p.metodo, p.monto, (p.desde || '').slice(0, 10), (p.hasta || '').slice(0, 10), p.nota]));
+        const b = new Blob(['\ufeff' + filas.map(f => f.map(c).join(';')).join('\r\n')], { type: 'text/csv' }), a = document.createElement('a');
+        a.href = URL.createObjectURL(b); a.download = 'pagos-oxen-pro.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      };
+      pintarP();
+    });
+  }
 
   // ---------- Instalar como programa ----------
   const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;

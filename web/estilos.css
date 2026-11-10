@@ -398,3 +398,32 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 .eq-pers{display:flex;flex-direction:column;gap:2px;max-height:46vh;overflow:auto;margin:4px 0 6px;padding-left:4px;border-left:2px solid rgba(138,207,0,.35)}
 .eq-pn{display:flex;flex-direction:column;line-height:1.2}.eq-pn small{opacity:.6;font-size:12px}
 .eq-todos{margin-bottom:4px}
+
+/* logo del rótulo */
+.logo-fila{display:flex;gap:6px;align-items:stretch;margin:2px 0 6px}
+.n-logo{flex:1;display:flex;align-items:center;gap:10px;text-align:left}
+.n-logo img{width:38px;height:38px;object-fit:contain;background:#fff;border-radius:8px;padding:3px}
+.gal-sub small{font-weight:500;font-size:12px;opacity:.55;margin-left:6px}
+.tarjeta.cargando{opacity:.5;pointer-events:none}
+
+/* comentarios del equipo */
+.ve-cuerpo{flex:1;display:flex;min-height:0}
+.ve-cuerpo .ve-area{flex:1}
+.ve-lado{width:330px;max-width:88vw;border-left:1px solid var(--linea);background:var(--gris1);display:flex;flex-direction:column;min-height:0}
+@media (max-width:700px){.ve-lado{position:absolute;right:0;top:0;bottom:0;z-index:2}.ve-cuerpo{position:relative}}
+.ve-pines{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
+.ve-pin{position:absolute;transform:translate(-50%,-100%);min-width:24px;height:24px;padding:0 6px;border-radius:12px 12px 12px 2px;background:#ff9f0a;color:#0b0b0c;font:700 12px/24px -apple-system,Roboto,sans-serif;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.ve-pin.res{background:#77777d}.ve-pin.nuevo{background:var(--verde)}
+.com-tit{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--linea)}
+.com-lista{flex:1;overflow:auto;padding:8px 10px;display:flex;flex-direction:column;gap:8px;max-height:60vh}
+#pComent{width:340px}#pComent .com-lista{max-height:50vh}
+.com{background:var(--negro);border-radius:12px;padding:10px 12px}.com.res{opacity:.55}
+.com-cab{display:flex;align-items:center;gap:8px}.com-cab small{color:var(--texto2);font-size:11.5px;margin-left:auto}
+.com-n{min-width:20px;height:20px;border-radius:10px;background:#ff9f0a;color:#0b0b0c;font-weight:700;font-size:11px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.com-n.gen{background:var(--gris3);color:var(--texto)}
+.com p{margin:6px 0 4px;white-space:pre-wrap;line-height:1.4}
+.com-acc{display:flex;gap:6px;flex-wrap:wrap}.com-acc button{font-size:12px;padding:5px 9px;border-radius:999px;background:var(--gris2);color:var(--texto2)}
+.com-nuevo{display:flex;flex-direction:column;gap:8px;padding:10px;border-top:1px solid var(--linea)}
+.com-nuevo textarea{width:100%;background:var(--gris2);border:1px solid var(--linea);color:var(--texto);border-radius:10px;padding:9px 10px;font:inherit;resize:vertical}
+.com-nuevo .ve-btn.activo{background:var(--verde);color:#0b0b0c}
+.com-vacio{color:var(--texto2);font-size:13px;padding:8px 4px}

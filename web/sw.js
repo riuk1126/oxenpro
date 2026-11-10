@@ -1,6 +1,6 @@
 // OXEN — funciona sin internet y se actualiza solo
 const C = 'oxen-__PD_VERSION__';
-const BASE = ['./', 'index.html', 'estilos.css?v=__PD_VERSION__', 'texturas.js?v=__PD_VERSION__', 'simbolos.js?v=__PD_VERSION__', 'app.js?v=__PD_VERSION__', 'oxen-auth.js?v=__PD_VERSION__', 'acceso.js?v=__PD_VERSION__', 'equipo.js?v=__PD_VERSION__', 'manifest.json', 'icono.png'];
+const BASE = ['./', 'index.html', 'estilos.css?v=__PD_VERSION__', 'texturas.js?v=__PD_VERSION__', 'simbolos.js?v=__PD_VERSION__', 'muros.js?v=__PD_VERSION__', 'exportar.js?v=__PD_VERSION__', 'app.js?v=__PD_VERSION__', 'oxen-auth.js?v=__PD_VERSION__', 'acceso.js?v=__PD_VERSION__', 'equipo.js?v=__PD_VERSION__', 'nube.js?v=__PD_VERSION__', 'manifest.json', 'icono.png'];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(BASE)).catch(() => {})); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {

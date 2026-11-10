@@ -235,7 +235,9 @@
         ${c.plan ? `<div><span>Plan</span><b>${esc(c.plan)}</b></div>` : ''}
         <div><span>Vence</span><b>${esc(vence)}</b></div>
         <div><span>Este dispositivo</span><b>${esc(nombreDispositivo())}</b></div>
+        ${window.Nube ? `<div><span>Nube</span><b id="accNube">${esc(window.Nube.resumen())}</b></div>` : ''}
       </div>
+      ${window.Nube ? '<button class="acc-link" id="accRespaldar">Respaldar todo en la nube ahora</button>' : ''}
       ${d <= 30 && d < 3650 ? btnWhats('Hola, quiero renovar OXEN PRO. Mi correo es ' + c.email) : ''}
       <button class="btn-verde acc-btn" id="accVolver">Volver a dibujar</button>
       ${window.Equipo ? '<button class="acc-btn acc-sec" id="accEquipo">Mi equipo</button>' : ''}
@@ -244,6 +246,8 @@
       $('accVolver').onclick = ocultar;
       $('accCambiarClave').onclick = () => pasoCrearClave(null, true);
       if ($('accEquipo')) $('accEquipo').onclick = () => window.Equipo.pantalla();
+      if ($('accRespaldar')) $('accRespaldar').onclick = () => window.Nube.respaldarTodo();
+      if (window.Nube) window.Nube.refrescar().then(() => window.Nube.pintarEstado());
       $('accSalir').onclick = async () => {
         if (!confirm('¿Cerrar sesión? Tus bocetos se quedan en este dispositivo, pero tendrás que volver a entrar con tu correo.')) return;
         await A.salir(); try { localStorage.removeItem(K_LIC); } catch (e) {} pasoCorreo();

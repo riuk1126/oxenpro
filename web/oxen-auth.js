@@ -112,9 +112,10 @@
     if (!r.ok) { let m = ''; try { m = (await r.json()).message || ''; } catch (e) {} const e = new Error(m || ('Error ' + r.status)); e.status = r.status; throw e; }
     return r;
   }
-  async function subirArchivo(p, blob, tipo) { await crudo('POST', '/storage/v1/object/' + BUCKET + '/' + ruta(p), blob, tipo || blob.type || 'application/octet-stream'); }
-  async function bajarArchivo(p) { return (await crudo('GET', '/storage/v1/object/authenticated/' + BUCKET + '/' + ruta(p))).blob(); }
-  async function borrarArchivos(ps) { if (ps.length) await crudo('DELETE', '/storage/v1/object/' + BUCKET, JSON.stringify({ prefixes: ps }), 'application/json'); }
+  // b = depósito ('compartidos' por defecto; 'respaldos' para la nube de cada cuenta)
+  async function subirArchivo(p, blob, tipo, b) { await crudo('POST', '/storage/v1/object/' + (b || BUCKET) + '/' + ruta(p), blob, tipo || blob.type || 'application/octet-stream'); }
+  async function bajarArchivo(p, b) { return (await crudo('GET', '/storage/v1/object/authenticated/' + (b || BUCKET) + '/' + ruta(p))).blob(); }
+  async function borrarArchivos(ps, b) { if (ps.length) await crudo('DELETE', '/storage/v1/object/' + (b || BUCKET), JSON.stringify({ prefixes: ps }), 'application/json'); }
 
   async function salir() {
     const s = leerSesion();
