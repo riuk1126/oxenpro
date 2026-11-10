@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0c">
 <meta name="robots" content="noindex,nofollow">
-<title>OXEN Panel</title>
+<title>Panel RAIKI</title>
 <link rel="manifest" href="panel.webmanifest">
 <link rel="icon" href="panel-icono-192.png">
 <link rel="apple-touch-icon" href="panel-icono.png">
-<meta name="apple-mobile-web-app-title" content="OXEN Panel">
+<meta name="apple-mobile-web-app-title" content="Panel RAIKI">
 <style>
 :root{--verde:#8ACF00;--verde2:#a4e61a;--negro:#0b0b0c;--g1:#151517;--g2:#1d1d20;--g3:#2b2b30;--linea:rgba(255,255,255,.08);
   --tx:#f2f2f3;--tx2:#9b9ba1;--rojo:#ff7a6b;--ambar:#ffc24d;--azul:#7fb4ff}
@@ -92,10 +92,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 <div class="envoltura">
   <!-- Acceso -->
   <section id="vLogin" class="login oculto">
-    <div class="marca"><img src="icono.png" alt=""><span>OXEN<b>PRO</b><small>Panel</small></span></div>
+    <div class="marca"><img src="icono.png" alt=""><span>RAIKI<small>Panel · OXEN PRO + Kivo</small></span></div>
     <div id="lPaso1">
       <h2>Panel de clientes</h2>
-      <p>Entra con tu correo y contraseña de administrador.</p>
+      <p>Entra con tu cuenta RAIKI de administrador.</p>
       <input id="lMail" type="email" placeholder="Correo" autocomplete="username">
       <input id="lClave" type="password" placeholder="Contraseña" autocomplete="current-password">
       <button class="btn btn-v" id="lEntrar">Entrar</button>
@@ -113,10 +113,11 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   <!-- Panel -->
   <section id="vPanel" class="oculto">
     <header>
-      <div class="marca"><img src="icono.png" alt=""><span>OXEN<b>PRO</b><small>Panel de clientes</small></span></div>
+      <div class="marca"><img src="icono.png" alt=""><span>RAIKI<small>Panel de clientes · OXEN PRO + Kivo</small></span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-g oculto" id="bInstalar">⬇ Instalar en esta computadora</button>
         <button class="btn btn-g" id="bRecargar">Actualizar</button>
+        <button class="btn btn-g" id="bCuentas">👥 Cuentas RAIKI</button>
         <button class="btn btn-g" id="bPagos">💰 Pagos</button>
         <button class="btn btn-g" id="bPrueba">🎁 Prueba gratis 7 días</button>
         <button class="btn btn-v" id="bNuevo">+ Nuevo cliente</button>
@@ -173,7 +174,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   }
   function msgAcceso(l, clave) {
     return `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu acceso a OXEN PRO está activo hasta el ${fecha(l.vence)}.\n\n` +
-      `1) Descarga la app: ${APK}\n2) Entra con:\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
+      `1) Descarga la app: ${APK}\n2) Entra con tu cuenta RAIKI (sirve también para Kivo):\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
       (clave ? `3) La primera vez la app te pedirá crear tu propia contraseña.\n` : '') + `\n¡A dibujar!`;
   }
 
@@ -286,6 +287,47 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     });
   }
   $('buscar').oninput = pintar;
+
+  // ---------- Cuentas RAIKI (una cuenta para todas las apps) ----------
+  $('bCuentas').onclick = verCuentas;
+  async function verCuentas() {
+    let C = [];
+    try { C = await A.rpc('raiki_cuentas'); } catch (e) { return avisar(A.traducir(e)); }
+    const chip = (t, ok) => `<span class="est ${ok ? 'e-ok' : 'e-venc'}" style="margin-left:6px">${t}</span>`;
+    const filas = C.map(c => {
+      const ox = c.oxen ? chip('OXEN PRO' + (c.oxen.activo ? '' : ' vencido'), c.oxen.activo)
+        : c.oxen_equipo_de ? chip('OXEN · equipo', true) : '';
+      return `<div class="cli"><div>
+        <div class="nom">${esc(c.email)}${c.kivo ? chip('Kivo', true) : ''}${ox}</div>
+        <div class="info"><span>${c.cuenta ? 'Último ingreso: <b>' + (c.ultimo_ingreso ? fechaHora(c.ultimo_ingreso) : 'nunca') + '</b>' : '<b>Cuenta sin crear</b> · genera su contraseña'}</span></div>
+      </div>
+      <div class="acc"><button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? 'Nueva contraseña' : 'Crear cuenta'}</button></div></div>`;
+    }).join('');
+    abrir(`<h3>Cuentas RAIKI</h3>
+      <p class="sub">Cada persona tiene una sola cuenta para OXEN PRO y Kivo. Kivo es libre; OXEN PRO necesita un plan activo.</p>
+      <div style="display:flex;gap:8px;margin:12px 0">
+        <input class="buscar" id="cNueva" type="email" placeholder="correo@ejemplo.com (cuenta nueva para Kivo)" style="flex:1">
+        <button class="btn btn-v btn-s" id="cCrear">Crear cuenta</button>
+      </div>
+      <div id="cClave"></div>
+      <div class="lista">${filas || '<div class="vacio">Sin cuentas.</div>'}</div>
+      <p style="text-align:right;margin-top:12px"><button class="btn btn-g" id="cCerrar">Cerrar</button></p>`, () => {
+      $('cCerrar').onclick = cerrar;
+      const dar = async email => {
+        try {
+          const r = await A.funcion('admin-contrasena', { email });
+          await verCuentas();
+          $('cClave').innerHTML = `<div class="stat" style="margin-bottom:10px"><span>Contraseña temporal de ${esc(r.email)} (la cambiará la primera vez)</span><b style="user-select:all;letter-spacing:.12em">${esc(r.clave)}</b></div>`;
+        } catch (e) { avisar(A.traducir(e)); }
+      };
+      $('cCrear').onclick = () => {
+        const m = $('cNueva').value.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) return avisar('Escribe un correo válido');
+        dar(m);
+      };
+      document.querySelectorAll('[data-clave]').forEach(b => b.onclick = () => dar(b.dataset.clave));
+    });
+  }
 
   // ---------- Ventanas ----------
   function abrir(html, alPintar) {

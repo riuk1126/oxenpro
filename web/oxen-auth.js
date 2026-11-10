@@ -1,10 +1,12 @@
-// OXEN PRO — conexión con el servidor de cuentas (Supabase), sin librerías.
+// OXEN PRO — conexión con el servidor de cuentas RAIKI (Supabase), sin librerías.
+// La misma cuenta RAIKI (correo + contraseña) sirve para OXEN PRO y para Kivo.
 // La clave de abajo es la "publishable key": es pública por diseño y puede ir en la app.
 // La seguridad la ponen las reglas de la base de datos, no esta clave.
 (function () {
-  const SB_URL = 'https://jwvownzuatsjsmcpzocr.supabase.co';
-  const SB_KEY = 'sb_publishable_wDinCENDW2cIEa50TXGavw_PG2PYrwY';
-  const K_SES = 'oxen-sesion';
+  const SB_URL = 'https://yaeqxcwvlsnzqcqldktu.supabase.co';
+  const SB_KEY = 'sb_publishable_vaojAI6KzIL0SYFPBtJcCA_p0Hgzziz';
+  const K_SES = 'raiki-sesion';   // antes 'oxen-sesion' (servidor viejo): se pide entrar una vez
+  try { localStorage.removeItem('oxen-sesion'); } catch (e) {}
   const MIN_CLAVE = 8;
 
   function errRed() { const e = new Error('Sin conexión a internet'); e.red = true; return e; }

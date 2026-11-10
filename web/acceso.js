@@ -77,8 +77,9 @@
   function pasoCorreo(msg) {
     const previo = leer(K_MAIL) || '';
     mostrar(`
+      <p class="acc-raiki">Cuenta <b>RAIKI</b></p>
       <h2>Entra a tu cuenta</h2>
-      <p class="acc-txt">Usa el correo y la contraseña que te dimos al comprar OXEN PRO.</p>
+      <p class="acc-txt">Usa tu cuenta RAIKI: el mismo correo y contraseña sirven para OXEN PRO y Kivo.</p>
       <label class="acc-lbl" for="accMail">Correo</label>
       <input id="accMail" class="acc-input" type="email" inputmode="email" autocomplete="username" placeholder="tucorreo@gmail.com" value="${esc(previo)}">
       <label class="acc-lbl" for="accClave">Contraseña</label>

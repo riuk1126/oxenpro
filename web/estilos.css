@@ -450,3 +450,7 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 
 /* los avisos se ven en cualquier pantalla (inicio, nube, visor, editor) y sobre las ventanas */
 body > #aviso{position:fixed;z-index:210;pointer-events:none}
+
+/* Marca RAIKI en el acceso */
+.acc-raiki{margin:0 0 4px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9b9ba1}
+.acc-raiki b{color:#f2f2f3;font-weight:800}
