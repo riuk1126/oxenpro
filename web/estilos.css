@@ -177,6 +177,7 @@ hr{border:0;border-top:1px solid var(--linea);margin:8px 0}
 
 /* ---------- v1.3: fluidez, hover, arquitectura, tutorial ---------- */
 #cursorCv{position:absolute;left:0;top:0;pointer-events:none}
+#vivoCv{position:absolute;left:0;top:0;pointer-events:none}
 .sep{width:1px;height:22px;background:var(--linea);margin:0 4px}
 .ib{transition:background .1s,color .1s}
 @media (hover:hover),(any-hover:hover){

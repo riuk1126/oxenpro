@@ -29,6 +29,8 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 
 ## Calidad y fluidez
 - **Alta resolución según el equipo**: las hojas nuevas se crean a 300 ppp en equipos potentes, 240 en medianos y 200 en sencillos (antes 150), sin pasar del tamaño que la tarjeta gráfica pinta rápido. Al crear la hoja puedes elegir Estándar, Alta o Máxima. Los pinceles y texturas mantienen su grosor real.
+- **Lápiz en vivo**: mientras el lápiz está apoyado, el trazo se dibuja en una capa del tamaño de la pantalla (liviana y de baja latencia) y pasa a la capa real al levantarlo, solo en la zona que tocó. Así el navegador no tiene que volver a presentar una hoja de millones de píxeles en cada cuadro. El resultado es idéntico píxel a píxel.
+- **Presión**: la app aprende hasta dónde llega la presión de tu lápiz (muchos en Android no pasan de 0.6) y la usa como presión completa; responde casi al instante. Con el dedo o un lápiz sin presión, el grosor varía con la velocidad.
 - **Sin pausas**: el respaldo para deshacer se copia solo por donde pasa el lápiz; los trazos grandes guardan solo los cuadros que pintaron; las capas se comprimen en segundo plano al guardar; el límite de capas y la memoria del deshacer se ajustan a la RAM del equipo.
 
 ## Exportar e importar

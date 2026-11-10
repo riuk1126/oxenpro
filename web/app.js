@@ -163,11 +163,11 @@ function dab(t, x, y, s, a) {
   else if (pin.tip === 'suave') c.drawImage(t.punta, x - s / 2, y - s / 2, s, s);
   else if (pin.tip === 'bisel') {
     const an = pin.ang, co = Math.cos(an), si = Math.sin(an), h = s * pin.ratio;
-    c.setTransform(co, si, -si, co, x, y); c.fillRect(-s / 2, -h / 2, s, h); c.setTransform(1, 0, 0, 1, 0, 0);
+    c.save(); c.transform(co, si, -si, co, x, y); c.fillRect(-s / 2, -h / 2, s, h); c.restore();
   } else if (pin.tip === 'sello') { // forma importada (Procreate, Photoshop o imagen)
     const im = t.punta, w = s, h = s * im.height / im.width;
     const an = pin.rot === 'azar' ? Math.random() * 6.2832 : pin.rot === 'trazo' ? (t.dirAng || 0) : 0;
-    if (an) { const co = Math.cos(an), si = Math.sin(an); c.setTransform(co, si, -si, co, x, y); c.drawImage(im, -w / 2, -h / 2, w, h); c.setTransform(1, 0, 0, 1, 0, 0); }
+    if (an) { const co = Math.cos(an), si = Math.sin(an); c.save(); c.transform(co, si, -si, co, x, y); c.drawImage(im, -w / 2, -h / 2, w, h); c.restore(); }
     else c.drawImage(im, x - w / 2, y - h / 2, w, h);
   } else if (pin.tip === 'disperso') {
     for (let k = 0; k < pin.n; k++) { const an = Math.random() * 6.2832, d = Math.sqrt(Math.random()) * s / 2; forma(c, pin.forma, x + Math.cos(an) * d, y + Math.sin(an) * d, s, a); }
@@ -456,11 +456,18 @@ function esLapiz(e) {
   // inclinación = seguro es lápiz; punta finísima solo si además trae presión real (un dedo no la trae así)
   return !!(e.tiltX || e.tiltY) || (typeof e.altitudeAngle === 'number' && e.altitudeAngle < 1.5) || (e.width > 0 && e.width <= 3 && e.height <= 3 && e.pressure > 0 && e.pressure < 1 && e.pressure !== 0.5);
 }
+// Presión del lápiz. Cada marca de lápiz llega a una presión máxima distinta (muchos en Android no pasan de
+// 0.6–0.7): la app aprende el máximo de tu lápiz y lo usa como "presión completa", así los trazos fuertes
+// salen gruesos y oscuros aunque el lápiz no llegue a 1. Devuelve null si el dispositivo no da presión real.
+let presMaxVisto = 0;
 function presionDe(e) {
-  if (esLapiz(e) && e.pressure > 0 && e.pressure !== 0.5 || e.pointerType === 'pen') {
-    const p = e.pressure > 0 ? e.pressure : 0.5; presionVista = p; return Math.pow(p, aj.presion);
-  }
-  return e.pointerType === 'mouse' ? 0.65 : 0.6;
+  // 0 o exactamente 0.5 = "sin presión" en casi todos los navegadores
+  if (!(e.pressure > 0 && e.pressure !== 0.5) || !(e.pointerType === 'pen' || esLapiz(e))) return null;
+  let p = e.pressure; presionVista = p;
+  if (p > presMaxVisto) presMaxVisto = p;
+  const tope = Math.max(0.45, Math.min(1, Math.max(aj.presMax || 0, presMaxVisto)));
+  p = Math.min(1, p / tope);
+  return Math.pow(p, aj.presion);
 }
 function inclinacionDe(e) {
   if (e.pointerType !== 'pen') return 0;
@@ -623,7 +630,16 @@ function puntoDesde(e, t) {
   const d = aDoc(e.clientX, e.clientY), pin = t.pin, o = t.opc;
   let pr = presionDe(e);
   if (esLapiz(e)) { t.lapiz = true; const q = e.pressure; if (q > 0) { t.prMin = Math.min(t.prMin ?? 1, q); t.prMax = Math.max(t.prMax ?? 0, q); } }
-  t.prS = t.prS == null ? pr : lerp(t.prS, pr, 0.55); pr = t.prS;
+  if (pr != null) t.presReal = true;
+  else if (t.presReal) pr = t.prS ?? 0.6; // un lápiz con presión que justo marcó 0.5: se mantiene la última
+  if (pr == null) { // sin presión real (dedo, ratón o lápiz pasivo): se simula con la velocidad, como un lápiz de verdad
+    const ts = e.timeStamp || performance.now(), u = t.vel;
+    if (aj.presSim === false) pr = e.pointerType === 'mouse' ? 0.65 : 0.6;
+    else if (!u) pr = 0.72;
+    else { const v = Math.hypot(e.clientX - u.x, e.clientY - u.y) / Math.max(1, ts - u.t); pr = clamp(0.95 - v * 0.32, 0.38, 0.95); }
+    t.vel = { x: e.clientX, y: e.clientY, t: ts };
+  }
+  t.prS = t.prS == null ? pr : lerp(t.prS, pr, t.lapiz ? 0.7 : 0.35); pr = t.prS; // con lápiz responde casi al instante
   let s = tamPincel(pin, o, doc.pxmm) * (1 - pin.pTam + pin.pTam * pr);
   let a = (pin.alfa || 1) * (1 - (pin.pAlfa || 0) + (pin.pAlfa || 0) * pr);
   if (pin.incl) { const ti = inclinacionDe(e); if (ti > 0.45) { const k = (ti - 0.45) / 0.55; s *= 1 + k * 2.6; a *= 1 - k * 0.45; } }
@@ -675,8 +691,10 @@ function iniciarTrazo(e) {
   t.pin = pincelActual(); t.opc = opcionesPincel(claveAjuste());
   t.op = t.opc.op * (borrar ? 1 : (t.pin.op || 1));
   t.gco = borrar ? 'destination-out' : capa.bloq ? 'source-atop' : t.pin.mezcla === 'multiply' ? 'multiply' : 'source-over'; // capa bloqueada: solo pinta sobre lo ya dibujado
+  t.vivo = usaVivo(t); if (t.vivo) prepararVivo(t); // el borrador y los modos especiales siguen pintando directo en la capa
   t.motor = crearTrazo(trazoCtx, t.pin, borrar ? '#000000' : aj.color, aj.textura);
   t.esp = espejos(); t.motores = t.esp.map(() => crearTrazo(trazoCtx, t.pin, borrar ? '#000000' : aj.color, aj.textura));
+  if (t.vivo && t.vivoDirecto) { t.vMotor = motorVivo(t); t.vMotores = t.esp.map(() => motorVivo(t)); }
   copiarRespaldo(capa);
   const p = puntoDesde(e, t);
   if (!borrar && aEscala()) { const im = imanInicio(p); if (im) { p.x = im.x; p.y = im.y; } }
@@ -707,7 +725,10 @@ function espejos() {
   const v = p => Object.assign({}, p, { x: W - p.x }), h = p => Object.assign({}, p, { y: H - p.y }), vh = p => Object.assign({}, p, { x: W - p.x, y: H - p.y });
   return m === 'v' ? [v] : m === 'h' ? [h] : [v, h, vh];
 }
-function puntoTodos(t, p) { trazoPunto(t.motor, p); if (t.motores) t.motores.forEach((m, i) => trazoPunto(m, t.esp[i](p))); }
+function puntoTodos(t, p) {
+  trazoPunto(t.motor, p); if (t.motores) t.motores.forEach((m, i) => trazoPunto(m, t.esp[i](p)));
+  if (t.vMotor && !t.vivoCopia) { trazoPunto(t.vMotor, p); if (t.vMotores) t.vMotores.forEach((m, i) => trazoPunto(m, t.esp[i](p))); vivoSucio = true; }
+}
 function bbTrazo(t, campo = 'bb') { const b = t.motor[campo].slice(); if (t.motores) for (const m of t.motores) { bbAmpliar(b, m[campo][0], m[campo][1], 0); bbAmpliar(b, m[campo][2], m[campo][3], 0); } return b; }
 
 function moverTrazo(e, soloPrediccion) {
@@ -772,11 +793,77 @@ function agregarPunto(t, p) {
 let rafComp = 0;
 function pedirComp() { if (!rafComp) rafComp = requestAnimationFrame(() => { rafComp = 0; if (trazo && trazo.formaPend) { trazo.formaPend = false; dibujarFormaPrevia(trazo); } componerTrazo(trazo); dibujarCursor(); }); }
 const PUNTA_ADEL = ['linea', 'grano', 'bisel', 'guion', 'textura'];
+// ---- TRAZO EN VIVO ----
+// Pintar dentro de la capa de la hoja en cada cuadro obliga al navegador a volver a presentar esa capa entera
+// (17 millones de píxeles en un A3 de alta resolución) para mostrar unos pocos píxeles nuevos: eso se siente
+// como retraso del lápiz. Mientras el lápiz está apoyado, el trazo se muestra en una capa transparente del
+// tamaño de la pantalla (liviana); al levantarlo pasa a la capa real una sola vez, solo en los cuadros que tocó.
+const vivoCv = $('vivoCv'), vivoCtx = vivoCv.getContext('2d', { desynchronized: true }) || vivoCv.getContext('2d');
+let vivoSucio = false;
+const usaVivo = t => !t.borrar && !t.lazo && t.gco === 'source-over' && t.capa && t.capa.visible !== false;
+// puntas sin azar: el motor dibuja cada punto también directo en la pantalla (nada que copiar por cuadro)
+const vivoDirecto = pin => !pin.jit && !pin.granoImg && !['disperso', 'feston'].includes(pin.tip) && !(pin.tip === 'sello' && pin.rot === 'azar');
+function prepararVivo(t) {
+  limpiarVivo();
+  t.vivoDirecto = vivoDirecto(t.pin);
+  vivoCv.style.opacity = t.vivoDirecto ? t.op * t.capa.op : t.capa.op; vivoCv.style.mixBlendMode = t.capa.mezcla === 'multiply' ? 'multiply' : 'normal';
+  vivoCv.style.visibility = 'visible';
+  t.cuadros = new Set();
+}
+function motorVivo(t) { // un motor igual al del trazo, pero dibujando en la pantalla con la vista aplicada
+  const m = crearTrazo(vivoCtx, t.pin, aj.color, aj.textura);
+  vivoCtx.setTransform(DPR * M[0], DPR * M[1], DPR * M[2], DPR * M[3], DPR * M[4], DPR * M[5]);
+  return m;
+}
+function marcarCuadros(t, r) {
+  const x0 = Math.max(0, Math.floor(r[0] / CUADRO)), y0 = Math.max(0, Math.floor(r[1] / CUADRO)), x1 = Math.floor((r[0] + r[2] - 1) / CUADRO), y1 = Math.floor((r[1] + r[3] - 1) / CUADRO);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) t.cuadros.add(ty * 4096 + tx);
+}
+// copia a la pantalla la parte r del trazo (r en píxeles de la hoja), sin dejar bordes
+function pintarVivo(t, r) {
+  const c = vivoCtx, x = Math.max(0, r[0] - 1), y = Math.max(0, r[1] - 1), w = Math.min(doc.w, r[0] + r[2] + 1) - x, h = Math.min(doc.h, r[1] + r[3] + 1) - y;
+  if (w <= 0 || h <= 0) return;
+  const fuente = t.pin && t.pin.granoImg ? (conGrano(t.pin, [x, y, w, h]), granoCv) : trazoCv, fx = fuente === granoCv ? 0 : x, fy = fuente === granoCv ? 0 : y;
+  c.globalCompositeOperation = 'source-over';
+  if (!M[1] && !M[2]) { // vista sin girar: se alinea a píxeles enteros de la pantalla
+    const X0 = Math.floor(DPR * (M[4] + x * M[0])), Y0 = Math.floor(DPR * (M[5] + y * M[3])), X1 = Math.ceil(DPR * (M[4] + (x + w) * M[0])), Y1 = Math.ceil(DPR * (M[5] + (y + h) * M[3]));
+    const sx = (X0 / DPR - M[4]) / M[0], sy = (Y0 / DPR - M[5]) / M[3], sw = (X1 - X0) / DPR / M[0], sh = (Y1 - Y0) / DPR / M[3];
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.clearRect(X0, Y0, X1 - X0, Y1 - Y0);
+    c.globalAlpha = t.op; c.drawImage(fuente, fx + sx - x, fy + sy - y, sw, sh, X0, Y0, X1 - X0, Y1 - Y0);
+  } else {
+    c.setTransform(DPR * M[0], DPR * M[1], DPR * M[2], DPR * M[3], DPR * M[4], DPR * M[5]);
+    c.globalAlpha = 1; c.clearRect(x, y, w, h); c.globalAlpha = t.op; c.drawImage(fuente, fx, fy, w, h, x, y, w, h);
+  }
+  c.globalAlpha = 1; vivoSucio = true;
+}
+function limpiarVivo() { if (!vivoSucio) return; const m = vivoCtx.getTransform(); vivoCtx.setTransform(1, 0, 0, 1, 0, 0); vivoCtx.clearRect(0, 0, vivoCv.width, vivoCv.height); vivoCtx.setTransform(m); vivoSucio = false; }
+// al soltar: se oculta en el mismo cuadro en que el trazo aparece en la capa real; se borra después
+function soltarVivo() { vivoCv.style.visibility = 'hidden'; requestAnimationFrame(() => requestAnimationFrame(() => { if (!trazo || !trazo.vivo) limpiarVivo(); })); }
+// al soltar: el trazo pasa a la capa real, solo en los cuadros que tocó (y se guarda cómo estaban, para deshacer)
+function pasarVivoACapa(t) {
+  const c = t.capa.ctx, bb = bbEntero(bbTrazo(t)); if (!bb) return;
+  for (const k of t.cuadros) {
+    const x0 = Math.max(bb[0], (k % 4096) * CUADRO), y0 = Math.max(bb[1], Math.floor(k / 4096) * CUADRO);
+    const x1 = Math.min(bb[0] + bb[2], (k % 4096) * CUADRO + CUADRO), y1 = Math.min(bb[1] + bb[3], Math.floor(k / 4096) * CUADRO + CUADRO);
+    if (x1 <= x0 || y1 <= y0) continue;
+    const q = [x0, y0, x1 - x0, y1 - y0]; asegurarRespaldo(q);
+    c.globalAlpha = t.op; c.globalCompositeOperation = t.gco;
+    if (t.pin && t.pin.granoImg) { conGrano(t.pin, q); c.drawImage(granoCv, 0, 0, q[2], q[3], q[0], q[1], q[2], q[3]); }
+    else c.drawImage(trazoCv, q[0], q[1], q[2], q[3], q[0], q[1], q[2], q[3]);
+  }
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+}
 function componerTrazo(t) {
   if (!t || !t.motor) return;
   t.compPrev = t.compAct ?? 0; t.compAct = Math.max(0, t.pts.length - 1);
   const r = bbEntero(bbTrazo(t, 'sucio')); t.motor.sucio = [1e9, 1e9, -1e9, -1e9]; if (t.motores) for (const m of t.motores) m.sucio = [1e9, 1e9, -1e9, -1e9];
   if (!r) return;
+  if (t.vivo) {
+    // una forma perfecta (QuickShape) se redibuja entera: desde ahí la pantalla copia el trazo
+    if (t.forma && t.vivoDirecto && !t.vivoCopia) { t.vivoCopia = true; limpiarVivo(); vivoCv.style.opacity = t.capa.op; const b = bbEntero(bbTrazo(t)); if (b) { marcarCuadros(t, b); pintarVivo(t, b); } }
+    marcarCuadros(t, r); if (!t.vivoDirecto || t.vivoCopia) pintarVivo(t, r);
+    return;
+  }
   const c = t.capa.ctx;
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   asegurarRespaldo(r); c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
@@ -797,6 +884,7 @@ function conGrano(pin, r) {
 }
 
 function terminarTrazo(e) {
+  if (presMaxVisto > (aj.presMax || 0) + 0.02) { aj.presMax = presMaxVisto; guardarAjustes(); } // recordar el rango de este lápiz
   const t = trazo; trazo = null; clearTimeout(qsTimer);
   if (!t) return;
   clearTimeout(t.gotT);
@@ -828,6 +916,7 @@ function terminarTrazo(e) {
   if (t.forma) dibujarForma(t); // la forma final, con el pincel de verdad
   cancelAnimationFrame(rafComp); rafComp = 0;
   componerTrazo(t); limpiarCursor();
+  if (t.vivo) { pasarVivoACapa(t); soltarVivo(); } // capa real y vista en vivo cambian en el mismo cuadro: sin parpadeo
   const r = bbEntero(bbTrazo(t)); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
   // un trazo a mano grande (p. ej. una diagonal larga) guarda para deshacer solo los cuadros que pintó, no todo
   // el rectángulo que lo encierra: en hojas de alta resolución eso ahorra decenas de MB por trazo
@@ -858,7 +947,8 @@ function cancelarTrazo() {
   if (t.manija) { if (t.movido && cotaSel) { doc.objetos = JSON.parse(t.antes); cotaSel = null; renderObjetos(); pedirSup(); } return; }
   if (t.arq) { cancelarArq(t); return; }
   cancelAnimationFrame(rafComp); rafComp = 0;
-  if (t.motor) {
+  if (t.vivo) { vivoCv.style.visibility = 'hidden'; limpiarVivo(); }
+  else if (t.motor) {
     const r = bbEntero(bbTrazo(t));
     if (r) { asegurarRespaldo(r); const c = t.capa.ctx; c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); }
   }
@@ -2343,7 +2433,7 @@ function dibujarCursor() {
 // ---- capa superpuesta en pantalla (guías, lazo, puntos de fuga) ----
 let rafSup = 0;
 function pedirSup() { if (!rafSup) rafSup = requestAnimationFrame(dibujarSup); }
-function tamSup() { for (const cv of [sup, cursorCv]) { cv.width = innerWidth * DPR; cv.height = innerHeight * DPR; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; } curPrev = null; pedirSup(); }
+function tamSup() { for (const cv of [sup, cursorCv, vivoCv]) { cv.width = innerWidth * DPR; cv.height = innerHeight * DPR; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; } curPrev = null; pedirSup(); }
 function dibujarSup() {
   rafSup = 0; const c = supCtx;
   c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, sup.width, sup.height);
@@ -2743,7 +2833,7 @@ function listaCategoria(cat) {
     const b = document.createElement('button'); b.className = 'pin-item'; b.dataset.id = p.id;
     b.innerHTML = `<span>${escapar(p.nombre)}${p.origen ? ` <small style="opacity:.55">· ${p.origen}</small>` : ''}</span>${p.origen ? '<i class="pin-borrar" title="Eliminar">×</i>' : ''}<canvas width="${260 * DPR}" height="${46 * DPR}"></canvas>`;
     b.onclick = ev => {
-      if (ev.target.closest('.pin-borrar')) return confirmar('Eliminar pincel', '¿Quitar “' + p.nombre + '” de tus pinceles?', 'Eliminar', () => borrarImportado(p.id)); if (herramienta === 'borrador') aj.borrador = p.id; else aj.pincel = p.id; guardarAjustes(); actualizarSliders(); marcarPincelActivo(); };
+      if (ev.target.closest('.pin-borrar')) return confirmar('Eliminar pincel', '¿Quitar “' + p.nombre + '” de tus pinceles?', 'Eliminar', () => borrarImportado(p.id)); if (herramienta === 'borrador') aj.borrador = p.id; else aj.pincel = p.id; guardarAjustes(); actualizarSliders(); marcarPincelActivo(); precalentarPincel(); };
     div.appendChild(b);
   }
   listasPin.set(cat, div); $('pinLista').appendChild(div);
@@ -2914,8 +3004,11 @@ function hsvHex(h, s, v) {
   const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
   return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
 }
+// genera por adelantado la textura del lápiz (al cambiar de color o de lápiz), para que el primer trazo no espere
+function precalentarPincel() { clearTimeout(precalT); precalT = setTimeout(() => { try { if (doc && !trazo) crearTrazo(trazoCtx, pincelActual(), aj.color, aj.textura); } catch (e) {} }, 60); }
+let precalT = 0;
 function ponerColor(hex, desdeGotero) {
-  aj.color = hex.toLowerCase(); $('colorActual').style.background = aj.color;
+  aj.color = hex.toLowerCase(); $('colorActual').style.background = aj.color; precalentarPincel();
   if (!desdeGotero) { const r = aj.recientes.filter(c => c !== aj.color); r.unshift(aj.color); aj.recientes = r.slice(0, 9); }
   guardarAjustes();
   if (panelAbierto('pColor')) pintarColorPanel(true);
@@ -3395,6 +3488,8 @@ function prepararEditor() {
   deshacer.length = 0; rehacer.length = 0; bytesHist = 0;
   lineas.clear(); selSim = null; herrAntesSim = null;
   trazoCv.width = doc.w; trazoCv.height = doc.h; trazoCv.style.width = doc.w + 'px'; trazoCv.style.height = doc.h + 'px'; trazoCv.style.display = 'none';
+  // la textura del lápiz actual se prepara al abrir la hoja (generarla en el primer trazo se sentiría)
+  precalentarPincel();
   // la memoria del respaldo se prepara al abrir la hoja (no en el primer trazo, que se sentiría)
   if (respaldo.width !== doc.w || respaldo.height !== doc.h) { respaldo.width = doc.w; respaldo.height = doc.h; respCtx.clearRect(0, 0, 1, 1); }
   respaldo.width = doc.w; respaldo.height = doc.h;
