@@ -2432,6 +2432,7 @@ function dibujarSup() {
 //  INTERFAZ
 // =====================================================================
 let avisoT = 0;
+document.body.appendChild($('aviso')); // fuera del editor: así se ve también en el inicio y en la nube
 function avisar(txt) {
   const a = $('aviso'); a.textContent = txt; a.classList.remove('oculto');
   clearTimeout(avisoT); avisoT = setTimeout(() => a.classList.add('oculto'), 1300);

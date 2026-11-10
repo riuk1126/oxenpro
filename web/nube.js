@@ -165,7 +165,7 @@
       if (a === 'abrir') { if (!l) { b.disabled = true; if (!await descargar(f, null, true)) { b.disabled = false; return; } } $('nubeVista').classList.add('oculto'); abrirDibujo(id); }
       if (a === 'archivo') { if (!l && !await descargar(f, null, true)) return; guardarArchivoOxen(id); }
       if (a === 'subir') { b.disabled = true; b.textContent = 'Subiendo…'; encolar(id); await esperarCola(); pintarLista(); }
-      if (a === 'quitar') confirmar('Quitar de la nube', `“${esc(f.nombre)}” se borra de la nube.${l ? ' La copia de este equipo se queda.' : ' No está en este equipo: se perderá.'}`, 'Quitar', async () => { quitarDeNube(f); pintarLista(); });
+      if (a === 'quitar') confirmar('Quitar de la nube', `“${esc(f.nombre)}” se borra de la nube.${l ? ' La copia de este equipo se queda.' : ' No está en este equipo: se perderá.'}`, 'Quitar', async () => { quitarDeNube(f); avisar('Quitado de la nube'); pintarLista(); });
     };
   }
   const fechaH = f => new Date(f).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });

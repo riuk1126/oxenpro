@@ -109,7 +109,11 @@
   // elegir a qué personas del equipo se asigna el boceto
   function elegirPersonas(r) {
     const miembros = (equipo && equipo.miembros || []).map(m => m.email), c = compartidoMio(r.id);
-    if (!miembros.length) return avisar('Primero agrega personas en Mi cuenta → Mi equipo');
+    if (!miembros.length) return modal(`<h3>Compartir “${esc(r.nombre)}”</h3>
+      <p>Aún no tienes personas en tu equipo. Agrega a los arquitectos o ayudantes que harán levantamientos y luego eliges con quién compartir cada boceto.</p>
+      <div class="modal-btns"><span style="flex:1"></span><button id="mNo">Ahora no</button><button class="ok" id="mSi">Agregar personas</button></div>`, cerrar => {
+      $('mNo').onclick = cerrar; $('mSi').onclick = () => { cerrar(); pantalla(); };
+    });
     const marcados = new Set(c ? (c.para || miembros) : []);
     modal(`<h3>Compartir “${esc(r.nombre)}”</h3>
       <p>Elige quiénes del equipo lo verán. Cada vez que sales del boceto reciben la última versión.</p>
