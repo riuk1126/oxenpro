@@ -351,7 +351,7 @@ function aplicarHist(e, atras) {
 function hacerDeshacer() {
   if (trazo) return;
   if (flot) { cancelarFlot(); return avisar('Selección cancelada'); } const e = deshacer.pop(); if (!e) return avisar('Nada que deshacer');
-  ultPto = null;
+  ultPto = null; cotaSel = null;
   aplicarHist(e, true); rehacer.push(e); avisar('Deshacer'); marcarCambio(); refrescarCapasSiAbierto();
 }
 function hacerRehacer() {
@@ -462,7 +462,7 @@ escenario.addEventListener('pointerdown', e => {
   toques.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
   if (toques.size === 1) {
     gestoTap = { t: performance.now(), max: 1, movido: false };
-    if (!soloLapiz() || herramienta === 'gotero' || herramienta === 'simbolo' && sobreSimbolo(e) || herramienta === 'seleccion' && flot && sobreFlot(e) || herramienta === 'pin' && (pinEn(aDoc(e.clientX, e.clientY)) || fotoEn(aDoc(e.clientX, e.clientY)))) iniciarTrazo(e);
+    if (!soloLapiz() || manijaEn(e.clientX, e.clientY) || herramienta === 'gotero' || herramienta === 'simbolo' && sobreSimbolo(e) || herramienta === 'seleccion' && flot && sobreFlot(e) || herramienta === 'pin' && (pinEn(aDoc(e.clientX, e.clientY)) || fotoEn(aDoc(e.clientX, e.clientY)))) iniciarTrazo(e);
     else paneo = { id: e.pointerId, x: e.clientX, y: e.clientY };
   } else {
     gestoTap.max = Math.max(gestoTap.max, toques.size);
@@ -523,7 +523,7 @@ function finPuntero(e) {
 escenario.addEventListener('pointerup', finPuntero);
 // eventos crudos del lápiz: llegan antes que pointermove → menos retraso
 const RAW = 'onpointerrawupdate' in window;
-if (RAW) escenario.addEventListener('pointerrawupdate', e => { if (doc && trazo && trazo.id === e.pointerId && !trazo.gotero && !trazo.arq) moverTrazo(e); });
+if (RAW) escenario.addEventListener('pointerrawupdate', e => { if (doc && trazo && trazo.id === e.pointerId && !trazo.gotero && !trazo.arq && !trazo.manija) moverTrazo(e); });
 escenario.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') { hover = null; pedirCursor(); } });
 escenario.addEventListener('pointercancel', finPuntero);
 escenario.addEventListener('contextmenu', e => e.preventDefault());
@@ -591,15 +591,18 @@ function copiarRespaldo(capa) {
 }
 
 function iniciarTrazo(e) {
+  const h = manijaEn(e.clientX, e.clientY);
+  if (h) { trazo = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, manija: h, sx: e.clientX, sy: e.clientY, antes: snapObj(), movido: false }; return; }
+  const cotaAntes = cotaSel; if (cotaSel) { cotaSel = null; pedirSup(); }
   if (herramienta === 'gotero') { trazo = { id: e.pointerId, tipo: e.pointerType, gotero: true, t0: performance.now(), largo: 0 }; tomarColor(e); return; }
   if (terreno && !terreno.v0) { terreno.v0 = imanCota(aDoc(e.clientX, e.clientY)); pintarTerreno(); pedirSup(); return; }
-  if (herramienta === 'cota' || herramienta === 'texto' || herramienta === 'simbolo' || herramienta === 'pin') return iniciarArq(e);
+  if (herramienta === 'cota' || herramienta === 'texto' || herramienta === 'simbolo' || herramienta === 'pin') { iniciarArq(e); if (trazo) trazo.cotaAntes = cotaAntes; return; }
   if (herramienta === 'seleccion' && flot) return iniciarTransf(e);
   const capa = capaActiva();
   if (!capa.visible) { avisar('La capa está oculta'); return; }
   ubicarTrazoCv();
   const borrar = herramienta === 'borrador';
-  const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, capa, borrar, pts: [], raw: [], sx: e.clientX, sy: e.clientY };
+  const t = { id: e.pointerId, tipo: e.pointerType, t0: performance.now(), largo: 0, capa, borrar, pts: [], raw: [], sx: e.clientX, sy: e.clientY, cotaAntes };
   if (herramienta === 'relleno' || herramienta === 'seleccion') {
     t.lazo = true; t.sel = herramienta === 'seleccion'; t.modo = aj.textura.modo; t.opc = opcionesPincel('relleno');
     const d = aDoc(e.clientX, e.clientY); t.pts.push(d); t.bb = [d.x, d.y, d.x, d.y];
@@ -650,6 +653,7 @@ function moverTrazo(e, soloPrediccion) {
   if (!t.lejos && t.sx != null && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) { t.lejos = true; clearTimeout(t.gotT); }
   if (t.transf) return moverTransf(e);
   if (t.arq) return moverArq(e);
+  if (t.manija) return moverManija(e);
   if (t.gotero) { tomarColor(e); return; }
   if (!soloPrediccion) {
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
@@ -733,6 +737,7 @@ function terminarTrazo(e) {
   if (!t) return;
   clearTimeout(t.gotT);
   if (t.transf) return terminarTransf(t);
+  if (t.manija) return terminarManija(t);
   if (t.arq) return terminarArq(t, e);
   if (t.gotero) { ponerColor(aj.color); if (herrPrevia !== 'gotero') elegirHerramienta(herrPrevia); return; }
   if (t.lazo && t.sel) { trazoCtx.clearRect(0, 0, doc.w, doc.h); pedirSup(); if (t.pts.length > 3) levantarSeleccion(t.capa, t.pts); return; }
@@ -741,6 +746,8 @@ function terminarTrazo(e) {
   // toque corto sobre una puerta o mueble con el lápiz: se selecciona (no deja un punto)
   if (!t.borrar && performance.now() - t.t0 < 350 && t.largo * escalaVista() < 6 && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 8) {
     const pn = pinEn(t.inicio) || fotoEn(t.inicio); if (pn) { trazo = t; cancelarTrazo(); verPin(pn); return; }
+    const oc = objetoEn(t.inicio);
+    if (oc && oc.tipo === 'cota') { trazo = t; cancelarTrazo(); if (t.cotaAntes === oc) editarCota(oc); else { cotaSel = oc; pedirSup(); } return; }
     const o = simEn(t.inicio);
     if (o) { trazo = t; cancelarTrazo(); herrAntesSim = herramienta; elegirHerramienta('simbolo'); seleccionar(o); avisarSuave('Arrastra para mover · manija verde para girar · toca fuera para seguir dibujando'); return; }
   }
@@ -775,6 +782,7 @@ function cancelarTrazo() {
   const t = trazo; trazo = null; clearTimeout(qsTimer); if (!t) return;
   clearTimeout(t.gotT);
   if (t.transf) { cancelarTransf(t); return; }
+  if (t.manija) { if (t.movido && cotaSel) { doc.objetos = JSON.parse(t.antes); cotaSel = null; renderObjetos(); pedirSup(); } return; }
   if (t.arq) { cancelarArq(t); return; }
   cancelAnimationFrame(rafComp); rafComp = 0;
   if (t.motor) {
@@ -1417,6 +1425,47 @@ function acomodarCotas(o) {
   for (const x of figuraDeCota(o)) { if (x.ladoFijo) continue; const sg = signoFuera(x); if (sg) x.off = sg * Math.max(Math.abs(x.off || 0), 6 * doc.pxmm); }
 }
 
+// ---- cota seleccionada: dos manijas (una a cada lado) para pasarla al otro lado o alejarla ----
+let cotaSel = null;
+function manijasCota(o) { // en la hoja: centro de cada manija (+1 y -1 según la normal)
+  const g = geomCota(o), d = Math.max(Math.abs(o.off || 0), 6 * doc.pxmm), bx = o.a.x + g.ux * g.L * 0.25, by = o.a.y + g.uy * g.L * 0.25;
+  return [1, -1].map(sg => ({ sg, x: bx + g.nx * sg * d, y: by + g.ny * sg * d }));
+}
+function manijaEn(cx, cy) {
+  if (!cotaSel || !doc || !doc.objetos.includes(cotaSel)) return null;
+  for (const h of manijasCota(cotaSel)) { const p = mApl(M, h.x, h.y); if (Math.hypot(p.x - cx, p.y - cy) < 26) return h; }
+  return null;
+}
+function moverManija(e) {
+  const t = trazo, o = cotaSel; if (!o) return;
+  if (Math.hypot(e.clientX - t.sx, e.clientY - t.sy) > 8) t.movido = true;
+  if (!t.movido) return;
+  const d = aDoc(e.clientX, e.clientY), g = geomCota(o), k = (d.x - o.a.x) * g.nx + (d.y - o.a.y) * g.ny;
+  o.off = (Math.sign(k) || 1) * Math.max(Math.abs(k), 3 * doc.pxmm); renderObjetos(); pedirSup();
+}
+function terminarManija(t) {
+  const o = cotaSel; if (!o) return;
+  if (!t.movido) { if (Math.sign(o.off || 0) === t.manija.sg) return; o.off = t.manija.sg * Math.max(Math.abs(o.off || 0), 6 * doc.pxmm); }
+  const sg = signoFuera(o); o.ladoFijo = !!sg && Math.sign(o.off) !== sg; // si quedó adentro, se respeta
+  histObj(t.antes); renderObjetos(); pedirSup();
+}
+function dibujarManijas(c) {
+  const o = cotaSel; if (!o || !doc.objetos.includes(o)) { cotaSel = null; return; }
+  const g = geomCota(o), an = Math.atan2(g.uy, g.ux);
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // la cota elegida, resaltada
+  const a = mApl(M, g.a2.x, g.a2.y), b = mApl(M, g.b2.x, g.b2.y);
+  c.lineWidth = 6; c.strokeStyle = 'rgba(138,207,0,.35)'; c.lineCap = 'round'; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+  for (const h of manijasCota(o)) {
+    const p = mApl(M, h.x, h.y), activo = Math.sign(o.off || 0) === h.sg;
+    c.save(); c.translate(p.x, p.y); c.rotate(an + Math.atan2(M[1], M[0]));
+    c.beginPath(); c.roundRect ? c.roundRect(-17, -11, 34, 22, 11) : c.rect(-17, -11, 34, 22);
+    c.fillStyle = activo ? '#8ACF00' : 'rgba(255,255,255,.92)'; c.fill(); c.lineWidth = 1.5; c.strokeStyle = activo ? '#0b0b0c' : '#8ACF00'; c.stroke();
+    c.strokeStyle = '#0b0b0c'; c.lineWidth = 2; c.beginPath(); c.moveTo(-8, -3.5); c.lineTo(8, -3.5); c.moveTo(-8, 3.5); c.lineTo(8, 3.5); c.stroke(); // las dos linitas
+    c.restore();
+  }
+}
+
 function agregarCota(a, b, off, auto, preguntar, linea) {
   const antes = snapObj();
   const o = { tipo: 'cota', a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, off: off || 0, color: aj.color, id: Date.now() + Math.random() };
@@ -1986,7 +2035,7 @@ function terminarArq(t) {
     return;
   }
   if (t.arq === 'cota') {
-    if (!t.movido) { renderObjetos(); const o = objetoEn(t.a); if (o) (o.tipo === 'cota' ? editarCota(o) : o.tipo === 'angulo' ? null : editarTexto(o)); return; }
+    if (!t.movido) { renderObjetos(); const o = objetoEn(t.a); if (o) (o.tipo === 'cota' ? (t.cotaAntes === o ? editarCota(o) : (cotaSel = o, pedirSup())) : o.tipo === 'angulo' ? null : editarTexto(o)); return; }
     if (Math.hypot(t.b.x - t.a.x, t.b.y - t.a.y) < 2 * doc.pxmm) { renderObjetos(); return; }
     agregarCota(t.a, t.b, 0, false, doc.pedirMedida);
   } else if (t.arq === 'pin') {
@@ -2050,6 +2099,7 @@ function editarCota(o, nueva) {
       o.off = lado === 0 ? 0 : lado * sg * mag;
       acomodarCotas(o);
       if (nueva && lineaDe.get(o) && lineaDe.get(o).ent.t === 'multi') ultPto = { x: o.b.x, y: o.b.y }; // la siguiente línea sigue desde aquí
+      if (lado !== 0) { cotaSel = o; setTimeout(pedirSup, 0); }
       cerrar();
       const reg = lineaDe.get(o), ult = deshacer[deshacer.length - 1];
       if (nueva && reg && reg.ent === ult) { // la edición va en el mismo paso de deshacer que la línea
@@ -2242,6 +2292,7 @@ function dibujarSup() {
       }
     }
   }
+  if (cotaSel) dibujarManijas(c);
   if (imanSim) { const p = mApl(M, imanSim.x, imanSim.y); c.setTransform(DPR, 0, 0, DPR, 0, 0); c.beginPath(); c.arc(p.x, p.y, 11, 0, 6.2832); c.lineWidth = 2.5; c.strokeStyle = '#8ACF00'; c.stroke(); }
   if (ultPto && aEscala() && herramienta === 'pincel' && !(trazo && trazo.lazo)) { // dónde sigue la siguiente línea
     const p = mApl(M, ultPto.x, ultPto.y); c.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -3213,6 +3264,7 @@ function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   d.nivel0 = typeof r.nivel0 === 'number' ? r.nivel0 : null; // altura (en la hoja) del nivel ±0.00
 }
 function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
+  ultPto = null; cotaSel = null;
   const n = new Date(), tn = TIPOS.find(t => t.id === tipo).n;
   doc = { id: nuevoId(), nombre: (tipo === 'boceto' ? 'Boceto' : tn) + ' ' + n.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' }) + ' ' + n.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
     w, h, papel, grano: true, creado: Date.now(), capas: [], activa: 0, guias: guiasPorDefecto(w, h) };
@@ -3238,7 +3290,7 @@ function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
 }
 async function abrirDibujo(id) {
   const r = await dbUno(id); if (!r) return;
-  ultPto = null;
+  ultPto = null; cotaSel = null;
   doc = { id: r.id, nombre: r.nombre, w: r.w, h: r.h, papel: r.papel, grano: r.grano, creado: r.creado, activa: r.activa || 0, guias: Object.assign(guiasPorDefecto(r.w, r.h), r.guias || {}), capas: [] };
   datosArq(doc, r);
   for (const l of r.capas) {
