@@ -18,7 +18,7 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - Cada cuenta se puede usar en un número limitado de equipos (por defecto 2).
 - **Panel de clientes:** [riuk1126.github.io/oxenpro/panel.html](https://riuk1126.github.io/oxenpro/panel.html) (se puede instalar como programa) — crear clientes, renovar, bloquear, generar contraseñas, liberar equipos y ver pagos.
 - **Equipos:** desde el panel defines cuántas personas puede tener cada cliente. En la app, *Mi cuenta → Mi equipo* agrega personas por correo (entran con el plan del dueño y reciben una contraseña temporal).
-- **Bocetos compartidos:** menú ⋯ del boceto → *Compartir con mi equipo*. Cada vez que sales del boceto se sube la última versión; el equipo la ve en *Compartidos por mi equipo* (zoom, exportar o hacer una copia).
+- **Bocetos compartidos:** menú ⋯ del boceto → *Compartir con…* y eliges a qué personas del equipo (o a todo el equipo). En la galería, debajo del boceto, aparece con quiénes lo compartes; desde el mismo menú puedes cambiar las personas. Cada vez que sales del boceto se sube la última versión; el equipo la ve en *Compartidos por mi equipo* (zoom, exportar o hacer una copia).
 - Los datos viven en Supabase (proyecto *oxenpro*). El número de WhatsApp para comprar/renovar se pone en `web/acceso.js` (`WHATSAPP`).
 
 ## Cómo se usa
@@ -34,7 +34,8 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Selección** (ícono de recuadro): encierra algo con el lazo y muévelo, escálalo, gíralo, voltéalo o duplícalo. Toca otra vez el ícono para copiar, pegar o seleccionar toda la capa.
 - **Nota en el plano** (ícono de pin): arrástrala al punto exacto; queda numerada. Tócala (con el dedo o el lápiz) para leerla; todas aparecen en la ventana de notas de la izquierda.
 - **Formas**: tras enderezar, sin soltar mueve el lápiz para agrandar o girar; un dedo la vuelve perfecta.
-- **Estructura**: columnas, vigas (se pegan a las columnas), placas y zapatas; al ponerlas pide sus medidas.
+- **Estructura**: columnas, vigas (se pegan a las columnas), placas y zapatas; al ponerlas pide sus medidas. Columnas y zapatas salen **acotadas** en el plano y, al moverlas, una de sus esquinas se **pega** al punto o la línea más cercana.
+- **Líneas encadenadas** (levantamiento y planta): la siguiente línea arranca justo donde terminó la anterior (punto verde); las cotas automáticas quedan **siempre por fuera** de la figura, incluidas las diagonales.
 - **Terrenos no rectos** (barra de abajo en planta y levantamiento): líneas **Rectas/Libres** con largo y ángulo en vivo, **cota de ángulo** y **Terreno por medidas** (lado por lado: largo y ángulo interior, con cotas y ángulos automáticos).
 - **Simetría** (en Guías), **bloquear transparencia** y **grupos** (en Capas), **imagen de referencia** para calcar (en Acciones).
 - **Cortes**: nuevo tipo de hoja **Corte** (capas Cortado / Proyección / Color). Cota → **Nivel**: el primero es el ±0.00 y los demás se calculan solos (NPT, NFP, NTT, NFL, NFV, NTN, NFC). Mobiliario, baño y cocina, estructura (losa aligerada, viga, cimiento, escalera, terreno, vanos, baranda) y personas y vegetación **vistos en corte**.

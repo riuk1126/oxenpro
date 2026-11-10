@@ -39,18 +39,19 @@
   // =================================================================
   const subiendo = new Set();
   // Toma la foto completa del boceto abierto (con cotas y anotaciones) y sube todo.
-  async function subirAbierto(d) {
+  async function subirAbierto(d, para) {
     if (!d || subiendo.has(d.id)) return;
     subiendo.add(d.id);
     try {
       const vista = await aBlob(componer(1, d), 'image/jpeg', 0.9);  // se compone ya, mientras el boceto sigue abierto
-      await subir(d.id, vista);
+      await subir(d.id, vista, para);
     } finally { subiendo.delete(d.id); }
   }
-  async function subir(id, vista) {
+  async function subir(id, vista, para) {
     const r = await dbUno(id); if (!r) return;
     const dueno = yo(), v = Date.now().toString(36), base = `${dueno}/${id}/${v}/`;
     const previo = compartidoMio(id);
+    if (para === undefined) para = previo ? previo.para || null : null;
     const { capas, thumb, ...resto } = r;
     const datos = Object.assign({}, resto, { capas: capas.map(({ blob, ...c }) => c) });
     await A.subirArchivo(base + 'doc.json', new Blob([JSON.stringify(datos)], { type: 'application/json' }), 'application/json');
@@ -58,7 +59,7 @@
     if (thumb) await A.subirArchivo(base + 'mini.jpg', thumb, 'image/jpeg');
     await A.subirArchivo(base + 'vista.jpg', vista, 'image/jpeg');
     const fila = await A.tabla('compartidos?on_conflict=dueno,dibujo_id', 'POST',
-      { dueno, dibujo_id: id, nombre: r.nombre, tipo: r.tipo || null, w: r.w, h: r.h, capas: capas.length, version: v, actualizado: new Date().toISOString() },
+      { dueno, dibujo_id: id, nombre: r.nombre, tipo: r.tipo || null, w: r.w, h: r.h, capas: capas.length, version: v, actualizado: new Date().toISOString(), para },
       'resolution=merge-duplicates');
     // borra la versión anterior para no ocupar espacio
     if (previo && previo.version !== v) {
@@ -95,24 +96,56 @@
   }
 
   // Opción en el menu ⋯ de cada boceto
+  // nombre corto de una persona (lo que va antes de la @)
+  const corto = m => { const n = String(m || '').split('@')[0].replace(/[._-]+/g, ' ').trim(); return n ? n[0].toUpperCase() + n.slice(1) : m; };
+  const textoPara = c => !c.para ? 'Todo el equipo' : c.para.length ? c.para.map(corto).join(', ') : 'Nadie';
   function itemMenu(r) {
     if (!puedoCompartir()) return '';
-    return compartidoMio(r.id)
-      ? '<button class="item" id="tEqNo">Dejar de compartir con mi equipo</button>'
-      : '<button class="item" id="tEqSi">Compartir con mi equipo</button>';
+    const c = compartidoMio(r.id);
+    return c
+      ? `<button class="item" id="tEqSi">Compartir con…<small class="item-sub">Ahora: ${esc(textoPara(c))}</small></button><button class="item" id="tEqNo">Dejar de compartir</button>`
+      : '<button class="item" id="tEqSi">Compartir con…</button>';
+  }
+  // elegir a qué personas del equipo se asigna el boceto
+  function elegirPersonas(r) {
+    const miembros = (equipo && equipo.miembros || []).map(m => m.email), c = compartidoMio(r.id);
+    if (!miembros.length) return avisar('Primero agrega personas en Mi cuenta → Mi equipo');
+    const marcados = new Set(c ? (c.para || miembros) : []);
+    modal(`<h3>Compartir “${esc(r.nombre)}”</h3>
+      <p>Elige quiénes del equipo lo verán. Cada vez que sales del boceto reciben la última versión.</p>
+      <label class="interruptor eq-todos"><input type="checkbox" id="eqTodos"><span></span><b>Todo el equipo</b></label>
+      <div class="eq-pers">${miembros.map(m => `<label class="interruptor"><input type="checkbox" data-m="${esc(m)}" ${marcados.has(m) ? 'checked' : ''}><span></span><div class="eq-pn"><b>${esc(corto(m))}</b><small>${esc(m)}</small></div></label>`).join('')}</div>
+      <div class="modal-btns"><span style="flex:1"></span><button id="mNo">Cancelar</button><button class="ok" id="mSi">${c ? 'Guardar' : 'Compartir'}</button></div>`, cerrar => {
+      const cajas = [...document.querySelectorAll('.eq-pers input')], todos = $('eqTodos');
+      const sync = () => { todos.checked = cajas.every(x => x.checked); };
+      sync(); todos.onchange = () => cajas.forEach(x => { x.checked = todos.checked; });
+      cajas.forEach(x => x.onchange = sync);
+      $('mNo').onclick = cerrar;
+      $('mSi').onclick = async () => {
+        const elegidos = cajas.filter(x => x.checked).map(x => x.dataset.m);
+        if (!elegidos.length) return avisar(c ? 'Elige al menos una persona (o usa “Dejar de compartir”)' : 'Elige al menos una persona');
+        // todos marcados = todo el equipo (incluye a quienes agregues después)
+        const para = elegidos.length === miembros.length ? null : elegidos;
+        cerrar();
+        try {
+          if (c) { // ya compartido: solo cambia a quiénes
+            await A.tabla('compartidos?dueno=eq.' + encodeURIComponent(c.dueno) + '&dibujo_id=eq.' + encodeURIComponent(r.id), 'PATCH', { para });
+            c.para = para; escribir(K_LISTA, lista); pintarGaleria();
+            avisar('Ahora lo ven: ' + textoPara(c));
+          } else {
+            avisar('Abriendo y compartiendo…');
+            await abrirDibujo(r.id);
+            await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+            await subirAbierto(doc, para);
+            avisar('Compartido con ' + textoPara({ para }) + '. Se actualiza cada vez que sales del boceto.');
+          }
+        } catch (e) { avisar(e.red ? 'Necesitas internet para compartir' : 'No se pudo compartir'); console.error(e); }
+      };
+    });
   }
   function enlazarMenu(r, cerrar) {
     const si = $('tEqSi'), no = $('tEqNo');
-    if (si) si.onclick = async () => {
-      cerrar();
-      avisar('Abriendo y compartiendo…');
-      try {
-        await abrirDibujo(r.id);
-        await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
-        await subirAbierto(doc);
-        avisar('Compartido con tu equipo. Se actualiza cada vez que sales del boceto.');
-      } catch (e) { avisar(e.red ? 'Necesitas internet para compartir' : 'No se pudo compartir'); console.error(e); }
-    };
+    if (si) si.onclick = () => { cerrar(); setTimeout(() => elegirPersonas(r), 30); };
     if (no) no.onclick = () => {
       cerrar();
       confirmar('Dejar de compartir', `Tu equipo ya no verá “${esc(r.nombre)}”. Tu boceto no se borra.`, 'Dejar de compartir', async () => {
@@ -135,8 +168,12 @@
     // insignia en los bocetos que comparto
     document.querySelectorAll('#galGrid .tarjeta').forEach(t => {
       const ya = t.querySelector('.t-eq'), mio = compartidoMio(t.dataset.id);
-      if (mio && !ya) { const s = document.createElement('span'); s.className = 't-eq'; s.textContent = 'Equipo'; t.appendChild(s); }
+      if (mio && !ya) { const s = document.createElement('span'); s.className = 't-eq'; s.textContent = 'Compartido'; t.appendChild(s); }
       if (!mio && ya) ya.remove();
+      let pp = t.querySelector('.t-para');
+      if (mio) { if (!pp) { pp = document.createElement('div'); pp.className = 't-para'; t.querySelector('.t-fecha').insertAdjacentElement('afterend', pp); }
+        pp.textContent = 'Con: ' + textoPara(mio); pp.title = mio.para ? mio.para.join(', ') : 'Todo el equipo'; }
+      else if (pp) pp.remove();
     });
     // sección con lo que comparten los demás
     let sec = $('galEquipo');

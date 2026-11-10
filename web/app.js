@@ -351,6 +351,7 @@ function aplicarHist(e, atras) {
 function hacerDeshacer() {
   if (trazo) return;
   if (flot) { cancelarFlot(); return avisar('Selección cancelada'); } const e = deshacer.pop(); if (!e) return avisar('Nada que deshacer');
+  ultPto = null;
   aplicarHist(e, true); rehacer.push(e); avisar('Deshacer'); marcarCambio(); refrescarCapasSiAbierto();
 }
 function hacerRehacer() {
@@ -613,6 +614,7 @@ function iniciarTrazo(e) {
   t.esp = espejos(); t.motores = t.esp.map(() => crearTrazo(trazoCtx, t.pin, borrar ? '#000000' : aj.color, aj.textura));
   copiarRespaldo(capa);
   const p = puntoDesde(e, t);
+  if (!borrar && aEscala()) { const im = imanInicio(p); if (im) { p.x = im.x; p.y = im.y; } }
   t.f = { x: p.x, y: p.y }; t.inicio = p;
   t.asist = herramienta === 'pincel' && doc.guias.asist && doc.guias.modo !== 'ninguna';
   t.raw.push(p);
@@ -625,6 +627,13 @@ function iniciarTrazo(e) {
     if (trazo !== t || t.forma || t.largo * escalaVista() > 6 || t.lejos) return;
     cancelarTrazo(); tomarColor({ clientX: t.sx, clientY: t.sy }); ponerColor(aj.color); avisar('Color tomado');
   }, 800);
+}
+// ---- líneas encadenadas (planos a escala): empezar cerca del final de la última línea arranca justo ahí ----
+let ultPto = null;
+function imanInicio(p) {
+  const s = escalaVista();
+  if (ultPto && Math.hypot(ultPto.x - p.x, ultPto.y - p.y) * s < 48) return ultPto;
+  const q = imanCota(p); return q !== p ? q : null;
 }
 // ---- simetría: cada punto se dibuja también reflejado ----
 function espejos() {
@@ -671,16 +680,20 @@ function moverTrazo(e, soloPrediccion) {
     reiniciarQuickShape(t, e);
   }
   // tinta adelantada: dibuja hacia donde va el lápiz para que se sienta sin retraso
-  if (!t.lazo && !t.forma && !t.dir && e.getPredictedEvents && ['linea', 'grano', 'bisel', 'guion', 'textura'].includes(t.pin.tip)) {
+  if (!t.lazo && !t.forma && !t.dir && e.getPredictedEvents && PUNTA_ADEL.includes(t.pin.tip)) {
     const pe = e.getPredictedEvents(); t.pred = pe.length ? aDoc(pe[pe.length - 1].clientX, pe[pe.length - 1].clientY) : null;
   }
+  if (!t.lazo && !t.forma && t.pin && PUNTA_ADEL.includes(t.pin.tip)) dibujarCursor();
   pedirComp();
 }
 
 function agregarPunto(t, p) {
   let x = p.x, y = p.y;
   if (t.dir) { const o = t.inicio, k = (x - o.x) * t.dir[0] + (y - o.y) * t.dir[1]; x = o.x + t.dir[0] * k; y = o.y + t.dir[1] * k; }
-  else if (t.pts.length) { const k = aj.estab; t.f.x = lerp(x, t.f.x, k); t.f.y = lerp(y, t.f.y, k); x = t.f.x; y = t.f.y; }
+  else if (t.pts.length) {
+    const v = Math.hypot(x - t.f.x, y - t.f.y) * escalaVista(), k = aj.estab * clamp(1 - v / 18, 0.15, 1);
+    t.f.x = lerp(x, t.f.x, k); t.f.y = lerp(y, t.f.y, k); x = t.f.x; y = t.f.y;
+  }
   const q = t.pts[t.pts.length - 1];
   if (q) t.largo += Math.hypot(x - q.x, y - q.y);
   const np = { x, y, s: p.s, a: p.a, pr: p.pr };
@@ -691,15 +704,17 @@ function agregarPunto(t, p) {
 // ---- composición por cuadro: solo se repinta la zona que cambió ----
 let rafComp = 0;
 function pedirComp() { if (!rafComp) rafComp = requestAnimationFrame(() => { rafComp = 0; if (trazo && trazo.formaPend) { trazo.formaPend = false; dibujarFormaPrevia(trazo); } componerTrazo(trazo); dibujarCursor(); }); }
+const PUNTA_ADEL = ['linea', 'grano', 'bisel', 'guion', 'textura'];
 function componerTrazo(t) {
   if (!t || !t.motor) return;
+  t.compPrev = t.compAct ?? 0; t.compAct = Math.max(0, t.pts.length - 1);
   const r = bbEntero(bbTrazo(t, 'sucio')); t.motor.sucio = [1e9, 1e9, -1e9, -1e9]; if (t.motores) for (const m of t.motores) m.sucio = [1e9, 1e9, -1e9, -1e9];
   if (!r) return;
   const c = t.capa.ctx;
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   c.clearRect(r[0], r[1], r[2], r[3]); c.drawImage(respaldo, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
   c.globalAlpha = t.op; c.globalCompositeOperation = t.gco;
-  if (t.pin && t.pin.granoImg) c.drawImage(conGrano(t.pin, r), r[0], r[1]);
+  if (t.pin && t.pin.granoImg) { conGrano(t.pin, r); c.drawImage(granoCv, 0, 0, r[2], r[3], r[0], r[1], r[2], r[3]); }
   else c.drawImage(trazoCv, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
   c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
 }
@@ -710,7 +725,7 @@ function conGrano(pin, r) {
   g.globalCompositeOperation = 'destination-in'; if (!pin._pat) pin._pat = g.createPattern(pin.granoImg, 'repeat');
   g.save(); g.translate(-r[0], -r[1]); g.fillStyle = pin._pat; g.fillRect(r[0], r[1], r[2], r[3]); g.restore();
   g.globalCompositeOperation = 'source-over';
-  const out = document.createElement('canvas'); out.width = r[2]; out.height = r[3]; out.getContext('2d').drawImage(granoCv, 0, 0, r[2], r[3], 0, 0, r[2], r[3]); return out;
+  return granoCv;
 }
 
 function terminarTrazo(e) {
@@ -750,6 +765,7 @@ function terminarTrazo(e) {
     if (Math.hypot(b.x - a.x, b.y - a.y) > 3 * doc.pxmm) {
       const L = registrarLinea(t, a, b, r, antes, deshacer[deshacer.length - 1]);
       // cota automática (levantamientos)
+      ultPto = { x: b.x, y: b.y }; pedirSup();
       if (doc.cotasAuto && Math.hypot(b.x - a.x, b.y - a.y) > 8 * doc.pxmm) agregarCota(a, b, -6 * doc.pxmm, true, doc.pedirMedida, L);
     }
   }
@@ -1369,11 +1385,44 @@ function redibujarLinea(L, o, largo) {
   return { t: 'px', capa, x: r[0], y: r[1], antes, despues: recorte(capa.cv, r), bytes: r[2] * r[3] * 12, lnk: { L, antes: previo, despues: fotoLinea(L) } };
 }
 
+// ---- cotas siempre por fuera: se busca la figura que forman las cotas unidas por sus extremos ----
+function figuraDeCota(o) {
+  const tol = 1.5 * doc.pxmm, cerca = (u, v) => Math.hypot(u.x - v.x, u.y - v.y) < tol;
+  const todas = doc.objetos.filter(x => x.tipo === 'cota'), comp = [o], pend = [o];
+  while (pend.length) { const q = pend.pop(); for (const x of todas) if (!comp.includes(x) && (cerca(x.a, q.a) || cerca(x.a, q.b) || cerca(x.b, q.a) || cerca(x.b, q.b))) { comp.push(x); pend.push(x); } }
+  return comp;
+}
+// +1 o -1: hacia qué lado de la cota (según su normal) queda afuera de la figura; null si está sola
+function signoFuera(o) {
+  const comp = figuraDeCota(o); if (comp.length < 2) return null;
+  const g = geomCota(o), mx = (o.a.x + o.b.x) / 2, my = (o.a.y + o.b.y) / 2;
+  const cortes = sg => { // cuántas cotas de la figura cruza un rayo desde el centro de esta, hacia un lado
+    const dx = g.nx * sg, dy = g.ny * sg; let n = 0;
+    for (const x of comp) { if (x === o) continue;
+      const ex = x.b.x - x.a.x, ey = x.b.y - x.a.y, den = dx * ey - dy * ex; if (Math.abs(den) < 1e-9) continue;
+      const wx = x.a.x - mx, wy = x.a.y - my, tt = (wx * ey - wy * ex) / den, u = (wx * dy - wy * dx) / den;
+      if (tt > 1e-6 && u >= 0 && u <= 1) n++; }
+    return n;
+  };
+  const cp = cortes(1) % 2, cm = cortes(-1) % 2;
+  if (cp !== cm) return cp ? -1 : 1; // el lado con cruces impares es "adentro"
+  // figura abierta: afuera = lejos del centro de la figura
+  let cx = 0, cy = 0, n = 0; for (const x of comp) { cx += x.a.x + x.b.x; cy += x.a.y + x.b.y; n += 2; }
+  const d = (cx / n - mx) * g.nx + (cy / n - my) * g.ny;
+  return Math.abs(d) < 1e-6 ? null : d > 0 ? -1 : 1;
+}
+// recoloca por fuera todas las cotas de la figura (menos las que el usuario puso a mano adentro o sobre la línea)
+function acomodarCotas(o) {
+  if (!o || !doc.objetos.includes(o)) return;
+  for (const x of figuraDeCota(o)) { if (x.ladoFijo) continue; const sg = signoFuera(x); if (sg) x.off = sg * Math.max(Math.abs(x.off || 0), 6 * doc.pxmm); }
+}
+
 function agregarCota(a, b, off, auto, preguntar, linea) {
   const antes = snapObj();
   const o = { tipo: 'cota', a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, off: off || 0, color: aj.color, id: Date.now() + Math.random() };
   if (linea) o.lid = linea.id;
   doc.objetos.push(o);
+  if (auto) acomodarCotas(o);
   if (auto && deshacer.length && deshacer[deshacer.length - 1].t === 'px') { // un solo deshacer para línea + cota
     const px = deshacer.pop(); bytesHist -= px.bytes || 0;
     const ent = { t: 'multi', items: [px, { t: 'obj', antes, despues: snapObj() }], bytes: px.bytes };
@@ -1391,6 +1440,7 @@ function descartarCota(o) {
     if (px) { // línea de levantamiento sin medida: se borra también la línea (sin medida no sirve)
       pegar(px.capa.ctx, px.antes, px.x, px.y); px.capa.sucia = true;
       if (px.lnk) px.lnk.L.ok = false;
+      ultPto = null;
       deshacer.pop(); bytesHist -= ult.bytes || 0; refrescarCapasSiAbierto();
       avisarSuave('Línea sin medida: se quitó');
     } else deshacer.pop();
@@ -1712,6 +1762,65 @@ function dialogoNivel(o) {
 function dibujarSim(c, o) {
   const sim = Simbolos.de(o.sid);
   Simbolos.dibujar(c, sim, o.x, o.y, o.ang, kSim(sim), o.w, o.color || '#1d1d1f', Math.max(1, 0.25 * doc.pxmm), textoSim(o), o.flip, Object.assign(seccionSim(o), { pxmm: doc.pxmm }));
+  if (CON_COTAS.includes(o.sid) && doc.cotasCol !== false) cotasColumna(c, o);
+}
+// ---- columnas y zapatas acotadas en el plano (lado X abajo, lado Y a la izquierda) ----
+const CON_COTAS = ['columna', 'columnaC', 'zapata'];
+function cotasColumna(c, o) {
+  const sim = Simbolos.de(o.sid), q = seccionSim(o), k = kSim(sim), mm = doc.pxmm, circ = sim.circular;
+  const hw = q.sw * k / 2, hh = (circ ? q.sw : q.sh) * k / 2, sep = 2.2 * mm, tk = 0.9 * mm, fs = 2.1 * mm;
+  c.save(); c.translate(o.x, o.y); c.rotate(o.ang || 0); if (o.flip) c.scale(1, -1);
+  c.strokeStyle = c.fillStyle = o.color || '#1d1d1f'; c.lineWidth = Math.max(1, 0.15 * mm); c.lineCap = 'round';
+  const tira = (x1, y1, x2, y2, nx, ny, txt) => { // una cota pequeña con líneas de extensión y marcas a 45°
+    const ax = x1 + nx * sep, ay = y1 + ny * sep, bx = x2 + nx * sep, by = y2 + ny * sep, ux = Math.sign(x2 - x1), uy = Math.sign(y2 - y1);
+    c.beginPath();
+    c.moveTo(x1 + nx * 0.5 * mm, y1 + ny * 0.5 * mm); c.lineTo(ax + nx * 0.8 * mm, ay + ny * 0.8 * mm);
+    c.moveTo(x2 + nx * 0.5 * mm, y2 + ny * 0.5 * mm); c.lineTo(bx + nx * 0.8 * mm, by + ny * 0.8 * mm);
+    c.moveTo(ax - ux * 0.8 * mm, ay - uy * 0.8 * mm); c.lineTo(bx + ux * 0.8 * mm, by + uy * 0.8 * mm);
+    for (const [px, py] of [[ax, ay], [bx, by]]) { const tx = (ux + nx) * 0.7071 * tk / 2, ty = (uy + ny) * 0.7071 * tk / 2; c.moveTo(px - tx, py - ty); c.lineTo(px + tx, py + ty); }
+    c.stroke();
+    // texto derecho para quien lo lea, por fuera de la cota
+    const mx = (ax + bx) / 2 + nx * 1.6 * mm, my = (ay + by) / 2 + ny * 1.6 * mm;
+    c.save(); c.translate(mx, my); let an = Math.atan2(o.flip ? y1 - y2 : y2 - y1, x2 - x1) + (o.ang || 0);
+    if (o.flip) c.scale(1, -1);
+    c.rotate(-(o.ang || 0)); // vuelve a coordenadas de la hoja para enderezar el texto
+    if (an > Math.PI / 2 + 0.01 || an < -Math.PI / 2 + 0.01) an += Math.PI; c.rotate(an);
+    c.font = `600 ${fs}px -apple-system,Roboto,"Segoe UI",sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = fs * 0.3; c.lineJoin = 'round'; c.strokeStyle = papelDe(doc.papel).color; c.strokeText(txt, 0, 0); c.fillText(txt, 0, 0);
+    c.restore();
+  };
+  if (circ) tira(-hw, hh, hw, hh, 0, 1, 'Ø' + fmtM(q.sw));
+  else { tira(-hw, hh, hw, hh, 0, 1, fmtM(q.sw)); tira(-hw, -hh, -hw, hh, -1, 0, fmtM(q.sh)); }
+  c.restore();
+}
+// ---- al mover una columna o zapata, una de sus esquinas se pega a un punto cercano ----
+let imanSim = null; // punto donde se pegó (para marcarlo en pantalla)
+function esquinasSim(o) {
+  const sim = Simbolos.de(o.sid), q = seccionSim(o), k = kSim(sim), a = q.sw / 2, b = (sim.circular ? q.sw : q.sh) / 2, cs = Math.cos(o.ang || 0), sn = Math.sin(o.ang || 0);
+  const loc = sim.circular ? [[0, 0], [a, 0], [-a, 0], [0, b], [0, -b]] : [[0, 0], [-a, -b], [a, -b], [a, b], [-a, b]];
+  return loc.map(([lx, ly]) => { const yy = o.flip ? -ly : ly; return { x: o.x + (lx * cs - yy * sn) * k, y: o.y + (lx * sn + yy * cs) * k }; });
+}
+function pegarSimbolo(o) {
+  imanSim = null;
+  if (!CON_COTAS.includes(o.sid)) return;
+  const tol = 16 / escalaVista(), esq = esquinasSim(o), pts = [], segs = [];
+  for (const x of doc.objetos) {
+    if (x.tipo === 'cota') { pts.push(x.a, x.b); segs.push([x.a, x.b]); }
+    else if (x !== o && x.tipo === 'simbolo' && CON_COTAS.includes(x.sid)) pts.push(...esquinasSim(x));
+  }
+  for (const L of lineas.values()) if (lineaUsable(L)) { pts.push(L.p, L.q); segs.push([L.p, L.q]); }
+  if (ultPto) pts.push(ultPto);
+  let mejor = null, dm = tol;
+  for (const e of esq) for (const p of pts) { const d = Math.hypot(p.x - e.x, p.y - e.y); if (d < dm) { dm = d; mejor = { dx: p.x - e.x, dy: p.y - e.y, p }; } }
+  if (!mejor) { // si no hay un punto cerca, la esquina se apoya sobre una línea o cota
+    dm = tol * 0.75;
+    for (const e of esq.slice(1)) for (const [a, b] of segs) {
+      const ex = b.x - a.x, ey = b.y - a.y, l2 = ex * ex + ey * ey; if (l2 < 1) continue;
+      const u = clamp(((e.x - a.x) * ex + (e.y - a.y) * ey) / l2, 0, 1), px = a.x + ex * u, py = a.y + ey * u, d = Math.hypot(px - e.x, py - e.y);
+      if (d < dm) { dm = d; mejor = { dx: px - e.x, dy: py - e.y, p: { x: px, y: py } }; }
+    }
+  }
+  if (mejor) { o.x += mejor.dx; o.y += mejor.dy; imanSim = mejor.p; }
 }
 // las vigas se pegan al centro de las columnas
 function imanColumna(d) {
@@ -1845,7 +1954,7 @@ function moverArq(e) {
     t.b = d;
     if (t.modo === 'soltar' && t.movido && !herrAntesSim) t.modo = 'poner';
     if (t.modo === 'poner' && (aj.simbolo === 'viga' || aj.simbolo === 'placa')) t.b = imanColumna(d);
-    if (t.modo === 'mover' && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; renderObjetos(); pedirSup(); }
+    if (t.modo === 'mover' && t.movido) { t.obj.x = d.x + t.ox; t.obj.y = d.y + t.oy; pegarSimbolo(t.obj); renderObjetos(); pedirSup(); }
     else if (t.modo === 'girar') { let an = Math.atan2(d.y - t.obj.y, d.x - t.obj.x) + (t.obj.flip ? -1 : 1) * Math.PI / 2; const p = Math.PI / 12, ob = Math.round(an / p) * p; if (Math.abs(an - ob) < 0.07) an = ob; t.obj.ang = an; renderObjetos(); pedirSup(); avisarSuave(Math.round(((an * 180 / Math.PI) % 360 + 360) % 360) + '°'); }
     else if (t.modo === 'poner') renderObjetos(null, nuevoSim(t));
   }
@@ -1895,7 +2004,8 @@ function terminarArq(t) {
     else if (t.modo === 'poner' && t.desdeCol && !t.movido) seleccionar(t.desdeCol); // solo un toque: selecciona la columna
     else if (t.modo === 'poner') { const o = nuevoSim(t); doc.objetos.push(o); histObj(t.antes); seleccionar(o);
       if (SECCIONES[o.sid] && !(aj.secNoPreguntar && aj.secNoPreguntar[o.sid])) dialogoSeccion(o, true); }
-    else if (t.movido || t.modo === 'girar') histObj(t.antes);
+    else if (t.movido || t.modo === 'girar') { histObj(t.antes); if (imanSim) avisarSuave('Esquina pegada'); }
+    imanSim = null; pedirSup();
     ponerBarraSel();
   }
 }
@@ -1912,13 +2022,15 @@ function editarCota(o, nueva) {
     <input type="text" id="cVal" inputmode="decimal" value="${nueva ? '' : o.texto || fmtM(med)}" placeholder="${fmtM(med)}" autocomplete="off">
     <label class="interruptor"><input type="checkbox" id="cAjustar" checked><span></span>${linea ? 'Llevar la línea dibujada a esta medida (a escala)' : 'Llevar la cota a esta medida (a escala)'}</label>
     <div class="etq" style="margin-top:6px">Separación de la línea</div>
-    <div class="seg" id="cOff"><button data-v="-8">← Afuera</button><button data-v="0">Sobre la línea</button><button data-v="8">Adentro →</button></div>
+    <div class="seg" id="cOff"><button data-v="1">Afuera</button><button data-v="0">Sobre la línea</button><button data-v="-1">Adentro</button></div>
     <div class="modal-btns"><button class="rojo" id="cBor">Eliminar</button><span style="flex:1"></span><button id="mNo">Cerrar</button><button class="ok" id="mSi">Guardar</button></div>`, cerrar => {
     const i = $('cVal'); setTimeout(() => { i.focus(); i.select(); }, 60);
-    let off = o.off || 0;
-    const marcarOff = () => $('cOff').querySelectorAll('button').forEach(b => b.classList.toggle('activo', Math.sign(+b.dataset.v) === Math.sign(off)));
+    // lado elegido: 1 afuera · 0 sobre la línea · -1 adentro (según la figura que forman las cotas)
+    const sg0 = signoFuera(o) || -1;
+    let lado = !o.off ? 0 : Math.sign(o.off) === sg0 ? 1 : -1, ladoTocado = false;
+    const marcarOff = () => $('cOff').querySelectorAll('button').forEach(b => b.classList.toggle('activo', +b.dataset.v === lado));
     marcarOff();
-    $('cOff').querySelectorAll('button').forEach(b => b.onclick = () => { off = +b.dataset.v * doc.pxmm; marcarOff(); });
+    $('cOff').querySelectorAll('button').forEach(b => b.onclick = () => { lado = +b.dataset.v; ladoTocado = true; marcarOff(); });
     $('mNo').onclick = () => { cerrar(); nueva ? descartarCota(o) : renderObjetos(); };
     $('cBor').onclick = () => { cerrar(); if (nueva) return descartarCota(o); const antes = snapObj(); doc.objetos.splice(doc.objetos.indexOf(o), 1); histObj(antes); };
     const guardarC = () => {
@@ -1933,7 +2045,11 @@ function editarCota(o, nueva) {
         else o.texto = Math.abs(v - med) < 0.005 ? null : fmtM(v);
       } else if (i.value.trim() && !nueva) o.texto = i.value.trim();
       else if (nueva) { cerrar(); descartarCota(o); return; } // sin medida: la cota se quita sola
-      o.off = off;
+      if (ladoTocado) o.ladoFijo = lado !== 1;
+      const mag = Math.max(Math.abs(o.off || 0), 6 * doc.pxmm), sg = signoFuera(o) || sg0;
+      o.off = lado === 0 ? 0 : lado * sg * mag;
+      acomodarCotas(o);
+      if (nueva && lineaDe.get(o) && lineaDe.get(o).ent.t === 'multi') ultPto = { x: o.b.x, y: o.b.y }; // la siguiente línea sigue desde aquí
       cerrar();
       const reg = lineaDe.get(o), ult = deshacer[deshacer.length - 1];
       if (nueva && reg && reg.ent === ult) { // la edición va en el mismo paso de deshacer que la línea
@@ -2033,7 +2149,8 @@ function vpCercano(x, y) {
 }
 
 // ---- cursor del pincel (lápiz flotando) y tinta adelantada ----
-const cursorCv = $('cursorCv'), curCtx = cursorCv.getContext('2d');
+// lienzo "desincronizado": se pinta directo en pantalla sin esperar al compositor (menos retraso del lápiz)
+const cursorCv = $('cursorCv'), curCtx = cursorCv.getContext('2d', { desynchronized: true }) || cursorCv.getContext('2d');
 let hover = null, rafCur = 0, curPrev = null;
 function pedirCursor() { if (!rafCur) rafCur = requestAnimationFrame(() => { rafCur = 0; dibujarCursor(); }); }
 // Ojo: el borrado se hace SIN escala. Antes se borraba con la escala de pantalla (×2 o ×3 en la
@@ -2047,12 +2164,18 @@ function dibujarCursor() {
   if (!doc) return;
   const t = trazo, s = escalaVista();
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (t && t.motor && t.pred && t.motor.ult && !t.borrar && !t.forma) {
-    const a = mApl(M, t.motor.ult.x, t.motor.ult.y), b = mApl(M, t.pred.x, t.pred.y), w = Math.max(1, t.motor.ult.s * s);
-    if (Math.hypot(b.x - a.x, b.y - a.y) < 80) {
-      c.globalAlpha = Math.min(1, t.op * (t.pin.alfa || 1) * 1.2); c.strokeStyle = aj.color; c.lineWidth = w; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.globalAlpha = 1;
-      curPrev = [(Math.min(a.x, b.x) - w - 2) * DPR, (Math.min(a.y, b.y) - w - 2) * DPR, (Math.abs(b.x - a.x) + 2 * w + 4) * DPR, (Math.abs(b.y - a.y) + 2 * w + 4) * DPR];
+  if (t && t.motor && t.motor.ult && !t.borrar && !t.forma && !t.lazo && PUNTA_ADEL.includes(t.pin.tip)) {
+    // tinta adelantada: desde lo último que ya se ve en la capa hasta donde está (y va) el lápiz
+    const pts = t.pts, i0 = Math.max(0, Math.min(t.compPrev ?? 0, pts.length - 1)), cam = [];
+    for (let i = i0; i < pts.length; i++) cam.push(mApl(M, pts[i].x, pts[i].y));
+    if (t.pred && !t.dir) { const b = mApl(M, t.pred.x, t.pred.y), u = cam[cam.length - 1]; if (u && Math.hypot(b.x - u.x, b.y - u.y) < 60) cam.push(b); }
+    if (cam.length > 1) {
+      const w = Math.max(1, t.motor.ult.s * s);
+      c.globalAlpha = Math.min(1, t.op * (t.pin.alfa || 1)); c.strokeStyle = aj.color; c.lineWidth = w; c.lineCap = c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(cam[0].x, cam[0].y); let x0 = cam[0].x, y0 = cam[0].y, x1 = x0, y1 = y0;
+      for (let k = 1; k < cam.length; k++) { const q = cam[k]; c.lineTo(q.x, q.y); if (q.x < x0) x0 = q.x; if (q.y < y0) y0 = q.y; if (q.x > x1) x1 = q.x; if (q.y > y1) y1 = q.y; }
+      c.stroke(); c.globalAlpha = 1;
+      curPrev = [Math.floor((x0 - w - 3) * DPR), Math.floor((y0 - w - 3) * DPR), Math.ceil((x1 - x0 + 2 * w + 6) * DPR), Math.ceil((y1 - y0 + 2 * w + 6) * DPR)];
     }
     return;
   }
@@ -2118,6 +2241,12 @@ function dibujarSup() {
         c.lineWidth = 2; c.strokeStyle = '#0b0b0c'; c.stroke();
       }
     }
+  }
+  if (imanSim) { const p = mApl(M, imanSim.x, imanSim.y); c.setTransform(DPR, 0, 0, DPR, 0, 0); c.beginPath(); c.arc(p.x, p.y, 11, 0, 6.2832); c.lineWidth = 2.5; c.strokeStyle = '#8ACF00'; c.stroke(); }
+  if (ultPto && aEscala() && herramienta === 'pincel' && !(trazo && trazo.lazo)) { // dónde sigue la siguiente línea
+    const p = mApl(M, ultPto.x, ultPto.y); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.beginPath(); c.arc(p.x, p.y, 9, 0, 6.2832); c.fillStyle = 'rgba(138,207,0,.28)'; c.fill();
+    c.beginPath(); c.arc(p.x, p.y, 4, 0, 6.2832); c.fillStyle = '#8ACF00'; c.fill(); c.lineWidth = 1.5; c.strokeStyle = '#0b0b0c'; c.stroke();
   }
   if (selSim && herramienta === 'simbolo' && doc.objetos.includes(selSim)) {
     const o = selSim, b = cajaSim(o), k = kSim(Simbolos.de(o.sid)), cs = Math.cos(o.ang), sn = Math.sin(o.ang);
@@ -3109,6 +3238,7 @@ function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
 }
 async function abrirDibujo(id) {
   const r = await dbUno(id); if (!r) return;
+  ultPto = null;
   doc = { id: r.id, nombre: r.nombre, w: r.w, h: r.h, papel: r.papel, grano: r.grano, creado: r.creado, activa: r.activa || 0, guias: Object.assign(guiasPorDefecto(r.w, r.h), r.guias || {}), capas: [] };
   datosArq(doc, r);
   for (const l of r.capas) {

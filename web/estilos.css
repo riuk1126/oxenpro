@@ -391,3 +391,10 @@ body.zurdo .pines-ventana{left:auto;right:calc(66px + var(--sa-r))}
 .eq-agregar .acc-input{flex:1}
 .eq-agregar .btn-verde{padding:0 16px;border-radius:12px}
 .eq-clave{font-size:22px;letter-spacing:.12em;color:var(--verde);font-family:ui-monospace,Consolas,monospace}
+
+/* compartir con personas */
+.tarjeta .t-para{color:var(--verde);font-size:12px;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .item-sub{display:block;font-size:12px;font-weight:500;opacity:.6;margin-top:2px}
+.eq-pers{display:flex;flex-direction:column;gap:2px;max-height:46vh;overflow:auto;margin:4px 0 6px;padding-left:4px;border-left:2px solid rgba(138,207,0,.35)}
+.eq-pn{display:flex;flex-direction:column;line-height:1.2}.eq-pn small{opacity:.6;font-size:12px}
+.eq-todos{margin-bottom:4px}
