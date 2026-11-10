@@ -27,6 +27,10 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Áreas**: toca dentro de un ambiente cerrado y ves su área libre y perímetro (transparente). Tócalo otra vez para ponerle nombre (Sala, Baño…) y dejar el área en el plano; se actualiza sola si mueves un muro. Al cerrar una figura, la app avisa su área.
 - **Cuadro de vanos** (menú): tabla automática de puertas y ventanas con códigos P-1, V-1… En cada abertura, *Alturas…* para el alto y el alféizar.
 
+## Calidad y fluidez
+- **Alta resolución según el equipo**: las hojas nuevas se crean a 300 ppp en equipos potentes, 240 en medianos y 200 en sencillos (antes 150), sin pasar del tamaño que la tarjeta gráfica pinta rápido. Al crear la hoja puedes elegir Estándar, Alta o Máxima. Los pinceles y texturas mantienen su grosor real.
+- **Sin pausas**: el respaldo para deshacer se copia solo por donde pasa el lápiz; los trazos grandes guardan solo los cuadros que pintaron; las capas se comprimen en segundo plano al guardar; el límite de capas y la memoria del deshacer se ajustan a la RAM del equipo.
+
 ## Exportar e importar
 - **PDF a escala**: con el tamaño real del papel (A4, A3…); impreso al 100 % la escala es exacta.
 - **CAD (DXF)**: muros, cotas, puertas, ventanas, estructura, textos y ambientes, en metros y por capas. Los trazos a mano alzada no pasan (son dibujo, no líneas).
@@ -34,7 +38,9 @@ La app de Android se actualiza sola: cada mejora que se sube aquí llega a la ta
 - **Logo en el rótulo**: Notas → *Poner mi logo en el rótulo* (cada cuenta pone el suyo).
 
 ## Nube y comentarios
-- **Nube**: cada boceto se respalda en tu cuenta al salir de él. En otro equipo, la galería muestra *En la nube* y un toque lo descarga. *Mi cuenta* muestra cuántos hay respaldados.
+- **Nube** (icono ☁ en el inicio): cada boceto se respalda en tu cuenta al salir de él. La pantalla ☁ muestra todo lo que tienes en la nube y en este equipo: abrir o descargar, subir ahora, quitar de la nube o guardar en el dispositivo. En otro equipo, la galería también muestra *En la nube*.
+- **Guardar en el dispositivo**: menú ⋯ del boceto → *Guardar en el dispositivo (.oxen)*: un archivo con el boceto completo que se vuelve a abrir desde ☁ → *Abrir archivo .oxen*.
+- **Eliminar**: si el boceto está en la nube, eliges quitarlo solo de este equipo (se recupera desde ☁) o de todos lados.
 - **Comentarios del equipo**: en un boceto compartido, el equipo toca *Comentarios → Comentar en un punto* y marca el lugar. El dueño ve los pines numerados al abrir el boceto, responde y los marca como resueltos.
 
 ## Panel

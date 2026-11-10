@@ -80,6 +80,33 @@ const pincel = id => PINCELES.find(p => p.id === id) || PINCELES[2];
 const PXMM = 1754 / 297; // píxeles por milímetro de papel (150 ppp: hojas livianas y fluidas)
 const ESC_TEX = 1.8; // las texturas se dibujan más grandes para que se reconozca cada material
 
+// ---- Calidad según el equipo: alta resolución sin que se ponga lento ----
+// RAM del equipo (Chrome la informa redondeada: 0.5, 1, 2, 4, 8) y el tamaño máximo que la tarjeta gráfica
+// pinta sin pasar a modo lento. Con eso se elige la resolución de las hojas nuevas, el límite de capas y la
+// memoria del deshacer. Así un equipo potente dibuja a 300 ppp y uno modesto a 200 ppp, ambos fluidos.
+const EQUIPO = (() => {
+  const ram = navigator.deviceMemory || 4;
+  let tex = 4096;
+  try { const g = document.createElement('canvas').getContext('webgl'); if (g) tex = g.getParameter(g.MAX_TEXTURE_SIZE) || 4096; } catch (e) {}
+  const nivel = ram >= 8 ? 3 : ram >= 4 ? 2 : 1;
+  return { ram, tex, nivel, memCapas: [0, 260e6, 520e6, 1000e6][nivel], memHist: [0, 70e6, 140e6, 240e6][nivel] };
+})();
+const CALIDADES = [ // ppp = puntos por pulgada al imprimir
+  { id: 'auto', n: 'Automática' }, { id: 'estandar', n: 'Estándar', ppp: 150 }, { id: 'alta', n: 'Alta', ppp: 220 }, { id: 'maxima', n: 'Máxima', ppp: 300 },
+];
+const pppAuto = () => [0, 200, 240, 300][EQUIPO.nivel];
+// resolución para una hoja de w×h (a 150 ppp): respeta la tarjeta gráfica y la memoria del equipo
+function resolucionHoja(w, h, calidad) {
+  const c = CALIDADES.find(x => x.id === calidad) || CALIDADES[0];
+  let f = (c.ppp || pppAuto()) / 150;
+  f = Math.min(f, (Math.min(EQUIPO.tex, 8192) - 16) / Math.max(w, h));       // que la tarjeta la pinte rápido
+  f = Math.min(f, Math.sqrt(EQUIPO.memCapas / 6 / (w * h * 4)));             // que entren al menos 6 capas
+  return Math.max(1, Math.round(f * 100) / 100);
+}
+const resDoc = () => (doc && doc.pxmm ? doc.pxmm / PXMM : 1);                  // 1 = hojas de antes (150 ppp)
+const pppDoc = () => Math.round(resDoc() * 150);
+function limiteCapas() { return !doc ? 16 : Math.max(6, Math.min(16, Math.floor(EQUIPO.memCapas / (doc.w * doc.h * 4)))); }
+
 // ---------- punta suave coloreada ----------
 const puntas = new Map();
 const sellos = new Map();
@@ -108,8 +135,8 @@ function crearTrazo(ctx, pin, color, tex) {
   const t = { ctx, pin, color, ult: null, falta: 0, bb: [1e9, 1e9, -1e9, -1e9], sucio: [1e9, 1e9, -1e9, -1e9], dIdx: 0, dResto: -1, anc: null };
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.lineCap = pin.tip === 'guion' && !pin.redondo ? 'butt' : 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  if (pin.tip === 'grano') t.estilo = Texturas.patronGrano(ctx, pin.grano, color);
-  else if (pin.tip === 'textura') t.estilo = Texturas.patron(ctx, pin.texId || tex.id, color, (tex.escala || 1) * ESC_TEX);
+  if (pin.tip === 'grano') { t.estilo = Texturas.patronGrano(ctx, pin.grano, color); if (resDoc() !== 1 && t.estilo.setTransform) t.estilo.setTransform(new DOMMatrix().scale(resDoc())); }
+  else if (pin.tip === 'textura') t.estilo = Texturas.patron(ctx, pin.texId || tex.id, color, (tex.escala || 1) * ESC_TEX * resDoc());
   else if (pin.tip === 'suave') t.punta = puntaSuave(color, pin.dureza || 0);
   else if (pin.tip === 'sello') t.punta = puntaSello(pin, color);
   ctx.fillStyle = ctx.strokeStyle = t.estilo || color;
@@ -284,7 +311,7 @@ function ubicarTrazoCv() {
 function pushHist(e) {
   deshacer.push(e); rehacer.length = 0;
   bytesHist += e.bytes || 0;
-  while (deshacer.length > 60 || (bytesHist > 220e6 && deshacer.length > 1)) bytesHist -= deshacer.shift().bytes || 0;
+  while (deshacer.length > 60 || (bytesHist > EQUIPO.memHist && deshacer.length > 1)) bytesHist -= deshacer.shift().bytes || 0;
   marcarCambio();
 }
 function bbEntero(bb) {
@@ -325,6 +352,17 @@ function borrarAnotacionesBajo(t) {
   doc.objetos = doc.objetos.filter(o => !fuera.includes(o)); if (fuera.includes(selSim)) seleccionar(null);
   pushHist({ t: 'multi', items: [px, { t: 'obj', antes, despues: snapObj() }], bytes: px.bytes });
   renderObjetos();
+}
+function histCuadros(capa, r) {
+  const items = []; let bytes = 0;
+  for (const k of respHechos) {
+    const x0 = Math.max(r[0], (k % 4096) * CUADRO), y0 = Math.max(r[1], Math.floor(k / 4096) * CUADRO);
+    const x1 = Math.min(r[0] + r[2], (k % 4096) * CUADRO + CUADRO), y1 = Math.min(r[1] + r[3], Math.floor(k / 4096) * CUADRO + CUADRO);
+    if (x1 <= x0 || y1 <= y0) continue;
+    const q = [x0, y0, x1 - x0, y1 - y0], b = q[2] * q[3] * 8; bytes += b;
+    items.push({ t: 'px', capa, x: x0, y: y0, antes: recorte(respaldo, q), despues: recorte(capa.cv, q), bytes: b });
+  }
+  pushHist({ t: 'multi', items, bytes }); capa.sucia = true;
 }
 function histPx(capa, r, antes, yaSumado) {
   if (!yaSumado) invalidarLineas(capa, r); // lo pintado encima de una línea recordada ya no permite redibujarla
@@ -388,7 +426,7 @@ function dibujarPapel(c, w, h, k = 1) {
   c.fillStyle = p.color; c.fillRect(0, 0, w, h);
   if (doc.grano !== false) {
     c.save(); c.globalAlpha = p.id === 'negro' || p.id === 'gris' ? 0.07 : 0.035;
-    const pt = c.createPattern(Texturas.granoBase('grueso'), 'repeat'); if (k !== 1 && pt.setTransform) pt.setTransform(new DOMMatrix().scale(k));
+    const pt = c.createPattern(Texturas.granoBase('grueso'), 'repeat'); if (k * resDoc() !== 1 && pt.setTransform) pt.setTransform(new DOMMatrix().scale(k * resDoc()));
     c.fillStyle = pt; c.fillRect(0, 0, w, h); c.restore();
   }
 }
@@ -398,6 +436,7 @@ function pintarPapel() {
   if (!granoURL) { const t = document.createElement('canvas'); t.width = t.height = 256; const c = t.getContext('2d'); c.globalAlpha = 0.035; c.drawImage(Texturas.granoBase('grueso'), 0, 0); granoURL = t.toDataURL(); }
   docEl.style.backgroundColor = p.color;
   docEl.style.backgroundImage = doc.grano !== false ? `url(${granoURL})` : 'none';
+  docEl.style.backgroundSize = Math.round(256 * resDoc()) + 'px';
 }
 
 // =====================================================================
@@ -577,7 +616,8 @@ function terminarGesto(seguir) {
 function opcionesPincel(id) { return aj.porPincel[id] || (aj.porPincel[id] = { tam: 0.4, op: 1 }); }
 function claveAjuste() { return herramienta === 'borrador' ? 'e:' + aj.borrador : herramienta === 'relleno' ? 'relleno' : aj.pincel; }
 function pincelActual() { return pincel(herramienta === 'borrador' ? aj.borrador : aj.pincel); }
-function tamPincel(pin, o, pxmm) { return pin.mm ? pin.mm * (pxmm || PXMM) * lerp(0.6, 1.8, o.tam) : lerp(pin.min, pin.max, o.tam * o.tam); }
+// los pinceles en píxeles crecen con la resolución de la hoja: el trazo se ve igual en una hoja de 150 o de 300 ppp
+function tamPincel(pin, o, pxmm) { return pin.mm ? pin.mm * (pxmm || PXMM) * lerp(0.6, 1.8, o.tam) : lerp(pin.min, pin.max, o.tam * o.tam) * ((pxmm || PXMM) / PXMM); }
 
 function puntoDesde(e, t) {
   const d = aDoc(e.clientX, e.clientY), pin = t.pin, o = t.opc;
@@ -750,6 +790,7 @@ function conGrano(pin, r) {
   if (granoCv.width < r[2]) granoCv.width = r[2]; if (granoCv.height < r[3]) granoCv.height = r[3];
   const g = granoCtx; g.globalCompositeOperation = 'copy'; g.drawImage(trazoCv, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
   g.globalCompositeOperation = 'destination-in'; if (!pin._pat) pin._pat = g.createPattern(pin.granoImg, 'repeat');
+  if (pin._pat.setTransform && pin._patRes !== resDoc()) { pin._patRes = resDoc(); pin._pat.setTransform(new DOMMatrix().scale(resDoc())); }
   g.save(); g.translate(-r[0], -r[1]); g.fillStyle = pin._pat; g.fillRect(r[0], r[1], r[2], r[3]); g.restore();
   g.globalCompositeOperation = 'source-over';
   return granoCv;
@@ -788,9 +829,13 @@ function terminarTrazo(e) {
   cancelAnimationFrame(rafComp); rafComp = 0;
   componerTrazo(t); limpiarCursor();
   const r = bbEntero(bbTrazo(t)); if (!r) { trazoCtx.clearRect(0, 0, doc.w, doc.h); return; }
-  asegurarRespaldo(r); const antes = recorte(respaldo, r);
+  // un trazo a mano grande (p. ej. una diagonal larga) guarda para deshacer solo los cuadros que pintó, no todo
+  // el rectángulo que lo encierra: en hojas de alta resolución eso ahorra decenas de MB por trazo
+  const esLinea = !t.borrar && (t.forma && t.forma.tipo === 'linea' || t.dir), porCuadros = !esLinea && respHechos && r[2] * r[3] > 1.2e6;
+  if (!porCuadros) asegurarRespaldo(r);
+  const antes = porCuadros ? null : recorte(respaldo, r);
   if (!t.borrar) sumarTrazoALineas(t, r); else invalidarLineas(t.capa, r);
-  histPx(t.capa, r, antes, true);
+  if (porCuadros) histCuadros(t.capa, r); else histPx(t.capa, r, antes, true);
   trazoCtx.clearRect(r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4);
   if (t.borrar) borrarAnotacionesBajo(t);
   // líneas rectas: se recuerdan para poder llevarlas a una medida exacta con una cota
@@ -822,7 +867,7 @@ function cancelarTrazo() {
 
 // ---- relleno con lazo ----
 function estiloRelleno(ctx) {
-  if (aj.textura.modo === 'textura') return Texturas.patron(ctx, aj.textura.id, aj.color, aj.textura.escala * ESC_TEX);
+  if (aj.textura.modo === 'textura') return Texturas.patron(ctx, aj.textura.id, aj.color, aj.textura.escala * ESC_TEX * resDoc());
   if (aj.textura.modo === 'borrar') return '#ff4d4d';
   return aj.color;
 }
@@ -2806,14 +2851,14 @@ function pintarCapas() {
   $('cAgrupar').lastChild.textContent = c.grupo ? 'Desagrupar' : 'Agrupar';
   document.querySelectorAll('#segMezcla button').forEach(b => b.classList.toggle('activo', b.dataset.v === c.mezcla));
 }
-const MAX_CAPAS = 16;
+const MAX_CAPAS = 16; // tope general; el real depende del equipo y del tamaño de la hoja (limiteCapas)
 $('bCapaNueva').onclick = () => {
-  if (doc.capas.length >= MAX_CAPAS) return avisar('Máximo ' + MAX_CAPAS + ' capas');
+  if (doc.capas.length >= limiteCapas()) return avisar('Máximo ' + limiteCapas() + ' capas en esta hoja con este equipo');
   const c = crearCapa('Capa ' + (doc.capas.length + 1), doc.w, doc.h), idx = doc.activa + 1;
   insertarCapa(c, idx); pushHist({ t: 'nueva', capa: c, idx }); pintarCapas();
 };
 $('cDuplicar').onclick = () => {
-  if (doc.capas.length >= MAX_CAPAS) return avisar('Máximo ' + MAX_CAPAS + ' capas');
+  if (doc.capas.length >= limiteCapas()) return avisar('Máximo ' + limiteCapas() + ' capas en esta hoja con este equipo');
   const o = capaActiva(), c = crearCapa(o.nombre + ' copia', doc.w, doc.h); c.ctx.drawImage(o.cv, 0, 0); c.op = o.op; c.mezcla = o.mezcla; c.bloq = o.bloq; c.grupo = o.grupo; c.ref = o.ref;
   const idx = doc.activa + 1; insertarCapa(c, idx); pushHist({ t: 'nueva', capa: c, idx }); pintarCapas();
 };
@@ -2961,6 +3006,7 @@ $('mAjustar').onclick = () => { cerrarPaneles(); ajustarPantalla(); };
 $('mVoltear').onclick = () => { cerrarPaneles(); const cx = innerWidth / 2; M = mMul([-1, 0, 0, 1, 2 * cx, 0], M); aplicarVista(); avisar('Vista volteada'); };
 $('mExportar').onclick = () => { cerrarPaneles(); exportar('png'); };
 $('mExportarJpg').onclick = () => { cerrarPaneles(); exportar('jpg'); };
+$('btnNube').onclick = () => { if (window.Nube) Nube.pantalla(); };
 $('mExportarPdf').onclick = () => { cerrarPaneles(); exportarPdf().catch(e => { console.error(e); avisar('No se pudo exportar el PDF'); }); };
 $('mExportarDxf').onclick = () => { cerrarPaneles(); try { exportarDxf(); } catch (e) { console.error(e); avisar('No se pudo exportar a CAD'); } };
 $('mPdfFondo').onclick = () => { cerrarPaneles(); $('fPdf').click(); };
@@ -2981,7 +3027,7 @@ $('fImportar').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try {
     const img = await createImageBitmap(f);
-    if (doc.capas.length >= MAX_CAPAS) return avisar('Máximo ' + MAX_CAPAS + ' capas');
+    if (doc.capas.length >= limiteCapas()) return avisar('Máximo ' + limiteCapas() + ' capas en esta hoja con este equipo');
     if (flot) aplicarFlot();
     // la referencia va ABAJO de todo, semitransparente y sin bloquear el relleno por color
     const c = crearCapa('Referencia', doc.w, doc.h), k = Math.min(doc.w / img.width, doc.h / img.height) * 0.9;
@@ -3053,21 +3099,26 @@ const TIPOS = [
 ];
 const LISTA_LEV = ['Largo y ancho de cada ambiente', 'Diagonales para verificar escuadra', 'Altura de piso a techo y de vigas', 'Espesor de muros y tipo (ladrillo, drywall, adobe)', 'Columnas y vigas: ubicación y sección (ancho × peralte)', 'Puertas y ventanas: ancho, alto y alféizar', 'Tomacorrientes, interruptores y puntos de luz', 'Puntos de agua y desagüe', 'Niveles de piso (NPT)', 'Ubicar el norte', 'Fotos de cada ambiente', 'Estado de acabados y humedad'];
 function dialogoNuevo() {
-  let fmt = 'a4h', pap = 'blanco', tipo = 'boceto', esc = 50;
+  let fmt = 'a4h', pap = 'blanco', tipo = 'boceto', esc = 50, cal = aj.calidad || 'auto';
   const F = formatos();
   modal(`<h3>Nueva hoja</h3>
     <div class="etq">Tipo de hoja</div><div class="opciones" id="oTipo">${TIPOS.map(t => `<button data-id="${t.id}" class="${t.id === tipo ? 'activo' : ''}">${t.n}<small>${t.d}</small></button>`).join('')}</div>
     <div id="oEscWrap" class="oculto"><div class="etq">Escala</div><div class="opciones" id="oEsc">${[20, 25, 50, 75, 100, 200].map(e => `<button data-id="${e}" class="${e === esc ? 'activo' : ''}">1/${e}</button>`).join('')}<button data-id="otra">Otra…</button></div><input type="text" id="oEscOtra" class="oculto" inputmode="numeric" placeholder="Escribe la escala: 1 / … (ej. 30)" style="margin-top:8px"></div>
     <div class="etq">Tamaño</div><div class="opciones" id="oFmt">${opcionesHtml(F, fmt, o => { const k = 30 / Math.max(o.w, o.h); return `<span class="hoja" style="width:${o.w * k}px;height:${o.h * k}px"></span>`; })}</div>
     <div class="etq">Papel</div><div class="opciones" id="oPap">${opcionesHtml(PAPELES, pap, o => `<span class="hoja" style="width:26px;height:20px;background:${o.color}"></span>`)}</div>
+    <div class="etq">Resolución</div><div class="opciones" id="oCal">${CALIDADES.map(c => `<button data-id="${c.id}" class="${c.id === cal ? 'activo' : ''}">${c.n}<small>${c.ppp ? c.ppp + ' ppp' : pppAuto() + ' ppp en este equipo'}</small></button>`).join('')}</div>
+    <div class="nota-cal" id="oCalNota"></div>
     <div class="modal-btns"><button id="mNo">Cancelar</button><button class="ok" id="mSi">Crear</button></div>`, cerrar => {
     const sel = (id, fn) => $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.classList.toggle('activo', x === b)); fn(b.dataset.id); });
-    sel('oFmt', v => fmt = v); sel('oPap', v => pap = v);
+    sel('oFmt', v => { fmt = v; notaCal(); }); sel('oPap', v => pap = v);
+    const notaCal = () => { const f0 = F.find(x => x.id === fmt), f = resolucionHoja(f0.w, f0.h, cal), ppp = Math.round(150 * f), pedido = (CALIDADES.find(c => c.id === cal).ppp || pppAuto());
+      $('oCalNota').textContent = ppp < pedido - 4 ? `En este equipo esta hoja queda en ${ppp} ppp para que siga fluida.` : cal === 'maxima' && EQUIPO.nivel < 3 ? 'Máxima en este equipo puede ir más lento con muchas capas.' : ''; };
+    sel('oCal', v => { cal = v; aj.calidad = v; guardarAjustes(); notaCal(); }); notaCal();
     sel('oEsc', v => { const otra = v === 'otra'; $('oEscOtra').classList.toggle('oculto', !otra); if (otra) $('oEscOtra').focus(); else esc = +v; });
     $('oEscOtra').oninput = e => { const n = Math.round(parseFloat(String(e.target.value).replace(',', '.'))); if (n >= 1 && n <= 100000) esc = n; };
     sel('oTipo', v => { tipo = v; $('oEscWrap').classList.toggle('oculto', v === 'boceto' || v === 'perspectiva'); });
     $('mNo').onclick = cerrar;
-    $('mSi').onclick = () => { cerrar(); const f = F.find(x => x.id === fmt); nuevoDibujo(f.w, f.h, pap, tipo, esc); };
+    $('mSi').onclick = () => { cerrar(); const f = F.find(x => x.id === fmt); nuevoDibujo(f.w, f.h, pap, tipo, esc, cal); };
   });
 }
 function dialogoPapel() {
@@ -3195,6 +3246,30 @@ const dbUno = id => dbOp('readonly', s => s.get(id));
 const dbPut = rec => dbOp('readwrite', s => s.put(rec));
 const dbBorrar = id => dbOp('readwrite', s => s.delete(id));
 const aBlob = (cv, tipo = 'image/png', q) => new Promise(r => cv.toBlob(r, tipo, q));
+// Comprimir una capa a PNG es lo más pesado de guardar. Se hace en un proceso aparte (worker con OffscreenCanvas):
+// aquí solo se toma una "foto" de la capa (rápido) y el lápiz sigue libre mientras se comprime.
+let codif = null, codifN = 0; const codifPend = new Map();
+function codificador() {
+  if (codif !== null) return codif;
+  try {
+    if (typeof OffscreenCanvas === 'undefined' || !OffscreenCanvas.prototype.convertToBlob || !window.createImageBitmap) return (codif = false);
+    const src = `onmessage = async e => { const { id, bmp, tipo, q } = e.data;
+      try { const c = new OffscreenCanvas(bmp.width, bmp.height); c.getContext('2d').drawImage(bmp, 0, 0); bmp.close();
+        postMessage({ id, b: await c.convertToBlob(q != null ? { type: tipo, quality: q } : { type: tipo }) }); }
+      catch (err) { postMessage({ id, err: String(err) }); } };`;
+    codif = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    codif.onmessage = e => { const p = codifPend.get(e.data.id); if (!p) return; codifPend.delete(e.data.id); e.data.b ? p.ok(e.data.b) : p.mal(new Error(e.data.err)); };
+    codif.onerror = () => { codif = false; for (const p of codifPend.values()) p.mal(new Error('worker')); codifPend.clear(); };
+  } catch (e) { codif = false; }
+  return codif;
+}
+async function aBlobFondo(cv, tipo = 'image/png', q) {
+  const w = codificador(); if (!w) return aBlob(cv, tipo, q);
+  try {
+    const bmp = await createImageBitmap(cv), id = ++codifN;
+    return await new Promise((ok, mal) => { codifPend.set(id, { ok, mal }); w.postMessage({ id, bmp, tipo, q }, [bmp]); });
+  } catch (e) { return aBlob(cv, tipo, q); } // si algo falla, a la manera de siempre
+}
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
 
 // Guardar comprime cada capa (trabajo pesado): se hace cuando el usuario deja de tocar la pantalla,
@@ -3216,9 +3291,9 @@ async function guardar() {
   if (guardando) { pendiente = true; return guardando; }
   const d = doc; d.cambio = false;
   guardando = (async () => {
-    for (const c of d.capas) if (c.sucia || !c.blob) { c.sucia = false; c.blob = await aBlob(c.cv); await respiro(); }
+    for (const c of d.capas) if (c.sucia || !c.blob) { c.sucia = false; c.blob = await aBlobFondo(c.cv); await respiro(); }
     const mini = componer(Math.min(1, 480 / Math.max(d.w, d.h)), d);
-    const thumb = await aBlob(mini, 'image/jpeg', 0.85);
+    const thumb = await aBlobFondo(mini, 'image/jpeg', 0.85);
     await dbPut({
       id: d.id, nombre: d.nombre, w: d.w, h: d.h, papel: d.papel, grano: d.grano, creado: d.creado, fecha: Date.now(), activa: d.activa, guias: d.guias, thumb,
       tipo: d.tipo, escala: d.escala, pxmm: d.pxmm, objetos: d.objetos.map(o => { const { _bb, ...x } = o; return x; }), info: d.info, notas: d.notas, lista: d.lista,
@@ -3294,12 +3369,24 @@ async function mostrarGaleria() {
   if (window.Nube) Nube.alPintarGaleria();
 }
 function menuTarjeta(r) {
-  modal(`<h3>${escapar(r.nombre)}</h3><button class="item" id="tRen">Renombrar</button><button class="item" id="tDup">Duplicar</button>${window.Equipo ? Equipo.itemMenu(r) : ''}<button class="item" id="tBor" style="color:#ff6b5e">Eliminar</button><div class="modal-btns"><button id="mNo">Cerrar</button></div>`, cerrar => {
+  modal(`<h3>${escapar(r.nombre)}</h3><button class="item" id="tRen">Renombrar</button><button class="item" id="tDup">Duplicar</button><button class="item" id="tArch">Guardar en el dispositivo (.oxen)</button>${window.Equipo ? Equipo.itemMenu(r) : ''}<button class="item" id="tBor" style="color:#ff6b5e">Eliminar</button><div class="modal-btns"><button id="mNo">Cerrar</button></div>`, cerrar => {
     $('mNo').onclick = cerrar;
     if (window.Equipo) Equipo.enlazarMenu(r, cerrar);
     $('tRen').onclick = () => { cerrar(); pedirTexto('Nombre del boceto', r.nombre, async v => { if (!v) return; r.nombre = v; await dbPut(r); if (window.Equipo) Equipo.alRenombrar(r); if (window.Nube) Nube.alRenombrar(r); mostrarGaleria(); }); };
+    $('tArch').onclick = () => { cerrar(); if (window.Nube) Nube.guardarArchivoOxen(r.id); };
     $('tDup').onclick = async () => { cerrar(); await dbPut(Object.assign({}, r, { id: nuevoId(), nombre: r.nombre + ' copia', fecha: Date.now() })); mostrarGaleria(); };
-    $('tBor').onclick = () => { cerrar(); confirmar('Eliminar boceto', `¿Eliminar “${escapar(r.nombre)}”? No se puede recuperar.`, 'Eliminar', async () => { await dbBorrar(r.id); if (window.Equipo) Equipo.alBorrar(r.id); if (window.Nube) Nube.alBorrar(r.id); mostrarGaleria(); }); };
+    $('tBor').onclick = () => { cerrar();
+      const enNube = window.Nube && Nube.estaEnNube(r.id);
+      if (!enNube) return confirmar('Eliminar boceto', `¿Eliminar “${escapar(r.nombre)}”? No se puede recuperar.`, 'Eliminar', async () => { await dbBorrar(r.id); if (window.Equipo) Equipo.alBorrar(r.id); mostrarGaleria(); });
+      // también está en la nube: se puede quitar solo de este equipo (se recupera desde ☁) o de todos lados
+      modal(`<h3>Eliminar “${escapar(r.nombre)}”</h3><p>Este boceto también está en tu nube.</p>
+        <button class="item" id="bElAqui"><b>Solo de este equipo</b><small class="item-sub">Lo recuperas cuando quieras desde ☁ Nube</small></button>
+        <button class="item" id="bElTodo" style="color:#ff6b5e"><b>De este equipo y de la nube</b><small class="item-sub">No se puede recuperar</small></button>
+        <div class="modal-btns"><span style="flex:1"></span><button id="mNo">Cancelar</button></div>`, c2 => {
+        $('mNo').onclick = c2;
+        $('bElAqui').onclick = async () => { c2(); await dbBorrar(r.id); if (window.Equipo) Equipo.alBorrar(r.id); mostrarGaleria(); avisar('Quitado de este equipo · sigue en ☁ Nube'); };
+        $('bElTodo').onclick = async () => { c2(); await dbBorrar(r.id); if (window.Equipo) Equipo.alBorrar(r.id); Nube.alBorrar(r.id); mostrarGaleria(); };
+      }); };
   });
 }
 const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -3307,6 +3394,8 @@ function prepararEditor() {
   deshacer.length = 0; rehacer.length = 0; bytesHist = 0;
   lineas.clear(); selSim = null; herrAntesSim = null;
   trazoCv.width = doc.w; trazoCv.height = doc.h; trazoCv.style.width = doc.w + 'px'; trazoCv.style.height = doc.h + 'px'; trazoCv.style.display = 'none';
+  // la memoria del respaldo se prepara al abrir la hoja (no en el primer trazo, que se sentiría)
+  if (respaldo.width !== doc.w || respaldo.height !== doc.h) { respaldo.width = doc.w; respaldo.height = doc.h; respCtx.clearRect(0, 0, 1, 1); }
   respaldo.width = doc.w; respaldo.height = doc.h;
   docEl.style.width = doc.w + 'px'; docEl.style.height = doc.h + 'px';
   pintarPapel(); montarCapas(); ubicarTrazoCv();
@@ -3332,12 +3421,14 @@ function datosArq(d, r) { // valores de arquitectura (nuevos o guardados)
   d.cotasV110 = true;
   d.nivel0 = typeof r.nivel0 === 'number' ? r.nivel0 : null; // altura (en la hoja) del nivel ±0.00
 }
-function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50) {
+function nuevoDibujo(w, h, papel, tipo = 'boceto', esc = 50, calidad) {
   ultPto = null; cotaSel = null;
+  const f = resolucionHoja(w, h, calidad || aj.calidad || 'auto'); w = Math.round(w * f); h = Math.round(h * f);
   const n = new Date(), tn = TIPOS.find(t => t.id === tipo).n;
   doc = { id: nuevoId(), nombre: (tipo === 'boceto' ? 'Boceto' : tn) + ' ' + n.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' }) + ' ' + n.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
     w, h, papel, grano: true, creado: Date.now(), capas: [], activa: 0, guias: guiasPorDefecto(w, h) };
-  datosArq(doc, { tipo, escala: esc });
+  datosArq(doc, { tipo, escala: esc, pxmm: PXMM * f });
+  doc.guias.tam = Math.round(doc.guias.tam * f);
   doc.info.fecha = n.toLocaleDateString('es-PE');
   const unM = pxDeMetros(1);
   if (tipo === 'levarq') { // los muros son objetos; las capas quedan para detalles y color

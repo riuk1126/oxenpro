@@ -6,7 +6,7 @@
 // =====================================================================
 async function exportarPdf() {
   await guardar();
-  const k = Math.min(1.5, 9000 / Math.max(doc.w, doc.h)), cv = componer(k);
+  const k = Math.min(Math.max(1, 300 / pppDoc()), 9000 / Math.max(doc.w, doc.h)), cv = componer(k);
   const jpg = new Uint8Array(await (await aBlob(cv, 'image/jpeg', 0.92)).arrayBuffer());
   const wMm = doc.w / doc.pxmm, hMm = doc.h / doc.pxmm, W = (wMm / 25.4 * 72).toFixed(2), H = (hMm / 25.4 * 72).toFixed(2);
   const enc = new TextEncoder(), partes = [], ofs = []; let n = 0;
@@ -139,7 +139,7 @@ async function importarPdf(f) {
     const vp = pg.getViewport({ scale: k }), cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
     const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
     await pg.render({ canvasContext: cx, viewport: vp }).promise;
-    if (doc.capas.length >= MAX_CAPAS) return avisar('Máximo ' + MAX_CAPAS + ' capas');
+    if (doc.capas.length >= limiteCapas()) return avisar('Máximo ' + limiteCapas() + ' capas en esta hoja con este equipo');
     if (flot) aplicarFlot();
     const c = crearCapa('PDF de fondo', doc.w, doc.h); c.op = 0.45; c.ref = true; c.mezcla = 'multiply';
     insertarCapa(c, 0); pushHist({ t: 'nueva', capa: c, idx: 0 });
