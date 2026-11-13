@@ -1142,6 +1142,7 @@
     { tit: 'Modelo' },
     { t: 'Importar (SketchUp, AutoCAD, .dae .obj .stl)', ico: 'importar', fn: () => elegirArchivo(false) },
     { t: 'Exportar…', ico: 'exportar', fn: dlgExportar },
+    { t: 'Compartir con mi equipo…', ico: 'equipo', fn: async () => { await guardar(); const r = await Archivos.Almacen.leer(doc.id); if (r) Eq.compartirCon(r); } },
     { t: 'Renombrar', ico: 'lapiz', fn: renombrar },
     { t: 'Seleccionar todo', ico: 'todo', fn: seleccionarTodo },
     { t: 'Información del modelo', ico: 'ayuda', fn: infoModelo }, '-',
@@ -1152,7 +1153,7 @@
     { t: 'Mi cuenta RAIKI', ico: 'cuenta', fn: () => window.RaikiAcceso && RaikiAcceso.verCuenta() },
     { t: 'Buscar actualizaciones', ico: 'importar', fn: () => buscarActualizacion(true) }
   ]);
-  $('bAtras').onclick = async () => { if (herr && herr.cancelar) herr.cancelar(); await guardar(); irGaleria(); };
+  $('bAtras').onclick = async () => { if (herr && herr.cancelar) herr.cancelar(); await guardar(); const id = doc.id; irGaleria(); Eq.alSalir(id); };
   $('bNombre').onclick = renombrar;
 
   function avisar(t) { const a = $('aviso'); a.textContent = t; a.classList.add('ver'); clearTimeout(avisar.t); avisar.t = setTimeout(() => a.classList.remove('ver'), 2200); }
@@ -1335,12 +1336,13 @@
     if (!doc.id || guardando) return; guardando = true;
     try {
       const reg = { id: doc.id, nombre: doc.nombre, fecha: Date.now(), datos: m.clonarDatos(), cam: { eye: cam.eye, yaw: cam.yaw, pitch: cam.pitch, orto: cam.orto, alto: cam.altoOrto } };
+      if (doc.comp) reg.comp = doc.comp;
       reg.mini = await miniatura();
       await Archivos.Almacen.guardar(reg);
     } catch (e) { console.error(e); }
     guardando = false;
   }
-  addEventListener('pagehide', () => guardar());
+  addEventListener('pagehide', () => { guardar().then(() => Eq.alSalir(doc.id, true)); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardar(); });
   async function abrirNuevo(nombre, datos) {
     doc = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nombre: nombre || 'Sin título' };
@@ -1351,7 +1353,7 @@
   }
   async function abrir(id) {
     const reg = await Archivos.Almacen.leer(id); if (!reg) return;
-    doc = { id: reg.id, nombre: reg.nombre };
+    doc = { id: reg.id, nombre: reg.nombre, comp: reg.comp };
     m.cargar(JSON.parse(reg.datos)); registrarMatsModelo(); pila.length = 0; rehacer.length = 0;
     mostrarEditor();
     if (reg.cam) { cam.eye = reg.cam.eye; cam.yaw = reg.cam.yaw; cam.pitch = reg.cam.pitch; cam.orto = reg.cam.orto; cam.altoOrto = reg.cam.alto || 12; } else verTodo();
@@ -1370,19 +1372,243 @@
     L.sort((a, b) => b.fecha - a.fecha);
     const g = $('gLista');
     pintarEjemplos();
+    Eq.pintar(L);
+    L = L.filter(r => !Eq.esRecibido(r));
     if (!L.length) { g.innerHTML = `<div class="gal-vacia">Todavía no tienes modelos.<br>Toca <b>Nuevo modelo</b> para empezar, abre un <b>ejemplo</b> de abajo o <b>Importa</b> un archivo de SketchUp o AutoCAD.</div>`; return; }
-    g.innerHTML = L.map(r => `<div class="tarjeta"><button data-abrir="${r.id}" style="display:block;width:100%;text-align:left">${r.mini ? `<img class="mini" src="${r.mini}" alt="">` : '<span class="mini"></span>'}<div class="inf"><b>${esc(r.nombre)}</b><small>${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small></div></button><button class="mas" data-mas="${r.id}">⋯</button></div>`).join('');
-    g.querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => abrir(b.dataset.abrir));
+    g.innerHTML = L.map(r => `<div class="tarjeta"><button data-abrir="${r.id}" style="display:block;width:100%;text-align:left">${r.mini ? `<img class="mini" src="${r.mini}" alt="">` : '<span class="mini"></span>'}<div class="inf"><b>${esc(r.nombre)}</b><small>${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small>${Eq.etiqueta(r)}</div></button><button class="mas" data-mas="${r.id}">⋯</button></div>`).join('');
+    g.querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => Eq.abrir(b.dataset.abrir));
     g.querySelectorAll('[data-mas]').forEach(b => b.onclick = () => opcionesModelo(L.find(r => r.id === b.dataset.mas)));
   }
   function opcionesModelo(r) {
-    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button><button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
-      $('dNo').onclick = cerrarDlg; $('oAbrir').onclick = () => { cerrarDlg(); abrir(r.id); };
-      $('oDup').onclick = async () => { cerrarDlg(); await Archivos.Almacen.guardar(Object.assign({}, r, { id: 'm' + Date.now().toString(36), nombre: r.nombre + ' (copia)', fecha: Date.now() })); irGaleria(); };
+    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button>${Eq.itemsMenu(r)}<button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
+      $('dNo').onclick = cerrarDlg; $('oAbrir').onclick = () => { cerrarDlg(); Eq.abrir(r.id); };
+      Eq.enlazarMenu(r);
+      $('oDup').onclick = async () => { cerrarDlg(); const c = Object.assign({}, r, { id: 'm' + Date.now().toString(36), nombre: r.nombre + ' (copia)', fecha: Date.now() }); delete c.comp; await Archivos.Almacen.guardar(c); irGaleria(); };
       $('oExp').onclick = async () => { cerrarDlg(); await Archivos.entregar(new Blob([JSON.stringify({ nombre: r.nombre, modelo: JSON.parse(r.datos) })], { type: 'application/json' }), r.nombre.replace(/\s+/g, '_') + '.r3d', avisar); };
-      $('oBorrar').onclick = () => dialogo(`<h3>¿Eliminar “${esc(r.nombre)}”?</h3><p>No se puede deshacer.</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Eliminar</button></div>`, () => { $('dNo').onclick = cerrarDlg; $('dSi').onclick = async () => { await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); }; });
+      $('oBorrar').onclick = () => dialogo(`<h3>¿Eliminar “${esc(r.nombre)}”?</h3><p>No se puede deshacer.</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Eliminar</button></div>`, () => { $('dNo').onclick = cerrarDlg; $('dSi').onclick = async () => { await Eq.alBorrar(r); await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); }; });
     });
   }
+
+  // =================================================================
+  //  MODELOS COMPARTIDOS CON EL EQUIPO
+  //  · El dueño elige personas de su equipo (cuenta RAIKI); ellas lo ven en "Compartidos conmigo"
+  //    y pueden seguir modelándolo. Al salir del modelo se sube la última versión para todos.
+  //  · Archivos en el depósito "flexio": <correo-dueño>/<modelo>/<versión>/modelo.json + mini.jpg
+  //  · Si dos personas guardan a la vez, se avisa y se elige: quedarse con la propia o traer la otra.
+  // =================================================================
+  const Eq = (() => {
+    const A = window.RaikiAuth, BK = 'flexio', K_FILAS = 'flexio-compartidos';
+    const yo = () => ((A && A.sesion() || {}).email || '').toLowerCase();
+    const leerLS = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+    let filas = leerLS(K_FILAS) || [];      // filas de flexio_compartidos que veo
+    let companeros = null;
+    const corto = c => { const n = String(c || '').split('@')[0].replace(/[._-]+/g, ' ').trim(); return n ? n[0].toUpperCase() + n.slice(1) : c; };
+    const hace = f => { const x = (Date.now() - new Date(f)) / 1000; if (x < 90) return 'hace un momento'; if (x < 3600) return 'hace ' + Math.round(x / 60) + ' min'; if (x < 86400) return 'hace ' + Math.round(x / 3600) + ' h'; return new Date(f).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }); };
+    const huella = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); };
+    const idLocal = (dueno, modelo) => dueno === yo() ? modelo : 'c' + huella(dueno) + '_' + modelo;
+    const fila = c => filas.find(f => f.dueno === c.dueno && f.modelo_id === c.modelo);
+    const esRecibido = r => !!(r && r.comp && r.comp.dueno !== yo());
+
+    async function refrescar() {
+      if (!A || !A.sesion()) return;
+      try { filas = (await A.tabla('flexio_compartidos?select=*&order=actualizado.desc')) || []; localStorage.setItem(K_FILAS, JSON.stringify(filas)); } catch (e) {}
+    }
+    async function cargarCompaneros() {
+      try { companeros = (await A.rpc('flexio_companeros')) || []; } catch (e) { if (companeros === null) companeros = []; if (e.red) throw e; }
+      return companeros;
+    }
+
+    // ---------- subir / bajar ----------
+    const dataURLaBlob = u => fetch(u).then(r => r.blob());
+    async function subirArchivos(dueno, modelo, v, r) {
+      const base = `${dueno}/${modelo}/${v}/`;
+      await A.subirArchivo(base + 'modelo.json', new Blob([JSON.stringify({ nombre: r.nombre, datos: r.datos, cam: r.cam || null })], { type: 'application/json' }), 'application/json', BK);
+      if (r.mini) await A.subirArchivo(base + 'mini.jpg', await dataURLaBlob(r.mini), 'image/jpeg', BK);
+    }
+    const borrarVersion = (dueno, modelo, v) => v && A.borrarArchivos([`${dueno}/${modelo}/${v}/modelo.json`, `${dueno}/${modelo}/${v}/mini.jpg`], BK).catch(() => {});
+    async function bajar(f) {
+      const blob = await A.bajarArchivo(`${f.dueno}/${f.modelo_id}/${f.version}/modelo.json`, BK);
+      const d = JSON.parse(await blob.text());
+      let mini = null;
+      try { const b = await A.bajarArchivo(`${f.dueno}/${f.modelo_id}/${f.version}/mini.jpg`, BK); mini = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); }); } catch (e) {}
+      const id = idLocal(f.dueno, f.modelo_id), previo = await Archivos.Almacen.leer(id);
+      const reg = { id, nombre: f.nombre || d.nombre, fecha: Date.now(), datos: d.datos, cam: (previo && previo.cam) || d.cam, mini: mini || (previo && previo.mini) || null,
+        comp: { dueno: f.dueno, modelo: f.modelo_id, version: f.version, hash: huella(d.datos) } };
+      await Archivos.Almacen.guardar(reg);
+      return reg;
+    }
+
+    // Publica la versión local de un modelo compartido. Devuelve true si quedó arriba.
+    const subiendo = new Set();
+    async function publicar(r, silencio) {
+      const c = r.comp; if (!c || subiendo.has(r.id)) return false;
+      const h = huella(r.datos); if (h === c.hash) return true;
+      subiendo.add(r.id);
+      try {
+        const v = Date.now().toString(36);
+        await subirArchivos(c.dueno, c.modelo, v, r);
+        let res = await A.rpc('flexio_publicar', { p_dueno: c.dueno, p_modelo: c.modelo, p_nombre: c.dueno === yo() ? r.nombre : '', p_version: v, p_base: c.version, p_forzar: false });
+        if (res && res.conflicto) {
+          if (silencio) { borrarVersion(c.dueno, c.modelo, v); return false; }
+          const eleccion = await preguntarConflicto(r, res);
+          if (eleccion === 'mia') res = await A.rpc('flexio_publicar', { p_dueno: c.dueno, p_modelo: c.modelo, p_nombre: '', p_version: v, p_base: null, p_forzar: true });
+          else {
+            borrarVersion(c.dueno, c.modelo, v);
+            if (eleccion === 'copia') { const cp = Object.assign({}, r, { id: 'm' + Date.now().toString(36), nombre: r.nombre + ' (mi versión)', fecha: Date.now() }); delete cp.comp; await Archivos.Almacen.guardar(cp); }
+            await refrescar(); const f = fila(c); if (f) await bajar(f);
+            avisar(eleccion === 'copia' ? 'Tu versión quedó como copia; abriste la última del equipo' : 'Tienes la última versión del equipo');
+            return false;
+          }
+        }
+        if (res && res.error) { borrarVersion(c.dueno, c.modelo, v); if (!silencio) avisar(res.error === 'no_compartido' ? 'Este modelo ya no está compartido' : 'Ya no tienes acceso a este modelo'); return false; }
+        const anterior = c.version;
+        r.comp = Object.assign({}, c, { version: v, hash: h });
+        const actual = await Archivos.Almacen.leer(r.id);
+        if (actual) { actual.comp = r.comp; await Archivos.Almacen.guardar(actual); }
+        if (doc.id === r.id) doc.comp = r.comp;
+        if (anterior && anterior !== v) borrarVersion(c.dueno, c.modelo, anterior);
+        await refrescar();
+        return true;
+      } finally { subiendo.delete(r.id); }
+    }
+    function preguntarConflicto(r, res) {
+      return new Promise(ok => dialogo(`<h3>Hay una versión más nueva</h3>
+        <p><b>${esc(corto(res.editado_por))}</b> guardó cambios en “${esc(r.nombre)}” ${esc(hace(res.actualizado))}, mientras tú también lo modificabas.</p>
+        <div class="opc"><button id="cTraer">${icono('importar')} Traer su versión (pierdo mis cambios)</button>
+        <button id="cCopia">${icono('copiar')} Traer su versión y guardar la mía como copia</button>
+        <button id="cMia">${icono('exportar')} Quedarme con la mía (reemplaza la suya)</button></div>`, () => {
+        $('cTraer').onclick = () => { cerrarDlg(); ok('suya'); };
+        $('cCopia').onclick = () => { cerrarDlg(); ok('copia'); };
+        $('cMia').onclick = () => { cerrarDlg(); ok('mia'); };
+      }));
+    }
+
+    // Al salir del editor: si es compartido y cambió, se sube para el equipo
+    async function alSalir(id, silencio) {
+      if (!id) return;
+      const r = await Archivos.Almacen.leer(id); if (!r || !r.comp) return;
+      if (huella(r.datos) === r.comp.hash) return;
+      try { if (await publicar(r, silencio)) { if (!silencio) avisar('Tu equipo ya ve la última versión'); irGaleriaSiVisible(); } }
+      catch (e) { if (!silencio) avisar(e.red ? 'Sin internet: se compartirá al reconectar' : 'No se pudo subir para tu equipo'); if (!e.red) console.error(e); }
+    }
+    function irGaleriaSiVisible() { if (!$('galeria').classList.contains('oculto')) irGaleria(); }
+    addEventListener('online', async () => {
+      try { for (const r of await Archivos.Almacen.todos()) if (r.comp && huella(r.datos) !== r.comp.hash && r.id !== doc.id) await publicar(r, true); } catch (e) {}
+    });
+
+    // Abrir: antes trae la versión del equipo si hay una más nueva
+    async function abrirModelo(id) {
+      const r = await Archivos.Almacen.leer(id);
+      if (r && r.comp) {
+        await refrescar();
+        const f = fila(r.comp);
+        if (!f && esRecibido(r)) { avisar('Este modelo ya no está compartido contigo; queda tu copia'); }
+        else if (f && f.version !== r.comp.version) {
+          const cambiosMios = huella(r.datos) !== r.comp.hash;
+          if (!cambiosMios) { try { avisar('Trayendo la última versión…'); await bajar(f); } catch (e) { avisar('Sin internet: abres la última que tenías'); } }
+          else { try { await publicar(r); } catch (e) {} }
+        }
+      }
+      return abrir(id);
+    }
+    async function abrirRecibido(dueno, modelo) {
+      const f = filas.find(x => x.dueno === dueno && x.modelo_id === modelo); if (!f) return;
+      const id = idLocal(dueno, modelo), local = await Archivos.Almacen.leer(id);
+      if (local) return abrirModelo(id);
+      try { avisar('Descargando el modelo…'); await bajar(f); return abrir(id); }
+      catch (e) { avisar(e.red ? 'Necesitas internet para traer este modelo' : 'No se pudo descargar: ' + e.message); }
+    }
+
+    // ---------- compartir (dueño) ----------
+    async function compartirCon(r) {
+      if (!A || !A.sesion()) return avisar('Entra con tu cuenta RAIKI para compartir');
+      if (esRecibido(r)) return avisar('Solo quien creó el modelo elige con quién compartirlo');
+      let lista;
+      try { avisar('Buscando a tu equipo…'); lista = await cargarCompaneros(); await refrescar(); }
+      catch (e) { return avisar('Necesitas internet para compartir'); }
+      const actual = r.comp ? fila(r.comp) : null, marcados = new Set(actual ? actual.para : []);
+      const otros = [...marcados].filter(x => !lista.includes(x));
+      const todos = lista.concat(otros);
+      dialogo(`<h3>Compartir “${esc(r.nombre)}”</h3>
+        <p>Las personas que elijas lo verán en <b>Compartidos conmigo</b> y podrán seguir modelándolo. Cada vez que alguien sale del modelo, los demás reciben la última versión.</p>
+        ${todos.length ? `<div class="eq-lista">${todos.map(c => `<label class="eq-per"><input type="checkbox" data-c="${esc(c)}" ${marcados.has(c) ? 'checked' : ''}><span class="eq-av">${esc(corto(c)[0] || '?')}</span><span><b>${esc(corto(c))}</b><small>${esc(c)}</small></span></label>`).join('')}</div>`
+          : '<p class="nota">Aún no hay más personas en tu equipo.</p>'}
+        <label class="eq-otro">Agregar por correo<input type="email" id="eqMail" placeholder="correo@ejemplo.com" autocomplete="off"></label>
+        <p class="nota">Solo personas de tu equipo RAIKI (las que agregas en <b>Mi equipo</b> de OXEN PRO o en el panel).</p>
+        <div class="fila">${actual ? '<button id="eqQuitar" class="peligro-txt">Dejar de compartir</button><span style="flex:1"></span>' : ''}<button id="dNo">Cancelar</button><button class="pri" id="dSi">${actual ? 'Guardar' : 'Compartir'}</button></div>`, () => {
+        $('dNo').onclick = cerrarDlg;
+        if (actual) $('eqQuitar').onclick = async () => { cerrarDlg(); await dejar(r); };
+        $('dSi').onclick = async () => {
+          const para = [...document.querySelectorAll('.eq-lista input:checked')].map(x => x.dataset.c);
+          const extra = ($('eqMail').value || '').trim().toLowerCase();
+          if (extra) { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(extra)) return avisar('Revisa el correo'); if (!para.includes(extra)) para.push(extra); }
+          if (!para.length) return avisar('Elige al menos una persona');
+          cerrarDlg(); avisar('Compartiendo…');
+          try {
+            const modelo = (r.comp && r.comp.modelo) || r.id, v = Date.now().toString(36);
+            const hayCambios = !r.comp || huella(r.datos) !== r.comp.hash;
+            if (hayCambios) await subirArchivos(yo(), modelo, v, r);
+            const res = await A.rpc('flexio_compartir', { p_modelo: modelo, p_nombre: r.nombre, p_version: hayCambios ? v : r.comp.version, p_para: para });
+            if (hayCambios && r.comp && r.comp.version && r.comp.version !== v) borrarVersion(yo(), modelo, r.comp.version);
+            const comp = { dueno: yo(), modelo, version: res.version, hash: huella(r.datos) };
+            const act = await Archivos.Almacen.leer(r.id) || r; act.comp = comp; await Archivos.Almacen.guardar(act);
+            if (doc.id === r.id) doc.comp = comp;
+            await refrescar(); irGaleriaSiVisible();
+            avisar('Compartido con ' + res.para.map(corto).join(', '));
+          } catch (e) {
+            const m = String(e.message || '');
+            if (m.includes('no_es_del_equipo')) avisar((m.split(':')[1] || 'Ese correo') + ' no está en tu equipo');
+            else if (m.includes('sin_personas')) avisar('Elige al menos una persona');
+            else avisar(e.red ? 'Necesitas internet para compartir' : 'No se pudo compartir: ' + m);
+          }
+        };
+      });
+    }
+    async function dejar(r) {
+      try {
+        await A.rpc('flexio_dejar', { p_modelo: r.comp.modelo });
+        const f = fila(r.comp); if (f) borrarVersion(f.dueno, f.modelo_id, f.version);
+        const act = await Archivos.Almacen.leer(r.id); if (act) { delete act.comp; await Archivos.Almacen.guardar(act); }
+        if (doc.id === r.id) doc.comp = undefined;
+        await refrescar(); irGaleriaSiVisible(); avisar('Ya no está compartido');
+      } catch (e) { avisar(e.red ? 'Necesitas internet' : 'No se pudo: ' + e.message); }
+    }
+    async function alBorrar(r) {
+      if (!r.comp) return;
+      try { if (esRecibido(r)) await A.rpc('flexio_salir', { p_dueno: r.comp.dueno, p_modelo: r.comp.modelo }); else await dejar(r); } catch (e) {}
+    }
+
+    // ---------- galería ----------
+    function etiqueta(r) {
+      if (!r.comp) return '';
+      const f = fila(r.comp); if (!f) return '';
+      const nuevo = f.version !== r.comp.version ? '<i class="eq-nuevo">Nueva versión</i>' : '';
+      return `<span class="eq-tag">${icono('equipo')} ${esRecibido(r) ? 'De ' + esc(corto(f.dueno)) : 'Con ' + esc(f.para.map(corto).join(', '))}</span>${nuevo}`;
+    }
+    function itemsMenu(r) {
+      if (esRecibido(r)) return '';
+      return `<button id="oComp">${icono('equipo')} ${r.comp ? 'Compartir con… (cambiar personas)' : 'Compartir con…'}</button>`;
+    }
+    function enlazarMenu(r) { const b = $('oComp'); if (b) b.onclick = () => { cerrarDlg(); compartirCon(r); }; }
+    async function pintar(locales) {
+      const caja = $('gComp'), tit = $('gCompTit'); if (!caja) return;
+      const dibujar = () => {
+        const mios = yo(), recibidas = filas.filter(f => f.dueno !== mios);
+        tit.classList.toggle('oculto', !recibidas.length); caja.classList.toggle('oculto', !recibidas.length);
+        caja.innerHTML = recibidas.map(f => {
+          const loc = locales.find(r => r.id === idLocal(f.dueno, f.modelo_id));
+          const nuevo = !loc || loc.comp.version !== f.version;
+          return `<div class="tarjeta"><button data-rec="${esc(f.dueno)}|${esc(f.modelo_id)}" style="display:block;width:100%;text-align:left">${loc && loc.mini ? `<img class="mini" src="${loc.mini}" alt="">` : `<span class="mini eq-mini">${icono('cubo')}</span>`}<div class="inf"><b>${esc(f.nombre)}</b><small>De ${esc(corto(f.dueno))} · ${f.editado_por && f.editado_por !== f.dueno ? 'editado por ' + esc(corto(f.editado_por)) + ' ' : ''}${esc(hace(f.actualizado))}</small>${nuevo ? `<i class="eq-nuevo">${loc ? 'Nueva versión' : 'Nuevo'}</i>` : ''}</div></button>${loc ? `<button class="mas" data-mas-rec="${esc(loc.id)}">⋯</button>` : ''}</div>`;
+        }).join('');
+        caja.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => { const [d, mo] = b.dataset.rec.split('|'); abrirRecibido(d, mo); });
+        caja.querySelectorAll('[data-mas-rec]').forEach(b => b.onclick = () => opcionesModelo(locales.find(r => r.id === b.dataset.masRec)));
+      };
+      dibujar();
+      const antes = JSON.stringify(filas); await refrescar();
+      if (JSON.stringify(filas) !== antes && !$('galeria').classList.contains('oculto')) irGaleria();
+    }
+    return { pintar, etiqueta, itemsMenu, enlazarMenu, compartirCon, alSalir, alBorrar, abrir: abrirModelo, esRecibido, refrescar };
+  })();
   $('gNuevo').innerHTML = icono('mas') + 'Nuevo modelo'; $('gImportar').innerHTML = icono('importar') + 'Importar'; $('gTutorial').innerHTML = icono('ayuda') + 'Tutorial';
   $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes');
   $('gNuevo').onclick = () => abrirNuevo('Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }), null);

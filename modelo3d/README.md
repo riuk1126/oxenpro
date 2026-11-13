@@ -32,6 +32,12 @@ Seleccionar · Borrador · Pintar (colores y texturas: ladrillo, concreto, mader
 - **Exporta:** `.dae` (para volver a SketchUp, Blender, Revit…), `.obj`, `.stl`, `.r3d` e imagen `.png`.
 - Los modelos se guardan solos en el equipo.
 
+## Compartir con el equipo
+- En el menú ⋯ de un modelo (o *Menú → Compartir con mi equipo…* dentro del modelo) eliges a las personas de tu equipo RAIKI o escribes su correo.
+- Ellas lo ven en **Compartidos conmigo** y pueden seguir modelándolo. Cada vez que alguien sale del modelo se sube la última versión y los demás la reciben al abrirlo («Nueva versión»).
+- Si dos personas lo cambian a la vez, la app pregunta: traer la versión del otro, traerla y guardar la tuya como copia, o quedarte con la tuya.
+- Solo el dueño elige con quién compartir o deja de compartir. Datos en Supabase: tabla `flexio_compartidos` y depósito `flexio`.
+
 ## Cuenta
 Entra cualquier cuenta RAIKI con plan activo (OXEN PRO, Kivo o combo) o miembro de un equipo activo. La comprobación usa la función `acceso_raiki` de Supabase y **no ocupa** los cupos de dispositivos de OXEN PRO. Sin internet funciona 7 días desde la última comprobación.
 

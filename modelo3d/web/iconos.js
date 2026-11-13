@@ -24,6 +24,7 @@ window.ICONOS = {
   rayos: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" stroke-dasharray="2.4 2"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
   materiales: '<circle cx="12" cy="12" r="8.5"/><circle cx="8.5" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="15.5" cy="10" r="1.3"/><path d="M12 20.5a3 3 0 0 1 0-6h1.5"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  equipo: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3 19.5a6 6 0 0 1 12 0"/><circle cx="16.8" cy="9.5" r="2.6"/><path d="M15.6 14.1A5 5 0 0 1 21.5 19"/>',
   cuenta: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   atras: '<path d="m14 5-7 7 7 7"/>',
   mas: '<path d="M12 5v14M5 12h14"/>',

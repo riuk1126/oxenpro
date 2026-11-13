@@ -156,3 +156,24 @@ input,select{font:inherit}
 .tuto-gestos b{display:flex;align-items:center;gap:6px;color:var(--txt);font-size:14px;margin-bottom:2px}
 .tuto-gestos .ico{width:18px;height:18px;color:var(--acento)}
 .tuto-mini{font-size:12.5px;color:var(--txt2);margin:10px 0 0}
+
+/* compartir con el equipo */
+.eq-tag{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;color:var(--acento);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:30px}
+.eq-tag .ico{width:15px;height:15px;flex:none}
+.eq-nuevo{display:inline-block;margin-top:5px;font-style:normal;font-size:11px;font-weight:700;color:#fff;background:var(--acento);padding:2px 8px;border-radius:20px}
+.tarjeta .eq-mini{display:grid!important;place-items:center;color:#b3b3e6;background:linear-gradient(#f6f6ff,#e9e9fb)!important}.tarjeta .eq-mini .ico{width:48px;height:48px}
+.eq-lista{display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto;margin-bottom:12px}
+.eq-per{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:#f4f5f6;cursor:pointer}
+.eq-per input{width:20px;height:20px;accent-color:var(--acento)}
+.eq-per b{display:block}.eq-per small{color:var(--txt2)}
+.eq-av{width:34px;height:34px;border-radius:50%;background:var(--acento);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.eq-otro{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--txt2);margin-bottom:10px}
+.eq-otro input{height:42px;border-radius:10px;border:1px solid var(--linea);padding:0 12px;color:var(--txt);-webkit-user-select:text;user-select:text}
+.peligro-txt{color:#d64545;font-weight:600}
+.dlg .eq-per{display:flex;flex-direction:row;align-items:center;gap:10px;margin:0}
+.dlg .eq-per input{width:20px;height:20px;flex:none;margin:0}
+.dlg .eq-per>span:last-child{min-width:0}
+.dlg .eq-otro{display:flex;flex-direction:column;align-items:stretch}
+.dlg .eq-otro input{width:100%}
+.tarjeta small+.eq-nuevo,.tarjeta .eq-tag+.eq-nuevo{margin-left:0}
+.tarjeta .inf .eq-nuevo{margin-left:6px}
