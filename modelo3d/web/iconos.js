@@ -1,4 +1,4 @@
-// RAIKI 3D — íconos propios, de un solo trazo (24×24, sin relleno).
+// Flexio — íconos propios, de un solo trazo (24×24, sin relleno).
 window.ICONOS = {
   seleccionar: '<path d="M6 3.5 18 11l-5.6 1.4L9.6 18z"/><path d="m12.4 12.4 4.1 5.6"/>',
   borrar: '<path d="m4.5 14.5 8-8a1.5 1.5 0 0 1 2.1 0l3.4 3.4a1.5 1.5 0 0 1 0 2.1L12.5 18.5h-4z"/><path d="m8.5 10.5 5.5 5.5"/><path d="M13 20h7"/>',

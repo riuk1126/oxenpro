@@ -1,4 +1,4 @@
-// RAIKI 3D — guardar en el equipo, importar (.dae .obj .stl .r3d) y exportar (.r3d .dae .obj .stl).
+// Flexio — guardar en el equipo, importar (.dae .obj .stl .r3d) y exportar (.r3d .dae .obj .stl).
 (function (G) {
   'use strict';
   const { V, MAT } = G.R3;
@@ -7,7 +7,7 @@
   let dbp = null;
   function db() {
     if (!dbp) dbp = new Promise((ok, mal) => {
-      const r = indexedDB.open('raiki3d', 1);
+      const r = indexedDB.open('flexio', 1);
       r.onupgradeneeded = () => r.result.createObjectStore('modelos', { keyPath: 'id' });
       r.onsuccess = () => ok(r.result); r.onerror = () => mal(r.error);
     });
@@ -174,13 +174,13 @@
   }
   function aSTL(m) {
     const T = triangulosModelo(m), buf = new ArrayBuffer(84 + T.length * 50), dv = new DataView(buf);
-    const cab = 'RAIKI 3D - STL en metros'; for (let i = 0; i < cab.length; i++) dv.setUint8(i, cab.charCodeAt(i));
+    const cab = 'Flexio - STL en metros'; for (let i = 0; i < cab.length; i++) dv.setUint8(i, cab.charCodeAt(i));
     dv.setUint32(80, T.length, true);
     T.forEach((t, i) => { const o = 84 + i * 50; const w = (k, v) => { dv.setFloat32(o + k * 12, v[0], true); dv.setFloat32(o + k * 12 + 4, v[1], true); dv.setFloat32(o + k * 12 + 8, v[2], true); }; w(0, t[3]); w(1, t[0]); w(2, t[1]); w(3, t[2]); });
     return new Blob([buf], { type: 'model/stl' });
   }
   function aOBJ(m, nombre) {
-    const lines = ['# RAIKI 3D — ' + nombre, '# unidades: metros, Z arriba'], idx = new Map(); let k = 0;
+    const lines = ['# Flexio — ' + nombre, '# unidades: metros, Z arriba'], idx = new Map(); let k = 0;
     for (const v of m.v.values()) { idx.set(v.id, ++k); lines.push('v ' + v.p.map(x => +x.toFixed(6)).join(' ')); }
     let actual = null;
     for (const f of m.f.values()) {
@@ -205,7 +205,7 @@
       geos += `<geometry id="g${k}"><mesh><source id="g${k}p"><float_array id="g${k}a" count="${pts.length * 3}">${arr}</float_array><technique_common><accessor source="#g${k}a" count="${pts.length}" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source><vertices id="g${k}v"><input semantic="POSITION" source="#g${k}p"/></vertices><triangles material="m${k}" count="${pts.length / 3}"><input semantic="VERTEX" source="#g${k}v" offset="0"/><p>${pts.map((_, i) => i).join(' ')}</p></triangles></mesh></geometry>`;
       inst += `<instance_geometry url="#g${k}"><bind_material><technique_common><instance_material symbol="m${k}" target="#mat${k}"/></technique_common></bind_material></instance_geometry>`;
     }
-    const dae = `<?xml version="1.0" encoding="utf-8"?><COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1"><asset><contributor><authoring_tool>RAIKI 3D</authoring_tool></contributor><unit name="meter" meter="1"/><up_axis>Z_UP</up_axis></asset><library_effects>${efectos}</library_effects><library_materials>${mats}</library_materials><library_geometries>${geos}</library_geometries><library_visual_scenes><visual_scene id="escena"><node id="${x(nombre).replace(/\s+/g, '_')}">${inst}</node></visual_scene></library_visual_scenes><scene><instance_visual_scene url="#escena"/></scene></COLLADA>`;
+    const dae = `<?xml version="1.0" encoding="utf-8"?><COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1"><asset><contributor><authoring_tool>Flexio</authoring_tool></contributor><unit name="meter" meter="1"/><up_axis>Z_UP</up_axis></asset><library_effects>${efectos}</library_effects><library_materials>${mats}</library_materials><library_geometries>${geos}</library_geometries><library_visual_scenes><visual_scene id="escena"><node id="${x(nombre).replace(/\s+/g, '_')}">${inst}</node></visual_scene></library_visual_scenes><scene><instance_visual_scene url="#escena"/></scene></COLLADA>`;
     return new Blob([dae], { type: 'model/vnd.collada+xml' });
   }
 
@@ -216,9 +216,9 @@
     if (C && C.isNativePlatform && C.isNativePlatform() && P && P.Filesystem) {
       try {
         const data = await blobB64(blob); let guardado = false;
-        try { await P.Filesystem.writeFile({ path: 'RAIKI 3D/' + nombre, data, directory: 'DOCUMENTS', recursive: true }); guardado = true; } catch (e) {}
+        try { await P.Filesystem.writeFile({ path: 'Flexio/' + nombre, data, directory: 'DOCUMENTS', recursive: true }); guardado = true; } catch (e) {}
         const r = await P.Filesystem.writeFile({ path: nombre, data, directory: 'CACHE' });
-        avisar(guardado ? 'Guardado en Documentos/RAIKI 3D' : 'Archivo listo');
+        avisar(guardado ? 'Guardado en Documentos/Flexio' : 'Archivo listo');
         if (P.Share) await P.Share.share({ title: nombre, files: [r.uri], dialogTitle: 'Compartir' }).catch(() => {});
         return;
       } catch (e) { console.error(e); }

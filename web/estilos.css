@@ -456,3 +456,13 @@ body > #aviso{position:fixed;z-index:210;pointer-events:none}
 .raiki-logo{display:block;width:190px;max-width:70%;height:auto;color:var(--texto)}
 .acc-app{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--texto2);letter-spacing:0}
 .acc-app img{width:20px;height:20px;border-radius:6px}
+
+/* Aviso de Flexio (app 3D de RAIKI) en la galería */
+.flexio-banner{max-width:1200px;margin:0 auto 20px;display:flex;align-items:center;gap:14px;background:linear-gradient(100deg,rgba(102,102,255,.20),rgba(102,102,255,.07));border:1px solid rgba(102,102,255,.45);border-radius:14px;padding:12px 10px 12px 14px}
+.flexio-banner img{width:46px;height:46px;flex:none;background:#fff;border-radius:11px;padding:6px;box-sizing:border-box}
+.flexio-banner .fx-txt{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.flexio-banner .fx-txt span{opacity:.75;font-size:13.5px}
+.flexio-banner .fx-btn{background:#6666ff;color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:700;font-size:15px;cursor:pointer;white-space:nowrap}
+.flexio-banner .fx-btn:disabled{opacity:.6}
+.flexio-banner .fx-x{background:none;border:0;color:inherit;opacity:.55;font-size:22px;width:36px;height:36px;cursor:pointer}
+@media (max-width:640px){.flexio-banner{flex-wrap:wrap}.flexio-banner .fx-txt{flex-basis:calc(100% - 110px)}.flexio-banner .fx-btn{flex:1}}

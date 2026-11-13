@@ -1,4 +1,4 @@
-:root{--fondo:#f3f4f5;--panel:#ffffffee;--txt:#18191b;--txt2:#6b6f76;--linea:#e3e5e8;--acento:#b6fd0e;--osc:#18191b;--azul:#2f6bff;--rojo:#d64545;--sombra:0 6px 24px rgba(20,24,30,.10),0 1px 3px rgba(20,24,30,.08);
+:root{--fondo:#f3f4f5;--panel:#ffffffee;--txt:#18191b;--txt2:#6b6f76;--linea:#e3e5e8;--acento:#6666ff;--osc:#18191b;--azul:#2f6bff;--rojo:#d64545;--sombra:0 6px 24px rgba(20,24,30,.10),0 1px 3px rgba(20,24,30,.08);
   --sa-t:env(safe-area-inset-top,0px);--sa-b:env(safe-area-inset-bottom,0px);--sa-l:env(safe-area-inset-left,0px);--sa-r:env(safe-area-inset-right,0px)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--fondo);color:var(--txt);font:14px/1.35 -apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-user-select:none;user-select:none}
@@ -16,7 +16,7 @@ input,select{font:inherit}
 /* ---------- galería ---------- */
 #galeria{position:absolute;inset:0;overflow:auto;padding:calc(18px + var(--sa-t)) calc(22px + var(--sa-r)) 30px calc(22px + var(--sa-l));background:linear-gradient(#fafafa,#eef0f2)}
 .gal-cab{display:flex;justify-content:space-between;align-items:center;max-width:1100px;margin:0 auto}
-.marca{display:flex;align-items:center;gap:12px}.marca img{width:44px;height:44px;border-radius:11px}
+.marca{display:flex;align-items:center;gap:12px}.marca img{width:44px;height:44px;border-radius:11px;box-shadow:0 1px 4px #0002}
 .marca b{font-size:20px;letter-spacing:.2px;display:block}.marca small{color:var(--txt2)}
 .gal-acciones{display:flex;gap:10px;max-width:1100px;margin:22px auto 16px}
 .btn-osc,.btn-cla{display:flex;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;font-weight:600}
@@ -94,18 +94,18 @@ input,select{font:inherit}
 /* ---------- acceso ---------- */
 #acceso{position:fixed;inset:0;z-index:60;background:linear-gradient(160deg,#101113,#1d2024);display:grid;place-items:center;padding:20px;color:#fff;overflow:auto}
 .acc-caja{width:min(400px,100%)}
-.acc-marca{text-align:center;margin-bottom:22px}.raiki-logo{height:30px;color:#fff;display:block;margin:0 auto}.acc-marca small{display:block;margin-top:10px;color:#b9bdc4}
+.acc-marca{text-align:center;margin-bottom:22px}.acc-flexio{height:120px;color:#fff;display:block;margin:0 auto}.acc-marca small{display:block;margin-top:12px;color:#b9bdc4}.acc-marca small{display:block;margin-top:10px;color:#b9bdc4}
 #acceso h2{margin:0 0 6px;font-size:22px}.acc-txt{color:#c4c8ce;margin:0 0 16px}
 .acc-lbl{display:block;font-size:13px;color:#aeb3ba;margin:10px 0 5px}
 .acc-input{width:100%;height:48px;border-radius:12px;border:1px solid #33373d;background:#16181b;color:#fff;padding:0 14px;font-size:16px}
 .acc-clave{position:relative}.acc-ojo{position:absolute;right:8px;top:8px;height:32px;padding:0 10px;border-radius:8px;color:#cfd3d8;background:#ffffff12;font-size:12px}
 .acc-err{color:#ff8c8c;min-height:20px;margin:10px 0 4px;font-size:13px}
-.acc-btn{display:flex;align-items:center;justify-content:center;width:100%;height:50px;border-radius:12px;background:var(--acento);color:#111;font-weight:700;font-size:16px;margin-top:8px;text-decoration:none}
+.acc-btn{display:flex;align-items:center;justify-content:center;width:100%;height:50px;border-radius:12px;background:var(--acento);color:#fff;font-weight:700;font-size:16px;margin-top:8px;text-decoration:none}
 .acc-btn:disabled{opacity:.6}
 .acc-sec{background:#ffffff14;color:#fff}
 .acc-link{display:block;margin:14px auto 0;color:#c9cdd3;text-decoration:underline;font-size:14px}
 .acc-rojo{color:#ff9a9a}
-.acc-mini{color:#a1a6ad;font-size:13px;text-align:center;margin-top:14px}.acc-mini a{color:var(--acento)}
+.acc-mini{color:#a1a6ad;font-size:13px;text-align:center;margin-top:14px}.acc-mini a{color:#a5a5ff}
 .acc-datos{background:#ffffff0d;border-radius:12px;padding:6px 14px;margin-bottom:10px}.acc-datos div{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #ffffff12}.acc-datos div:last-child{border:0}.acc-datos span{color:#aab0b8}
 .acc-carga{text-align:center;padding:30px 0}.acc-carga span{width:34px;height:34px;border-radius:50%;border:3px solid #ffffff22;border-top-color:var(--acento);display:inline-block;animation:gira 1s linear infinite}
 @keyframes gira{to{transform:rotate(360deg)}}

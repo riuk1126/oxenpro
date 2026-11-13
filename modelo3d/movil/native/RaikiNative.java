@@ -1,4 +1,4 @@
-package com.raiki.r3d;
+package com.raiki.flexio;
 
 import android.content.Context;
 import android.content.Intent;
@@ -17,7 +17,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-// Puente propio de RAIKI 3D: versión instalada y actualizar la app desde la misma app
+// Puente propio de Flexio: versión instalada y actualizar la app desde la misma app
 @CapacitorPlugin(name = "RaikiNative")
 public class RaikiNative extends Plugin {
 
@@ -35,7 +35,7 @@ public class RaikiNative extends Plugin {
   // Descarga el APK nuevo dentro de la app y abre el instalador de Android (un toque: «Actualizar»)
   @PluginMethod
   public void installUpdate(final PluginCall call) {
-    final String url = call.getString("url", "https://github.com/riuk1126/oxenpro/releases/download/3d-v1.0.0/RAIKI-3D.apk");
+    final String url = call.getString("url", "https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk");
     final Context ctx = getContext();
     if (Build.VERSION.SDK_INT >= 26 && !ctx.getPackageManager().canRequestPackageInstalls()) {
       try {
@@ -52,7 +52,7 @@ public class RaikiNative extends Plugin {
       try {
         File dir = new File(ctx.getCacheDir(), "update");
         dir.mkdirs();
-        File f = new File(dir, "RAIKI-3D.apk");
+        File f = new File(dir, "Flexio.apk");
         String u = url;
         HttpURLConnection c = null;
         for (int k = 0; k < 6; k++) {

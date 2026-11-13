@@ -11,8 +11,8 @@
 
 La app de Android se actualiza sola: cada mejora que se sube aquí llega a la tableta al abrirla.
 
-## RAIKI 3D (modelado 3D)
-App aparte de modelado 3D con la misma cuenta RAIKI: ver [modelo3d/README.md](modelo3d/README.md) · [APK](https://github.com/riuk1126/oxenpro/releases/download/3d-v1.0.0/RAIKI-3D.apk) · [probar en el navegador](https://riuk1126.github.io/oxenpro/3d/).
+## Flexio (modelado 3D)
+App aparte de modelado 3D con la misma cuenta RAIKI: ver [modelo3d/README.md](modelo3d/README.md) · [APK](https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk) · [probar en el navegador](https://riuk1126.github.io/oxenpro/flexio/).
 
 ## Cuentas y licencias
 - Al abrir, OXEN PRO pide **correo y contraseña** y revisa que el plan esté vigente.

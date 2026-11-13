@@ -3849,6 +3849,32 @@ async function actualizarApk() {
   } catch (e) { avisar('No se pudo descargar la actualización'); }
   finally { try { h && h.remove(); } catch (e) {} }
 }
+// ---------- Flexio: la nueva app 3D de RAIKI (se descarga desde aquí) ----------
+const FLEXIO_APK = 'https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk';
+(function () {
+  const K = 'oxen-flexio-oculto';
+  let oculto = false; try { oculto = localStorage.getItem(K) === '1'; } catch (e) {}
+  if (!oculto) $('galFlexio').classList.remove('oculto');
+  $('flexioCerrar').onclick = () => { $('galFlexio').classList.add('oculto'); try { localStorage.setItem(K, '1'); } catch (e) {} avisar('Puedes descargar Flexio desde el menú → Descargar Flexio'); };
+  async function bajarFlexio() {
+    const N = nativo(), b = $('flexioBajar');
+    if (!N) { // navegador: en Android baja el APK; en computadora abre la versión web para probar
+      if (/Android/i.test(navigator.userAgent)) location.href = FLEXIO_APK; else window.open('https://riuk1126.github.io/oxenpro/flexio/', '_blank');
+      return;
+    }
+    let h = null; b.disabled = true; b.textContent = 'Descargando…';
+    try { h = await N.addListener('updProgress', d => { b.textContent = d.p + '%'; }); } catch (e) {}
+    try {
+      const r = await N.installUpdate({ url: FLEXIO_APK });
+      if (r && r.status === 'permission') avisar('Permite «instalar apps» para OXEN PRO y vuelve a tocar Descargar');
+      else avisar('Toca «Instalar» y luego abre Flexio con tu cuenta RAIKI');
+    } catch (e) { avisar('No se pudo descargar Flexio. Revisa tu internet.'); }
+    finally { try { h && h.remove(); } catch (e) {} b.disabled = false; b.textContent = 'Descargar'; }
+  }
+  $('flexioBajar').onclick = bajarFlexio;
+  window.bajarFlexio = bajarFlexio;
+  $('mFlexio').onclick = () => { cerrarPaneles(); bajarFlexio(); };
+})();
 $('btnActualizar').onclick = () => buscarActualizacion(true);
 $('mActualizar').onclick = () => { if (UPD.web || UPD.apk) { cerrarPaneles(); aplicarActualizacion(); } else buscarActualizacion(true); };
 $('bAct').onclick = () => aplicarActualizacion();

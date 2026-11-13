@@ -1,4 +1,4 @@
-// RAIKI 3D — entrar con la cuenta RAIKI (el mismo correo y contraseña de OXEN PRO y Kivo).
+// Flexio — entrar con la cuenta RAIKI (el mismo correo y contraseña de OXEN PRO y Kivo).
 // Sin internet sigue funcionando DIAS_SIN_INTERNET días desde la última comprobación.
 (function () {
   const WHATSAPP = '51927907173';
@@ -23,7 +23,7 @@
 
   const capa = document.createElement('div');
   capa.id = 'acceso'; capa.className = 'oculto';
-  capa.innerHTML = `<div class="acc-caja"><div class="acc-marca"><svg class="raiki-logo" viewBox="0 0 4359.77 1160.77" role="img" aria-label="RAIKI" xmlns="http://www.w3.org/2000/svg"><path fill="#B6FD0E" d="M961.53 1141.28c44.1,24.33 359.63,12.49 424.71,12.28 181.21,-0.59 164.28,-54.2 333.33,-328.36 96.23,-156.07 -204.59,-117.87 -321.55,-117.77 -182.56,0.15 -172.02,13.39 -364.78,291.72 -39.64,57.24 -81.83,91.57 -71.71,142.14z"/><path fill="#B6FD0E" d="M911.33 8.16c-100.67,20.32 -143.12,54.63 -199.9,133.18 -87.93,121.64 -707.1,955.31 -710.57,970.66 -15.38,68.13 178.48,41.71 295.51,42.81 235.47,2.2 411.44,43.28 543.41,-125.08 49.88,-63.63 95.57,-129.2 143.76,-192.14 166.23,-217.08 333.64,-453.32 497.74,-674.55 142.79,-192.5 -35.57,-160.34 -242.33,-160.26 -83.46,0.03 -256.31,-9.01 -327.64,5.38z"/><path fill="currentColor" d="M2217.36 620.51l0 -58.45 230.54 0c32.85,0 59.18,-8.4 79.02,-25.21 19.83,-16.68 29.99,-38.85 30.3,-66.13l0 0c0,-27.64 -9.99,-49.69 -29.83,-66.37 -19.83,-16.68 -46.33,-24.97 -79.49,-24.97l-230.54 0 0 -58.57 226.89 0c39.35,0 73.78,6.33 103.13,18.75 29.51,12.54 52.36,29.96 68.54,52.24 16.34,22.41 24.44,48.71 24.44,78.91l0 0c0,29.96 -8.25,56.14 -24.59,78.67 -16.5,22.41 -39.35,39.94 -68.54,52.36 -29.35,12.54 -63.62,18.75 -102.97,18.75l-226.89 0zm-41.41 219.45l0 -519.14 80.92 0 0 519.14 -80.92 0zm396.5 0l-154.7 -235.52 78.06 -16.32 172.94 251.84 -96.31 0zm135.81 0l249.26 -518.78 80.76 0 249.26 518.78 -88.37 0 -201.34 -441.69 -201.18 441.69 -88.37 0zm769.35 -518.78l0 518.78 -80.92 0 0 -518.78 80.92 0zm234.66 400.29l-6.98 -74.53 334.78 -325.76 101.23 0 -429.02 400.29zm-60.45 118.49l0 -518.78 80.92 0 0 518.78 -80.92 0zm419.82 0l-214.83 -276.8 56.8 -53.22 256.08 330.02 -98.05 0zm288.13 -518.78l0 518.78 -80.92 0 0 -518.78 80.92 0z"/></svg><small>Entrando a <b>RAIKI 3D</b></small></div><div id="accCuerpo"></div></div>`;
+  capa.innerHTML = `<div class="acc-caja"><div class="acc-marca"><svg class="acc-flexio" role="img" aria-label="Flexio" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1617.67 2317.83"><path fill="#6666FF" fill-rule="evenodd" d="M681.77 1620.62c38.31,0.45 580.69,-334.37 642.59,-371.7 49,-29.55 122.62,-65.78 151.86,-101.4 44.56,-54.28 62.1,-100.39 61.86,-192.44 -0.22,-86.46 9.83,-449.47 -11.35,-499.67 4.03,116.9 -37.59,191.8 -131.17,244.27 -72.63,40.72 -600.17,341.83 -634.44,367.89 -92.83,70.6 -80.09,187.84 -79.8,298.71 0.22,84.38 -1.56,170.17 0.44,254.35zm-370.92 -1337.41c13.88,5.96 67.37,9.66 94.34,19.46 120.32,43.75 554.34,350.18 680.66,365.22 109.44,13.03 222.95,-73.74 333.28,-131.93 37.11,-19.57 107.97,-78.28 80.48,-145.59 -21.15,-51.8 -77.59,-77.47 -125.69,-105.44l-364.96 -215.09c-79.93,-45.9 -150.6,-100.3 -259.4,-49.27 -26.44,13.97 -430.02,250.84 -438.71,262.630zm202.29 1190.86c2.89,-116.89 -20.17,-425.59 27.9,-512.86 60.24,-109.37 261.71,-174.32 317.42,-226.42 -22.78,-19.22 -352.93,-206.14 -409.64,-240.67 -80.45,-48.99 -235.71,-157.68 -335.26,-22.790 -24.95,33.8 -34.97,79.08 -34.72,131.3 0.52,107.61 0.42,215.46 0.19,323.08 -0.26,119.57 -15.35,195.99 51.69,275.57 27.23,32.32 145.52,111.44 187.4,139.44 32.4,21.66 176.27,127.15 195.01,133.36z"/><text x="-52.05" y="2310.84" font-family="Arial, Helvetica, sans-serif" font-size="634.8" fill="currentColor">Flexio</text></svg></div><div id="accCuerpo"></div></div>`;
   document.body.appendChild(capa);
   function mostrar(html, fn) { capa.classList.remove('oculto'); $('accCuerpo').innerHTML = html; if (fn) fn(); }
   function ocultar() { capa.classList.add('oculto'); document.dispatchEvent(new Event('raiki-listo')); }
@@ -83,14 +83,14 @@
       bloqueado: ['Tu cuenta está suspendida', 'Escríbenos para revisarla. Tus modelos siguen guardados en este equipo.'],
       equipo_vencido: ['El plan de tu equipo venció', 'Pide a quien te agregó que lo renueve.']
     }[r.estado] || ['No pudimos comprobar tu acceso', esc(r.mensaje || 'Intenta otra vez en un momento.')];
-    mostrar(`<h2>${T[0]}</h2><p class="acc-txt">${T[1]}</p>${wa('Hola, quiero activar RAIKI 3D. Mi correo es ' + email)}
+    mostrar(`<h2>${T[0]}</h2><p class="acc-txt">${T[1]}</p>${wa('Hola, quiero activar Flexio. Mi correo es ' + email)}
       <button class="acc-btn" id="accRe">Volver a comprobar</button><button class="acc-link" id="accOtro">Usar otro correo</button>`, () => { $('accRe').onclick = () => comprobar(true); otro(); });
   }
   async function comprobar(visible) {
     let r;
-    try { r = await A.rpc('acceso_raiki', { p_app: '3d' }); }
+    try { r = await A.rpc('acceso_raiki', { p_app: 'flexio' }); }
     catch (e) {
-      if (e.red) { if (guardadaValida()) return ocultar(); return mostrar(`<h2>Necesitas internet</h2><p class="acc-txt">Conéctate una vez para comprobar tu cuenta. Después RAIKI 3D funciona hasta ${DIAS_SIN_INTERNET} días sin conexión.</p><button class="acc-btn" id="accRe">Reintentar</button>`, () => $('accRe').onclick = () => comprobar(true)); }
+      if (e.red) { if (guardadaValida()) return ocultar(); return mostrar(`<h2>Necesitas internet</h2><p class="acc-txt">Conéctate una vez para comprobar tu cuenta. Después Flexio funciona hasta ${DIAS_SIN_INTERNET} días sin conexión.</p><button class="acc-btn" id="accRe">Reintentar</button>`, () => $('accRe').onclick = () => comprobar(true)); }
       if (e.sinSesion || e.status === 401) { localStorage.removeItem(K_LIC); return pasoCorreo(visible ? 'Tu sesión se cerró. Vuelve a entrar.' : ''); }
       if (guardadaValida()) return ocultar();
       return estado({ estado: 'error', mensaje: A.traducir(e) });

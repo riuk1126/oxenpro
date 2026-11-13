@@ -1,4 +1,4 @@
-// RAIKI 3D — cámara y dibujo con WebGL (caras sombreadas, aristas nítidas de grosor real, ejes).
+// Flexio — cámara y dibujo con WebGL (caras sombreadas, aristas nítidas de grosor real, ejes).
 (function (G) {
   'use strict';
   const { V, ejesPlano } = G.R3;

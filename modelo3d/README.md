@@ -1,10 +1,10 @@
-# RAIKI 3D
+# Flexio
 
 Modelado 3D para arquitectos en Android (tableta y celular), con el flujo de un modelador de superficies: dibujas líneas y figuras, las caras se forman solas y las conviertes en volumen con **Empujar / tirar**. Se entra con la **cuenta RAIKI** (el mismo correo y contraseña de OXEN PRO y Kivo).
 
 ## Descargar
-- 🤖 Android: [RAIKI-3D.apk](https://github.com/riuk1126/oxenpro/releases/download/3d-v1.0.0/RAIKI-3D.apk)
-- 🌐 Navegador (para probar): [riuk1126.github.io/oxenpro/3d](https://riuk1126.github.io/oxenpro/3d/)
+- 🤖 Android: [Flexio.apk](https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk)
+- 🌐 Navegador (para probar): [riuk1126.github.io/oxenpro/3d](https://riuk1126.github.io/oxenpro/flexio/)
 
 La app de Android carga la versión publicada aquí, así que cada mejora le llega sola. Cuando hace falta un APK nuevo, la app lo avisa y se actualiza desde adentro.
 
@@ -30,4 +30,4 @@ Seleccionar · Borrador · Pintar (colores y texturas: ladrillo, concreto, mader
 Entra cualquier cuenta RAIKI con plan activo (OXEN PRO, Kivo o combo) o miembro de un equipo activo. La comprobación usa la función `acceso_raiki` de Supabase y **no ocupa** los cupos de dispositivos de OXEN PRO. Sin internet funciona 7 días desde la última comprobación.
 
 ## Sacar un APK nuevo
-Cambia `"version"` en `modelo3d/movil/package.json` y sube el cambio con `[apk3d]` en el mensaje, o en **Actions → Construir RAIKI 3D → Run workflow**.
+Cambia `"version"` en `modelo3d/movil/package.json` y sube el cambio con `[apk3d]` en el mensaje, o en **Actions → Construir Flexio → Run workflow**.

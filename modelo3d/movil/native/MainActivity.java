@@ -1,4 +1,4 @@
-package com.raiki.r3d;
+package com.raiki.flexio;
 
 import android.os.Bundle;
 import androidx.core.view.WindowCompat;

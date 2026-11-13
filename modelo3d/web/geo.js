@@ -1,4 +1,4 @@
-// RAIKI 3D — núcleo geométrico: vértices, aristas y caras (con huecos), al estilo de un modelador de superficies.
+// Flexio — núcleo geométrico: vértices, aristas y caras (con huecos), al estilo de un modelador de superficies.
 // Las caras se forman solas cuando las aristas cierran una figura plana. Unidades: metros. Eje Z hacia arriba.
 (function (G) {
   'use strict';
@@ -840,7 +840,7 @@
     }
     serializar() {
       return {
-        formato: 'raiki3d', version: 1, sig: this.sig,
+        formato: 'flexio', version: 1, sig: this.sig,
         v: [...this.v.values()].map(v => [v.id, +v.p[0].toFixed(6), +v.p[1].toFixed(6), +v.p[2].toFixed(6), v.g]),
         e: [...this.e.values()].map(e => [e.id, e.a, e.b, e.g, e.s, e.c]),
         f: [...this.f.values()].map(f => [f.id, f.loops, f.g, f.mat, f.matB, f.sg]),

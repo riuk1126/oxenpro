@@ -1,5 +1,5 @@
-// RAIKI 3D — conexión con el servidor de cuentas RAIKI (Supabase), sin librerías.
-// La misma cuenta RAIKI (correo + contraseña) sirve para OXEN PRO, Kivo y RAIKI 3D.
+// Flexio — conexión con el servidor de cuentas RAIKI (Supabase), sin librerías.
+// La misma cuenta RAIKI (correo + contraseña) sirve para OXEN PRO, Kivo y Flexio.
 // La clave de abajo es la "publishable key": es pública por diseño y puede ir en la app.
 // La seguridad la ponen las reglas de la base de datos, no esta clave.
 (function () {

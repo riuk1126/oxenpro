@@ -1,11 +1,11 @@
 {
-  "appId": "com.raiki.r3d",
-  "appName": "RAIKI 3D",
+  "appId": "com.raiki.flexio",
+  "appName": "Flexio",
   "webDir": "www",
   "server": {
-    "url": "https://riuk1126.github.io/oxenpro/3d/",
+    "url": "https://riuk1126.github.io/oxenpro/flexio/",
     "androidScheme": "https",
     "errorPath": "sin-conexion.html"
   },
-  "android": { "backgroundColor": "#111214" }
+  "android": { "backgroundColor": "#ffffff" }
 }

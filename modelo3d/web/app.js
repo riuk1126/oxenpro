@@ -1,4 +1,4 @@
-// RAIKI 3D — aplicación: herramientas, inferencias, gestos (lápiz / dedos / ratón), interfaz y archivos.
+// Flexio — aplicación: herramientas, inferencias, gestos (lápiz / dedos / ratón), interfaz y archivos.
 (function () {
   'use strict';
   const { V, Modelo, Camara, Visor, MATERIALES, MAT, ejesPlano, texCanvas, Archivos } = R3;
@@ -1172,7 +1172,7 @@
       <button data-f="dae">${icono('exportar')} COLLADA (.dae) — SketchUp, Blender, Revit</button>
       <button data-f="obj">${icono('exportar')} OBJ (.obj)</button>
       <button data-f="stl">${icono('exportar')} STL (.stl) — impresión 3D</button>
-      <button data-f="r3d">${icono('exportar')} RAIKI 3D (.r3d) — copia completa</button>
+      <button data-f="r3d">${icono('exportar')} Flexio (.r3d) — copia completa</button>
       <button data-f="png">${icono('exportar')} Imagen (.png)</button></div>
       <div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
       $('dNo').onclick = cerrarDlg;
@@ -1333,7 +1333,7 @@
           return dialogo(`<h3>Nueva versión ${esc(v.apk)}</h3><p>Se descarga dentro de la app y Android te pedirá confirmar «Actualizar». Tus modelos se conservan.</p><div class="fila"><button id="dNo">Luego</button><button class="pri" id="dSi">Actualizar</button></div>`, () => {
             $('dNo').onclick = cerrarDlg;
             $('dSi').onclick = async () => { cerrarDlg(); await guardar(); let h; try { h = await n.addListener('updProgress', d => avisar('Descargando… ' + d.p + '%')); } catch (e) {}
-              try { const res = await n.installUpdate({ url: 'https://github.com/riuk1126/oxenpro/releases/download/3d-v' + v.apk + '/RAIKI-3D.apk' }); if (res && res.status === 'permission') avisar('Permite instalar apps de RAIKI 3D y vuelve a tocar Actualizar'); } catch (e) { avisar('No se pudo descargar la actualización'); }
+              try { const res = await n.installUpdate({ url: 'https://github.com/riuk1126/oxenpro/releases/download/flexio-v' + v.apk + '/Flexio.apk' }); if (res && res.status === 'permission') avisar('Permite instalar apps de Flexio y vuelve a tocar Actualizar'); } catch (e) { avisar('No se pudo descargar la actualización'); }
               if (h && h.remove) h.remove(); };
           });
         }
