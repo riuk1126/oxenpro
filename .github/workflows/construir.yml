@@ -36,6 +36,15 @@ jobs:
           APK=$(node -p "require('./movil/package.json').version")
           echo "{\"version\":\"$V\",\"apk\":\"$APK\"}" > site/version.json
           cat site/version.json
+          # RAIKI 3D vive en /3d (misma página, carpeta aparte)
+          if [ -d modelo3d/web ]; then
+            V3="$(node -p "require('./modelo3d/movil/package.json').version")-$(git rev-parse --short HEAD)"
+            A3=$(node -p "require('./modelo3d/movil/package.json').version")
+            rm -rf site/3d && cp -r modelo3d/web site/3d
+            sed -i "s/__R3D_VERSION__/$V3/g" site/3d/index.html
+            echo "{\"version\":\"$V3\",\"apk\":\"$A3\"}" > site/3d/version.json
+            cat site/3d/version.json
+          fi
           touch site/.nojekyll
           cd site && git init -q && git checkout -q -b gh-pages && git add -A
           git -c user.name="OXEN PRO" -c user.email="oxen@users.noreply.github.com" commit -qm "OXEN web $V"

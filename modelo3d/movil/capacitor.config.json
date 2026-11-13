@@ -1,0 +1,11 @@
+{
+  "appId": "com.raiki.r3d",
+  "appName": "RAIKI 3D",
+  "webDir": "www",
+  "server": {
+    "url": "https://riuk1126.github.io/oxenpro/3d/",
+    "androidScheme": "https",
+    "errorPath": "sin-conexion.html"
+  },
+  "android": { "backgroundColor": "#111214" }
+}

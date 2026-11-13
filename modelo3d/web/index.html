@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f3f4f5">
+<title>RAIKI 3D</title>
+<link rel="icon" href="icono-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="estilos.css?v=__R3D_VERSION__">
+</head>
+<body>
+<!-- ============ GALERÍA ============ -->
+<section id="galeria">
+  <header class="gal-cab">
+    <div class="marca"><img src="icono-192.png" alt=""><div><b>RAIKI 3D</b><small>Modelado 3D para arquitectos</small></div></div>
+    <div class="grupo">
+      <button class="ib" id="gCuenta" title="Mi cuenta"></button>
+      <button class="ib" id="gAjustes" title="Ajustes"></button>
+    </div>
+  </header>
+  <div class="gal-acciones">
+    <button class="btn-osc" id="gNuevo"></button>
+    <button class="btn-cla" id="gImportar"></button>
+  </div>
+  <div id="gLista" class="gal-lista"></div>
+  <p class="gal-pie">Abre modelos <b>.dae</b>, <b>.obj</b>, <b>.stl</b> y <b>.r3d</b>. Desde SketchUp: Archivo → Exportar → Modelo 3D → COLLADA (.dae).</p>
+</section>
+
+<!-- ============ EDITOR ============ -->
+<section id="editor" class="oculto">
+  <canvas id="gl"></canvas>
+  <canvas id="ov"></canvas>
+
+  <div class="barra-sup">
+    <div class="grupo panel">
+      <button class="ib" id="bAtras" title="Mis modelos"></button>
+      <button class="nombre" id="bNombre">Sin título</button>
+    </div>
+    <div class="grupo panel">
+      <button class="ib" id="bDeshacer" title="Deshacer"></button>
+      <button class="ib" id="bRehacer" title="Rehacer"></button>
+    </div>
+    <div class="grupo panel">
+      <button class="ib" id="bVistas" title="Vistas"></button>
+      <button class="ib" id="bRayos" title="Rayos X"></button>
+      <button class="ib" id="bExt" title="Ver todo"></button>
+      <button class="ib" id="bMat" title="Materiales"></button>
+      <button class="ib" id="bMenu" title="Menú"></button>
+    </div>
+  </div>
+
+  <nav id="herramientas" class="panel"></nav>
+
+  <div id="contexto" class="oculto"><span id="ctxNombre"></span><button id="ctxSalir">Cerrar grupo</button></div>
+
+  <div class="barra-inf">
+    <div id="opciones" class="panel oculto"></div>
+    <div id="pista"></div>
+  </div>
+
+  <button id="vcb" class="panel"><span id="vcbEt">Medidas</span><b id="vcbVal"></b></button>
+  <div id="teclado" class="panel oculto"></div>
+
+  <div id="selBar" class="panel oculto"></div>
+
+  <aside id="pMat" class="lateral panel oculto">
+    <div class="lat-cab"><b>Materiales</b><button class="ib" data-cerrar="pMat"></button></div>
+    <div id="matLista" class="mat-lista"></div>
+    <div class="mat-pie"><label class="chk"><input type="checkbox" id="matGotero"> Tomar de una cara</label><label class="color-prop">Color propio <input type="color" id="matColor" value="#8aa0b4"></label></div>
+  </aside>
+
+  <div id="menuVistas" class="menu panel oculto"></div>
+  <div id="menuPpal" class="menu panel oculto"></div>
+</section>
+
+<div id="aviso"></div>
+<div id="dialogo" class="oculto"><div class="dlg panel" id="dlgCaja"></div></div>
+<input type="file" id="archivo" accept=".dae,.obj,.stl,.r3d,.json,model/vnd.collada+xml,model/obj,model/stl,application/octet-stream" hidden>
+
+<script src="iconos.js?v=__R3D_VERSION__"></script>
+<script src="geo.js?v=__R3D_VERSION__"></script>
+<script src="render.js?v=__R3D_VERSION__"></script>
+<script src="archivos.js?v=__R3D_VERSION__"></script>
+<script src="raiki-auth.js?v=__R3D_VERSION__"></script>
+<script src="app.js?v=__R3D_VERSION__"></script>
+<script src="acceso.js?v=__R3D_VERSION__"></script>
+<script>window.R3D_VERSION = '__R3D_VERSION__';</script>
+</body>
+</html>

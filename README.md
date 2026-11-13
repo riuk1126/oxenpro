@@ -11,6 +11,9 @@
 
 La app de Android se actualiza sola: cada mejora que se sube aquí llega a la tableta al abrirla.
 
+## RAIKI 3D (modelado 3D)
+App aparte de modelado 3D con la misma cuenta RAIKI: ver [modelo3d/README.md](modelo3d/README.md) · [APK](https://github.com/riuk1126/oxenpro/releases/download/3d-v1.0.0/RAIKI-3D.apk) · [probar en el navegador](https://riuk1126.github.io/oxenpro/3d/).
+
 ## Cuentas y licencias
 - Al abrir, OXEN PRO pide **correo y contraseña** y revisa que el plan esté vigente.
 - En el **panel** registras al cliente y se genera su **contraseña temporal**; la primera vez que entra, la app le pide crear la suya.

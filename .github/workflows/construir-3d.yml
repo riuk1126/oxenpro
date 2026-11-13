@@ -1,0 +1,65 @@
+# RAIKI 3D — APK de Android.
+# • La app web de RAIKI 3D se publica junto con OXEN (workflow "Construir OXEN") en /3d, y la app de Android la carga desde ahí,
+#   así que cada cambio en "main" le llega sola a la tableta.
+# • El APK se arma cuando el mensaje del cambio incluye [apk3d] o a mano desde Actions → "Construir RAIKI 3D" → Run workflow.
+# • Se publica en Releases con la etiqueta 3d-vX.Y.Z (sin marcarla como "latest", para no tocar los enlaces de OXEN PRO).
+name: Construir RAIKI 3D
+
+on:
+  push:
+    branches: [main]
+    paths: ['modelo3d/**', '.github/workflows/construir-3d.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[apk3d]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Preparar la app
+        working-directory: modelo3d/movil
+        run: |
+          npm install
+          rm -rf www android && mkdir www && cp -r ../web/* www/
+          cp sin-conexion.html www/
+          V=$(node -p "require('./package.json').version")
+          sed -i "s/__R3D_VERSION__/$V/g" www/index.html
+          npx cap add android
+          cp native/*.java android/app/src/main/java/com/raiki/r3d/
+          cp -r res/* android/app/src/main/res/
+          MF=android/app/src/main/AndroidManifest.xml
+          grep -q REQUEST_INSTALL_PACKAGES $MF || sed -i 's#</manifest>#    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n</manifest>#' $MF
+          # abrir archivos .dae .obj .stl desde otras apps no hace falta: se importan con el botón Importar
+          sudo apt-get install -y -qq imagemagick >/dev/null 2>&1 || true
+          for f in $(find android/app/src/main/res -name 'splash.png'); do
+            W=$(identify -format '%w' "$f" || echo 0); H=$(identify -format '%h' "$f" || echo 0); [ "$W" = 0 ] && continue; M=$(( W<H ? W : H )); L=$(( M*34/100 ))
+            convert -size ${W}x${H} xc:'#111214' \( splash-logo.png -resize ${L}x${L} \) -gravity center -composite "$f" || echo "splash sin cambiar: $f"
+          done
+          CODE=$(node -p "const [a,b,c]=require('./package.json').version.split('.').map(Number);a*10000+b*100+c")
+          sed -i "s/versionCode [0-9]*/versionCode $CODE/; s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
+          npx cap sync android
+      - name: Compilar
+        working-directory: modelo3d/movil/android
+        run: ./gradlew assembleRelease --no-daemon -q
+      - name: Firmar y publicar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BT=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)
+          $BT/zipalign -p -f 4 modelo3d/movil/android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          $BT/apksigner sign --ks modelo3d/movil/r3d.jks --ks-key-alias raiki3d --ks-pass pass:raiki3d-arquizo-2026 --key-pass pass:raiki3d-arquizo-2026 --out RAIKI-3D.apk aligned.apk
+          $BT/apksigner verify RAIKI-3D.apk && ls -la RAIKI-3D.apk
+          V=$(node -p "require('./modelo3d/movil/package.json').version")
+          gh release view "3d-v$V" >/dev/null 2>&1 || gh release create "3d-v$V" --target "${{ github.sha }}" --latest=false --title "RAIKI 3D $V" --notes "RAIKI 3D $V — modelado 3D para arquitectos. Descarga RAIKI-3D.apk e instálalo en tu tableta o celular Android. Entra con tu cuenta RAIKI."
+          gh release upload "3d-v$V" RAIKI-3D.apk --clobber
