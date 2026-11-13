@@ -1348,5 +1348,11 @@
   herr = H.seleccionar;
   irGaleria();
   document.addEventListener('raiki-listo', () => setTimeout(() => buscarActualizacion(false), 3000), { once: true });
+  // invitaciones a las otras apps RAIKI (Kivo y OXEN PRO) y registro de este equipo
+  document.addEventListener('raiki-listo', () => {
+    if (!window.RaikiInvitar || !window.RaikiAuth || !RaikiAuth.sesion()) return;
+    let disp = leerLS('r3d-dispositivo'); if (!disp) { disp = (crypto.randomUUID ? crypto.randomUUID() : 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2)); try { localStorage.setItem('r3d-dispositivo', JSON.stringify(disp)); } catch (e) {} }
+    RaikiInvitar.iniciar({ app: 'flexio', rpc: (n, x) => RaikiAuth.rpc(n, x), contenedor: () => $('gInv'), dispositivo: disp, version: window.R3D_VERSION, nativo: N, avisar, email: () => (RaikiAuth.sesion() || {}).email || '' });
+  }, { once: true });
   window.R3D = { m, cam, H, usar, inferir, abrirNuevo, verTodo, vista, est, operacion, pedir, guardar, exportar, avisar }; // para pruebas
 })();

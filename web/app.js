@@ -3854,7 +3854,7 @@ const FLEXIO_APK = 'https://github.com/riuk1126/oxenpro/releases/download/flexio
 (function () {
   const K = 'oxen-flexio-oculto';
   let oculto = false; try { oculto = localStorage.getItem(K) === '1'; } catch (e) {}
-  if (!oculto) $('galFlexio').classList.remove('oculto');
+  // el aviso fijo de Flexio quedó reemplazado por las invitaciones automáticas (raiki-invitar.js)
   $('flexioCerrar').onclick = () => { $('galFlexio').classList.add('oculto'); try { localStorage.setItem(K, '1'); } catch (e) {} avisar('Puedes descargar Flexio desde el menú → Descargar Flexio'); };
   async function bajarFlexio() {
     const N = nativo(), b = $('flexioBajar');
@@ -3874,6 +3874,19 @@ const FLEXIO_APK = 'https://github.com/riuk1126/oxenpro/releases/download/flexio
   $('flexioBajar').onclick = bajarFlexio;
   window.bajarFlexio = bajarFlexio;
   $('mFlexio').onclick = () => { cerrarPaneles(); bajarFlexio(); };
+})();
+// ---------- Invitaciones a las otras apps RAIKI (Kivo y Flexio) ----------
+(function invitar() {
+  const listo = () => window.OxenAuth && OxenAuth.sesion() && window.OxenAcceso && OxenAcceso.licencia() && document.getElementById('acceso') && document.getElementById('acceso').classList.contains('oculto');
+  let hecho = false;
+  const intentar = () => {
+    if (hecho || !window.RaikiInvitar) return;
+    if (!listo()) return setTimeout(intentar, 2500);
+    hecho = true;
+    let disp = ''; try { disp = JSON.parse(localStorage.getItem('oxen-dispositivo') || '""'); } catch (e) {}
+    RaikiInvitar.iniciar({ app: 'oxen', rpc: (n, x) => OxenAuth.rpc(n, x), contenedor: () => $('galInv'), dispositivo: disp || 'oxen-sin-id', version: VERSION, nativo, avisar, email: () => (OxenAuth.sesion() || {}).email || '' });
+  };
+  setTimeout(intentar, 1500);
 })();
 $('btnActualizar').onclick = () => buscarActualizacion(true);
 $('mActualizar').onclick = () => { if (UPD.web || UPD.apk) { cerrarPaneles(); aplicarActualizacion(); } else buscarActualizacion(true); };

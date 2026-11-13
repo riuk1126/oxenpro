@@ -326,21 +326,33 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 
   // ---------- Cuentas RAIKI (una cuenta para todas las apps) ----------
   $('bCuentas').onclick = verCuentas;
+  let AJ = {};
+  function abrirInvitacion(email, msg) {
+    const v = document.createElement('div'); v.className = 'stat'; v.style.marginBottom = '10px';
+    v.innerHTML = `<span>Invitación para ${esc(email)} (ya está copiada)</span><textarea style="width:100%;min-height:150px;margin-top:8px;border-radius:10px;padding:10px;font:inherit;background:transparent;color:inherit;border:1px solid #8884">${esc(msg)}</textarea><p style="margin-top:8px"><a class="btn btn-v btn-s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Enviar por WhatsApp</a></p>`;
+    const c = $('cClave'); c.innerHTML = ''; c.appendChild(v); c.scrollIntoView({ behavior: 'smooth' });
+  }
   async function verCuentas() {
     let C = [];
     try { C = await A.rpc('raiki_cuentas'); } catch (e) { return avisar(A.traducir(e)); }
+    try { AJ = await A.rpc('raiki_ajustes_ver'); } catch (e) {}
     const chip = (t, ok) => `<span class="est ${ok ? 'e-ok' : 'e-venc'}" style="margin-left:6px">${t}</span>`;
     const filas = C.map(c => {
       const ox = c.licencia ? chip(PRODUCTOS[c.licencia.producto].corto + (c.licencia.activo ? '' : ' vencido'), c.licencia.activo)
         : c.oxen_equipo_de ? chip('OXEN · equipo', true) : '';
+      const ap = c.apps || {};
+      const appChip = (k, n) => { const x = ap[k] || (k === 'kivo' && c.kivo ? { equipos: 0 } : null); return `<span class="est ${x ? 'e-ok' : 'e-venc'}" style="margin:4px 6px 0 0;display:inline-block" title="${x && x.ultima ? 'Último uso: ' + fechaHora(x.ultima) + (x.plataformas ? ' · ' + esc(x.plataformas) : '') : ''}">${n} ${x ? (x.equipos ? '· ' + x.equipos + ' equipo' + (x.equipos > 1 ? 's' : '') : '· usa') : '· sin instalar'}</span>`; };
+      const apps = appChip('kivo', 'Kivo') + appChip('oxen', 'OXEN') + appChip('flexio', 'Flexio');
+      const faltan = ['kivo', 'oxen', 'flexio'].filter(k => !ap[k] && !(k === 'kivo' && c.kivo));
       return `<div class="cli"><div>
-        <div class="nom">${esc(c.email)}${ox}${c.kivo ? '<span class="prod p-uso">usa Kivo</span>' : ''}</div>
+        <div class="nom">${esc(c.email)}${ox}</div><div>${apps}</div>
         <div class="info"><span>${c.cuenta ? 'Último ingreso: <b>' + (c.ultimo_ingreso ? fechaHora(c.ultimo_ingreso) : 'nunca') + '</b>' : '<b>Cuenta sin crear</b> · genera su contraseña'}</span></div>
       </div>
-      <div class="acc"><button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? 'Nueva contraseña' : 'Crear cuenta'}</button></div></div>`;
+      <div class="acc">${faltan.length && c.cuenta ? `<button class="btn btn-g btn-s" data-invitar="${esc(c.email)}" data-faltan="${faltan.join(',')}">Invitar</button>` : ''}<button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? 'Nueva contraseña' : 'Crear cuenta'}</button></div></div>`;
     }).join('');
     abrir(`<h3>Cuentas RAIKI</h3>
-      <p class="sub">Cada persona tiene una sola cuenta para OXEN PRO y Kivo. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>.</p>
+      <p class="sub">Cada persona tiene una sola cuenta para Kivo, OXEN PRO y Flexio. Debajo de cada correo ves qué apps tiene instaladas (en verde) y en cuántos equipos. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>. Flexio lo puede usar cualquier cuenta con un plan activo.</p>
+      <label style="display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:600"><input type="checkbox" id="cInvitar" ${AJ.invitar_apps !== false ? 'checked' : ''}> Invitar dentro de cada app a instalar las apps RAIKI que les faltan</label>
       <div style="display:flex;gap:8px;margin:12px 0">
         <input class="buscar" id="cNueva" type="email" placeholder="correo@ejemplo.com (cuenta nueva para Kivo)" style="flex:1">
         <button class="btn btn-v btn-s" id="cCrear">Crear cuenta</button>
@@ -349,6 +361,15 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       <div class="lista">${filas || '<div class="vacio">Sin cuentas.</div>'}</div>
       <p style="text-align:right;margin-top:12px"><button class="btn btn-g" id="cCerrar">Cerrar</button></p>`, () => {
       $('cCerrar').onclick = cerrar;
+      $('cInvitar').onchange = async () => { const v = $('cInvitar').checked; try { await A.rpc('admin_invitar_apps', { p_valor: v }); AJ.invitar_apps = v; avisar(v ? 'Las apps invitarán a instalar las que faltan' : 'Invitaciones apagadas'); } catch (e) { avisar(A.traducir(e)); $('cInvitar').checked = !v; } };
+      document.querySelectorAll('[data-invitar]').forEach(b => b.onclick = () => {
+        const N = { kivo: 'Kivo (pendientes del equipo)', oxen: 'OXEN PRO (bocetos con lápiz)', flexio: 'Flexio (modelado 3D)' };
+        const L = { kivo: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo.apk', oxen: 'https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk', flexio: 'https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk' };
+        const f = b.dataset.faltan.split(',');
+        const msg = 'Hola, te invito a probar ' + f.map(k => N[k]).join(' y ') + '. Entras con tu misma cuenta RAIKI (' + b.dataset.invitar + ').\n\nDescarga para tu tableta o celular Android:\n' + f.map(k => '• ' + N[k].split(' (')[0] + ': ' + L[k]).join('\n') + '\n\nTambién te aparecerá la invitación dentro de la app que ya usas.';
+        try { navigator.clipboard.writeText(msg); } catch (e) {}
+        abrirInvitacion(b.dataset.invitar, msg);
+      });
       const dar = async email => {
         try {
           const r = await A.funcion('admin-contrasena', { email });
