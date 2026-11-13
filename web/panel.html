@@ -90,10 +90,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 #vLogin .marca-raiki{align-items:center}.raiki-logo{width:180px;height:auto;color:var(--tx)}.raiki-logo.chico{width:120px}
 .prod{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.04em;vertical-align:2px}
 .p-oxen{background:rgba(138,207,0,.14);color:var(--verde)}.p-kivo{background:rgba(127,180,255,.14);color:var(--azul)}
-.p-combo{background:linear-gradient(90deg,rgba(182,253,14,.2),rgba(127,180,255,.2));color:#e9ffd0}.p-uso{background:var(--g2);color:var(--tx2);font-weight:600}
+.p-combo{background:linear-gradient(90deg,rgba(182,253,14,.2),rgba(127,180,255,.2));color:#e9ffd0}.p-flexio{background:rgba(102,102,255,.2);color:#b3b3ff}.p-todo{background:linear-gradient(90deg,rgba(182,253,14,.22),rgba(127,180,255,.22),rgba(102,102,255,.3));color:#fff}.p-uso{background:var(--g2);color:var(--tx2);font-weight:600}
 .chips .sep{display:inline-block;width:1px;height:20px;background:var(--g3);margin:0 6px;vertical-align:middle}
 .productos .plan{flex:1 1 auto}
-.tabla-precios{display:grid;grid-template-columns:auto repeat(3,1fr);gap:8px;align-items:center;margin-top:6px}
+.tabla-precios{display:grid;grid-template-columns:auto repeat(5,1fr);gap:8px;align-items:center;margin-top:6px}
 .tabla-precios b{font-size:12px;color:var(--tx2);text-align:center}.tabla-precios span{color:var(--tx2)}
 .tabla-precios input{width:100%;background:var(--negro);border:1px solid var(--g3);border-radius:10px;padding:9px 10px;outline:none;text-align:right}
 .tabla-precios input:focus{border-color:var(--verde)}
@@ -152,6 +152,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 (function () {
   const A = window.OxenAuth;
   const APK = 'https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk';
+  const FLEXIO_APK = 'https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk';
   const KIVO = {
     win: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo-Setup.exe',
     apk: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo.apk',
@@ -159,10 +160,18 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   };
   // Lo que puede comprar un cliente con su cuenta RAIKI
   const PRODUCTOS = {
-    oxen:  { n: 'OXEN PRO', corto: 'OXEN', c: 'p-oxen', oxen: true, kivo: false },
-    kivo:  { n: 'Kivo', corto: 'Kivo', c: 'p-kivo', oxen: false, kivo: true },
-    combo: { n: 'Combo OXEN PRO + Kivo', corto: 'Combo', c: 'p-combo', oxen: true, kivo: true }
+    oxen:   { n: 'OXEN PRO', corto: 'OXEN', c: 'p-oxen', oxen: true, kivo: false },
+    kivo:   { n: 'Kivo', corto: 'Kivo', c: 'p-kivo', oxen: false, kivo: true },
+    flexio: { n: 'Flexio (3D)', corto: 'Flexio', c: 'p-flexio', oxen: false, kivo: false },
+    combo:  { n: 'Combo OXEN PRO + Kivo', corto: 'Combo', c: 'p-combo', oxen: true, kivo: true },
+    oxen_flexio: { n: 'OXEN PRO + Flexio', corto: 'OXEN+Flexio', c: 'p-combo', oxen: true, kivo: false },
+    kivo_flexio: { n: 'Kivo + Flexio', corto: 'Kivo+Flexio', c: 'p-combo', oxen: false, kivo: true },
+    todo:   { n: 'Todo RAIKI (OXEN PRO + Kivo + Flexio)', corto: 'Todo RAIKI', c: 'p-todo', oxen: true, kivo: true }
   };
+  // lo que se ofrece al vender (las otras combinaciones salen solas al sumar compras)
+  const VENTA = ['oxen', 'kivo', 'flexio', 'combo', 'todo'];
+  const APPS_DE = { oxen: ['oxen'], kivo: ['kivo'], flexio: ['flexio'], combo: ['oxen', 'kivo'], oxen_flexio: ['oxen', 'flexio'], kivo_flexio: ['kivo', 'flexio'], todo: ['oxen', 'kivo', 'flexio'] };
+  const unirProductos = (a, b) => { const s = new Set([...(APPS_DE[a] || []), ...(APPS_DE[b] || [])]); return Object.keys(APPS_DE).find(k => APPS_DE[k].length === s.size && APPS_DE[k].every(x => s.has(x))) || b; };
   const prod = l => PRODUCTOS[(l && l.producto) || 'oxen'] || PRODUCTOS.oxen;
   const etiqueta = l => `<span class="prod ${prod(l).c}">${prod(l).corto}</span>`;
   const PLANES = [
@@ -203,8 +212,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     const desc = [];
     if (P.oxen) desc.push(`• OXEN PRO (tableta Android): ${APK}`);
     if (P.kivo) desc.push(`• Kivo para Windows: ${KIVO.win}\n• Kivo para Android: ${KIVO.apk}\n• Kivo en el navegador: ${KIVO.web}`);
+    if ((APPS_DE[l.producto] || []).includes('flexio')) desc.push(`• Flexio, modelado 3D (tableta Android): ${FLEXIO_APK}`);
     return `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu acceso a ${P.n} está activo hasta el ${fecha(l.vence)}.\n\n` +
-      `1) Descarga:\n${desc.join('\n')}\n\n2) Entra con tu cuenta RAIKI (${P.oxen && P.kivo ? 'la misma para las dos apps' : 'sirve para todas las apps RAIKI'}):\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
+      `1) Descarga:\n${desc.join('\n')}\n\n2) Entra con tu cuenta RAIKI (${(APPS_DE[l.producto] || []).length > 1 ? 'la misma para todas tus apps' : 'sirve para todas las apps RAIKI'}):\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
       (clave ? `3) La primera vez la app te pedirá crear tu propia contraseña.\n` : '') + `\n¡Bienvenido a RAIKI!`;
   }
 
@@ -283,8 +293,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 
     const F = [['todos', 'Todos', LIC.length], ['activos', 'Activos', cuenta('ok') + cuenta('pronto')], ['prueba', 'En prueba', cuenta('prueba')], ['pronto', 'Por vencer', cuenta('pronto')], ['venc', 'Vencidos', cuenta('venc')], ['bloq', 'Bloqueados', cuenta('bloq')]];
     $('chips').innerHTML = F.map(([k, t, n]) => `<button class="chip${filtro === k ? ' on' : ''}" data-f="${k}">${t} · ${n}</button>`).join('');
-    const FP = [['todos', 'Todo'], ['oxen', 'OXEN PRO'], ['kivo', 'Kivo'], ['combo', 'Combo']];
-    $('chips').innerHTML += '<span class="sep"></span>' + FP.map(([k, t]) => `<button class="chip${filtroProd === k ? ' on' : ''}" data-fp="${k}">${t} · ${k === 'todos' ? LIC.length : LIC.filter(l => (l.producto || 'oxen') === k).length}</button>`).join('');
+    const FP = [['todos', 'Todos'], ['oxen', 'OXEN PRO'], ['kivo', 'Kivo'], ['flexio', 'Flexio'], ['combo', 'Combo'], ['todo', 'Todo RAIKI']];
+    $('chips').innerHTML += '<span class="sep"></span>' + FP.map(([k, t]) => `<button class="chip${filtroProd === k ? ' on' : ''}" data-fp="${k}">${t} · ${k === 'todos' ? LIC.length : LIC.filter(l => (l.producto || 'oxen') === k || (k === 'flexio' && (APPS_DE[l.producto || 'oxen'] || []).includes('flexio'))).length}</button>`).join('');
     $('chips').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
     $('chips').querySelectorAll('[data-fp]').forEach(b => b.onclick = () => { filtroProd = b.dataset.fp; pintar(); });
 
@@ -293,7 +303,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       const k = est[i].k;
       if (filtro === 'activos' && !(k === 'ok' || k === 'pronto')) return false;
       if (filtro !== 'todos' && filtro !== 'activos' && k !== filtro) return false;
-      if (filtroProd !== 'todos' && (l.producto || 'oxen') !== filtroProd) return false;
+      if (filtroProd !== 'todos' && (l.producto || 'oxen') !== filtroProd && !(filtroProd === 'flexio' && (APPS_DE[l.producto || 'oxen'] || []).includes('flexio'))) return false;
       return !txt || [l.email, l.nombre, l.telefono, l.notas].some(x => (x || '').toLowerCase().includes(txt));
     });
     if (!LIC.length) { $('lista').innerHTML = '<div class="vacio">Aún no tienes clientes. Toca <b>+ Nuevo cliente</b> cuando alguien te pague (OXEN PRO, Kivo o el combo).</div>'; return; }
@@ -351,7 +361,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       <div class="acc">${faltan.length && c.cuenta ? `<button class="btn btn-g btn-s" data-invitar="${esc(c.email)}" data-faltan="${faltan.join(',')}">Invitar</button>` : ''}<button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? 'Nueva contraseña' : 'Crear cuenta'}</button></div></div>`;
     }).join('');
     abrir(`<h3>Cuentas RAIKI</h3>
-      <p class="sub">Cada persona tiene una sola cuenta para Kivo, OXEN PRO y Flexio. Debajo de cada correo ves qué apps tiene instaladas (en verde) y en cuántos equipos. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>. Flexio lo puede usar cualquier cuenta con un plan activo.</p>
+      <p class="sub">Cada persona tiene una sola cuenta para Kivo, OXEN PRO y Flexio. Debajo de cada correo ves qué apps tiene instaladas (en verde) y en cuántos equipos. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>. Flexio se activa como cualquier producto: <b>+ Nuevo cliente</b> o <b>Renovar</b> → «Flexio (3D)» o «Todo RAIKI».</p>
       <label style="display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:600"><input type="checkbox" id="cInvitar" ${AJ.invitar_apps !== false ? 'checked' : ''}> Invitar dentro de cada app a instalar las apps RAIKI que les faltan</label>
       <div style="display:flex;gap:8px;margin:12px 0">
         <input class="buscar" id="cNueva" type="email" placeholder="correo@ejemplo.com (cuenta nueva para Kivo)" style="flex:1">
@@ -403,7 +413,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       ${prueba ? '<p class="sub">Crea su acceso por 7 días sin pago. Cuando te pague (Yape, Plin…), búscalo en la lista y toca <b>Activar plan</b>.</p>' : ''}
       <p class="sub">${nuevo ? 'Registra a quien te pagó. Con este correo tendrá su cuenta RAIKI.' : esc(l.nombre || '') + ' · ' + esc(l.email) + ' · ahora tiene ' + esc(prod(l).n)}</p>
       <div class="campos">
-        <div class="campo ancho"><label>¿Qué compró?</label><div class="planes productos" id="fProd">${Object.entries(PRODUCTOS).map(([k, p]) => `<button class="plan${k === producto ? ' on' : ''}" data-prod="${k}">${k === 'combo' ? '⭐ ' : ''}${p.n}</button>`).join('')}</div></div>
+        <div class="campo ancho"><label>¿Qué compró?</label><div class="planes productos" id="fProd">${VENTA.map(k => `<button class="plan${k === producto ? ' on' : ''}" data-prod="${k}">${k === 'todo' ? '⭐ ' : ''}${PRODUCTOS[k].n}</button>`).join('')}</div></div>
         ${nuevo ? `<div class="campo ancho"><label>Correo del cliente *</label><input id="fMail" type="email" placeholder="cliente@gmail.com"></div>
         <div class="campo"><label>Nombre</label><input id="fNom" placeholder="Nombre y apellido"></div>
         <div class="campo"><label>WhatsApp</label><input id="fTel" inputmode="tel" placeholder="987 654 321"></div>` : ''}
@@ -424,9 +434,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       const resumen = () => {
         const base = !nuevo && new Date(l.vence) > new Date() ? new Date(l.vence) : new Date();
         const h = new Date(base); h.setMonth(h.getMonth() + meses()); h.setDate(h.getDate() + ds());
-        const final = !nuevo && l.producto && l.producto !== producto ? 'combo' : producto;
+        const final = !nuevo && l.producto && l.producto !== producto ? unirProductos(l.producto, producto) : producto;
         $('fRes').innerHTML = (meses() || ds()) ? `Tendrá <b>${esc(PRODUCTOS[final].n)}</b> hasta el <b>${fecha(h)}</b>${!nuevo && new Date(l.vence) > new Date() ? ' (se suma a lo que le quedaba)' : ''}.` +
-          (final !== producto ? '<br><small>Ya tenía ' + esc(prod(l).n) + ', así que pasa al combo.</small>' : '') : 'Elige cuánto tiempo agregar.';
+          (final !== producto ? '<br><small>Ya tenía ' + esc(prod(l).n) + ', así que queda con ' + esc(PRODUCTOS[final].n) + '.</small>' : '') : 'Elige cuánto tiempo agregar.';
         document.querySelectorAll('#ventana .solo-oxen').forEach(x => x.classList.toggle('oculto', !PRODUCTOS[final].oxen));
       };
       const ponerPrecio = () => { const v = plan.id === 'prueba' ? null : precioDe(producto, plan.id); if (v != null) $('fMonto').value = v.toFixed(2); };
@@ -587,8 +597,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   function verPrecios() {
     const planes = PLANES.filter(p => p.id !== 'prueba' && p.id !== 'otro');
     abrir(`<h3>🏷️ Precios</h3><p class="sub">Pon cuánto cobras. Al registrar un cliente, el monto se llena solo (igual puedes cambiarlo).</p>
-      <div class="tabla-precios"><div></div>${Object.values(PRODUCTOS).map(p => `<b>${esc(p.corto)}</b>`).join('')}
-      ${planes.map(pl => `<span>${esc(pl.nombre)}</span>${Object.keys(PRODUCTOS).map(k => { const v = precioDe(k, pl.id);
+      <div class="tabla-precios"><div></div>${VENTA.map(k => `<b>${esc(PRODUCTOS[k].corto)}</b>`).join('')}
+      ${planes.map(pl => `<span>${esc(pl.nombre)}</span>${VENTA.map(k => { const v = precioDe(k, pl.id);
         return `<input type="number" min="0" step="0.5" inputmode="decimal" placeholder="S/" data-pr="${k}|${pl.id}" value="${v == null ? '' : v}">`; }).join('')}`).join('')}</div>
       <p class="sub" style="margin-top:10px">Consejo: el combo suele ir con descuento frente a comprar las dos por separado.</p>
       <div class="err" id="prErr"></div>
