@@ -347,21 +347,32 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     try { C = await A.rpc('raiki_cuentas'); } catch (e) { return avisar(A.traducir(e)); }
     try { AJ = await A.rpc('raiki_ajustes_ver'); } catch (e) {}
     const chip = (t, ok) => `<span class="est ${ok ? 'e-ok' : 'e-venc'}" style="margin-left:6px">${t}</span>`;
+    const NOM = { kivo: 'Kivo', oxen: 'OXEN PRO', flexio: 'Flexio' };
     const filas = C.map(c => {
-      const ox = c.licencia ? chip(PRODUCTOS[c.licencia.producto].corto + (c.licencia.activo ? '' : ' vencido'), c.licencia.activo)
-        : c.oxen_equipo_de ? chip('OXEN · equipo', true) : '';
+      const L = c.licencia, E = c.equipo;
+      // programas activos: por su plan o por el equipo al que pertenece
+      const activo = k => (L && L.activo && (L.apps || []).includes(k)) ? { por: 'plan', vence: L.vence } : (E && E.activo && (E.apps || []).includes(k)) ? { por: 'equipo de ' + E.dueno, vence: E.vence } : null;
+      const tieneVencido = k => (L && !L.activo && (L.apps || []).includes(k));
       const ap = c.apps || {};
-      const appChip = (k, n) => { const x = ap[k] || (k === 'kivo' && c.kivo ? { equipos: 0 } : null); return `<span class="est ${x ? 'e-ok' : 'e-venc'}" style="margin:4px 6px 0 0;display:inline-block" title="${x && x.ultima ? 'Último uso: ' + fechaHora(x.ultima) + (x.plataformas ? ' · ' + esc(x.plataformas) : '') : ''}">${n} ${x ? (x.equipos ? '· ' + x.equipos + ' equipo' + (x.equipos > 1 ? 's' : '') : '· usa') : '· sin instalar'}</span>`; };
-      const apps = appChip('kivo', 'Kivo') + appChip('oxen', 'OXEN') + appChip('flexio', 'Flexio');
+      const fila = k => {
+        const a = activo(k), ins = ap[k] || (k === 'kivo' && c.kivo ? { equipos: 0 } : null);
+        const est = a ? `<b style="color:var(--verde)">Activo</b> · ${new Date(a.vence).getFullYear() > 2090 ? 'sin vencimiento' : 'hasta ' + fecha(a.vence)}${a.por !== 'plan' ? ' · ' + esc(a.por) : ''}`
+          : tieneVencido(k) ? `<b style="color:#ff8a8a">Vencido</b> el ${fecha(L.vence)}` : k === 'kivo' ? '<span style="color:var(--tx2)">Kivo libre</span>' : '<span style="color:var(--tx2)">Sin plan</span>';
+        const inst = ins ? `instalado${ins.equipos ? ' en ' + ins.equipos + ' equipo' + (ins.equipos > 1 ? 's' : '') : ''}${ins.ultima ? ' · usó ' + fechaHora(ins.ultima) : ''}` : 'sin instalar';
+        return `<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid var(--g3);font-size:13px"><span style="min-width:72px"><b>${NOM[k]}</b></span><span style="flex:1">${est}</span><span style="color:var(--tx2);text-align:right">${inst}</span></div>`;
+      };
       const faltan = ['kivo', 'oxen', 'flexio'].filter(k => !ap[k] && !(k === 'kivo' && c.kivo));
-      return `<div class="cli"><div>
-        <div class="nom">${esc(c.email)}${ox}</div><div>${apps}</div>
-        <div class="info"><span>${c.cuenta ? 'Último ingreso: <b>' + (c.ultimo_ingreso ? fechaHora(c.ultimo_ingreso) : 'nunca') + '</b>' : '<b>Cuenta sin crear</b> · genera su contraseña'}</span></div>
+      const pend = (L && L.debe_cambiar) || (E && E.debe_cambiar);
+      return `<div class="cli" style="align-items:flex-start"><div style="flex:1;min-width:0">
+        <div class="nom">${esc(L && L.nombre ? L.nombre + ' · ' : '')}${esc(c.email)}${L ? `<span class="prod ${PRODUCTOS[L.producto] ? PRODUCTOS[L.producto].c : ''}" style="margin-left:6px">${esc(PRODUCTOS[L.producto] ? PRODUCTOS[L.producto].corto : L.producto)}</span>` : ''}</div>
+        <div class="info" style="margin-bottom:6px"><span>${c.cuenta ? 'Último ingreso: <b>' + (c.ultimo_ingreso ? fechaHora(c.ultimo_ingreso) : 'nunca') + '</b>' + (pend ? ' · <b style="color:#ffc46b">aún usa la contraseña temporal</b>' : '') : '<b>Cuenta sin crear</b>'}</span></div>
+        ${fila('kivo')}${fila('oxen')}${fila('flexio')}
+        <div id="cl-${c.email.replace(/[^a-z0-9]/gi, '_')}"></div>
       </div>
-      <div class="acc">${faltan.length && c.cuenta ? `<button class="btn btn-g btn-s" data-invitar="${esc(c.email)}" data-faltan="${faltan.join(',')}">Invitar</button>` : ''}<button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? 'Nueva contraseña' : 'Crear cuenta'}</button></div></div>`;
+      <div class="acc" style="flex-direction:column;align-items:stretch">${faltan.length && c.cuenta ? `<button class="btn btn-g btn-s" data-invitar="${esc(c.email)}" data-faltan="${faltan.join(',')}">Invitar</button>` : ''}<button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? '🔑 Contraseña' : 'Crear cuenta'}</button></div></div>`;
     }).join('');
     abrir(`<h3>Cuentas RAIKI</h3>
-      <p class="sub">Cada persona tiene una sola cuenta para Kivo, OXEN PRO y Flexio. Debajo de cada correo ves qué apps tiene instaladas (en verde) y en cuántos equipos. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>. Flexio se activa como cualquier producto: <b>+ Nuevo cliente</b> o <b>Renovar</b> → «Flexio (3D)» o «Todo RAIKI».</p>
+      <p class="sub">Cada persona tiene una sola cuenta para Kivo, OXEN PRO y Flexio. En cada cuenta ves qué programas tiene <b>activos</b> (y hasta cuándo) y cuáles tiene <b>instalados</b>. Con <b>🔑 Contraseña</b> le pones una nueva si la olvidó. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>. Flexio se activa como cualquier producto: <b>+ Nuevo cliente</b> o <b>Renovar</b> → «Flexio (3D)» o «Todo RAIKI».</p>
       <label style="display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:600"><input type="checkbox" id="cInvitar" ${AJ.invitar_apps !== false ? 'checked' : ''}> Invitar dentro de cada app a instalar las apps RAIKI que les faltan</label>
       <div style="display:flex;gap:8px;margin:12px 0">
         <input class="buscar" id="cNueva" type="email" placeholder="correo@ejemplo.com (cuenta nueva para Kivo)" style="flex:1">
@@ -380,19 +391,46 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         try { navigator.clipboard.writeText(msg); } catch (e) {}
         abrirInvitacion(b.dataset.invitar, msg);
       });
-      const dar = async email => {
+      const mostrarClave = (r, msg) => {
+        const t = `Hola, tu nueva contraseña RAIKI (sirve para Kivo, OXEN PRO y Flexio):\nCorreo: ${r.email}\nContraseña: ${r.clave}` + (r.temporal ? '\nAl entrar, la app te pedirá crear la tuya.' : '');
+        $('cClave').innerHTML = `<div class="stat" style="margin-bottom:10px;flex-direction:column;align-items:stretch;gap:8px"><span>${msg}</span><b style="user-select:all;letter-spacing:.08em;font-size:20px">${esc(r.clave)}</b>
+          <span style="font-size:12.5px">${r.temporal ? 'La tendrá que cambiar la próxima vez que entre.' : 'Se queda con esta contraseña (no se le pedirá cambiarla).'} Anótala ahora: por seguridad no se guarda en ningún lado y no se puede volver a ver.</span>
+          <span><button class="btn btn-g btn-s" id="cCopiar">Copiar mensaje</button> <a class="btn btn-v btn-s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(t)}">Enviar por WhatsApp</a></span></div>`;
+        $('cCopiar').onclick = () => { try { navigator.clipboard.writeText(t); avisar('Mensaje copiado'); } catch (e) {} };
+        $('cClave').scrollIntoView({ behavior: 'smooth' });
+      };
+      const dar = async (email, clave, temporal) => {
         try {
-          const r = await A.funcion('admin-contrasena', { email });
+          const r = await A.funcion('admin-contrasena', clave ? { email, clave, temporal } : { email });
           await verCuentas();
-          $('cClave').innerHTML = `<div class="stat" style="margin-bottom:10px"><span>Contraseña temporal de ${esc(r.email)} (la cambiará la primera vez)</span><b style="user-select:all;letter-spacing:.12em">${esc(r.clave)}</b></div>`;
+          mostrarClave(r, (clave ? 'Nueva contraseña de ' : 'Contraseña temporal de ') + esc(r.email));
         } catch (e) { avisar(A.traducir(e)); }
+      };
+      // ventanita para cambiar la contraseña de una cuenta
+      const formClave = email => {
+        const box = document.getElementById('cl-' + email.replace(/[^a-z0-9]/gi, '_'));
+        if (!box) return dar(email);
+        if (box.innerHTML) { box.innerHTML = ''; return; }
+        box.innerHTML = `<div style="margin-top:8px;padding:10px;border-radius:12px;background:var(--g2)">
+          <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Las contraseñas van cifradas: nadie puede verlas, ni tú. Si la olvidó, ponle una nueva aquí.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <input class="buscar" type="text" data-nc placeholder="Escribe la nueva (mín. 8) o déjalo vacío" style="flex:1;min-width:180px">
+            <button class="btn btn-v btn-s" data-poner>Poner contraseña</button>
+          </div>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" data-temp checked> Que la cambie por una suya al entrar</label>
+          <div style="font-size:12.5px;color:var(--tx2);margin-top:4px">Si dejas el campo vacío se genera una contraseña temporal segura.</div></div>`;
+        box.querySelector('[data-poner]').onclick = () => {
+          const v = box.querySelector('[data-nc]').value.trim(), t = box.querySelector('[data-temp]').checked;
+          if (v && v.length < 8) return avisar('Usa al menos 8 caracteres');
+          dar(email, v || null, t);
+        };
       };
       $('cCrear').onclick = () => {
         const m = $('cNueva').value.trim().toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) return avisar('Escribe un correo válido');
         dar(m);
       };
-      document.querySelectorAll('[data-clave]').forEach(b => b.onclick = () => dar(b.dataset.clave));
+      document.querySelectorAll('[data-clave]').forEach(b => b.onclick = () => { const c = C.find(x => x.email === b.dataset.clave); if (c && c.cuenta) formClave(c.email); else dar(b.dataset.clave); });
     });
   }
 
