@@ -145,8 +145,8 @@
       const L = []; for (const p of pl.p) { const id = m.vert(conv(p), gid); if (L[L.length - 1] !== id && L[0] !== id) L.push(id); else if (L[0] === id && L.length < 2) continue; }
       if (L.length < 3 || new Set(L).size !== L.length) continue;
       const P = L.map(i => m.P(i)); const nn = R3.normalNewell(P); if (V.len(nn) < 1e-12) continue;
-      const mat = pl.c ? colorAMat(pl.c) : 0;
-      m.cara([L], gid, { mat, matB: mat }); n++;
+      const mat = pl.c ? colorAMat(pl.c) : 0, matB = pl.cb ? colorAMat(pl.cb) : mat;
+      m.cara([L], gid, { mat, matB }); n++;
     }
     // unir coplanares
     let pasadas = 0, cambio = true;

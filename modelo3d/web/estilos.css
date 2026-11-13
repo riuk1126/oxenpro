@@ -9,7 +9,7 @@ input,select{font:inherit}
 .panel{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:14px;box-shadow:var(--sombra)}
 .ib{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--txt);transition:background .12s}
 .ib:hover{background:#0000000a}.ib:active{background:#00000014}
-.ib.on{background:var(--osc);color:#fff}
+.ib.on{background:var(--acento);color:#fff}
 .ib:disabled{opacity:.3}
 .grupo{display:flex;align-items:center;gap:2px;padding:4px}
 
@@ -41,7 +41,9 @@ input,select{font:inherit}
 #herramientas::-webkit-scrollbar{display:none}
 #herramientas .ib{width:42px;height:42px;flex:none;position:relative}
 #herramientas .sep{height:1px;background:var(--linea);margin:4px 6px;flex:none}
-#herramientas .ib.on::after{content:"";position:absolute;right:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--acento)}
+#herramientas{overflow-x:visible}
+#herramientas .ib.on{background:var(--acento);color:#fff;box-shadow:0 2px 8px #6666ff55}
+#herramientas .ib.on::before{content:"";position:absolute;left:-5px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--acento)}
 .barra-inf{position:absolute;left:calc(74px + var(--sa-l));right:calc(240px + var(--sa-r));bottom:calc(12px + var(--sa-b));display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .barra-inf>*{pointer-events:auto}
 #pista{font-size:13px;color:#3d4148;background:#ffffffcc;padding:6px 12px;border-radius:20px;box-shadow:0 1px 3px #0001;max-width:100%;text-align:center;pointer-events:none}
@@ -116,3 +118,41 @@ input,select{font:inherit}
   #herramientas{width:50px}
   .lateral{width:calc(100% - 90px)}
 }
+.dlg p.nota{font-size:13px;margin:-4px 0 12px;color:var(--txt2)}
+
+/* nombre de la herramienta elegida */
+#herrNombre{position:absolute;left:calc(70px + var(--sa-l));z-index:6;max-width:min(320px,60vw);padding:8px 12px;border-radius:11px;background:var(--osc);color:#fff;font-size:13px;line-height:1.3;box-shadow:var(--sombra);pointer-events:none;opacity:0;transform:translateX(-6px);transition:opacity .18s,transform .18s}
+#herrNombre.ver{opacity:1;transform:none}
+#herrNombre b{display:block;font-size:14px;margin-bottom:1px}
+#herrNombre::before{content:"";position:absolute;left:-5px;top:14px;border:6px solid transparent;border-left:0;border-right-color:var(--osc)}
+
+/* galería: ejemplos */
+.gal-sub{max-width:1100px;margin:30px auto 12px;font-size:16px;font-weight:700}
+.tarjeta.ejemplo{display:block;width:100%;padding:0}
+.tarjeta.ejemplo svg.mini{background:linear-gradient(#f6f6ff,#e9e9fb);padding:10px 0}
+.tarjeta.ejemplo small{display:block;white-space:normal}
+.gal-acciones{flex-wrap:wrap}
+
+/* tutorial */
+#tuto{position:fixed;inset:0;z-index:50}
+#tuto .tuto-luz{position:absolute;border-radius:14px;box-shadow:0 0 0 9999px rgba(16,18,28,.55);outline:2px solid var(--acento);outline-offset:2px;transition:all .25s;pointer-events:none}
+#tuto:has(.tuto-luz[style*="display: none"]){background:rgba(16,18,28,.55)}
+#tuto .tuto-tarjeta{position:absolute;padding:18px 18px 14px;background:#fff;border-radius:16px;transition:left .25s,top .25s}
+#tuto .tuto-tarjeta.centro{left:50%!important;top:50%!important;transform:translate(-50%,-50%)}
+#tuto .tuto-ilus{margin:4px 0 12px}
+#tuto .tuto-tit{display:block;font-size:18px;margin-bottom:6px}
+#tuto .tuto-txt{margin:0 0 14px;color:#3d4148;line-height:1.45}
+#tuto .tuto-txt:empty{display:none}
+#tuto .tuto-pie{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+#tuto .tuto-puntos{display:flex;gap:5px}#tuto .tuto-puntos i{width:7px;height:7px;border-radius:50%;background:#d9dae0}#tuto .tuto-puntos i.on{background:var(--acento);width:18px;border-radius:4px}
+#tuto .tuto-bts{display:flex;gap:6px;justify-content:flex-end}
+#tuto .tuto-saltar{margin-right:auto}
+#tuto .tuto-bts button{height:38px;padding:0 14px;border-radius:10px;font-weight:600}
+#tuto .tuto-saltar{color:var(--txt2)}
+#tuto .tuto-atras{background:#f1f2f4}
+#tuto .tuto-sig{background:var(--acento);color:#fff}
+.tuto-gestos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tuto-gestos>div{background:#f4f4fb;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#3d4148}
+.tuto-gestos b{display:flex;align-items:center;gap:6px;color:var(--txt);font-size:14px;margin-bottom:2px}
+.tuto-gestos .ico{width:18px;height:18px;color:var(--acento)}
+.tuto-mini{font-size:12.5px;color:var(--txt2);margin:10px 0 0}

@@ -1,6 +1,6 @@
 // Flexio — íconos propios, de un solo trazo (24×24, sin relleno).
 window.ICONOS = {
-  seleccionar: '<path d="M6 3.5 18 11l-5.6 1.4L9.6 18z"/><path d="m12.4 12.4 4.1 5.6"/>',
+  seleccionar: '<path d="M6 3.5 18.5 11l-5.8 1.5-3 5.8z"/><path d="m12.7 12.5 4.3 5.8"/>',
   borrar: '<path d="m4.5 14.5 8-8a1.5 1.5 0 0 1 2.1 0l3.4 3.4a1.5 1.5 0 0 1 0 2.1L12.5 18.5h-4z"/><path d="m8.5 10.5 5.5 5.5"/><path d="M13 20h7"/>',
   pintar: '<path d="m5 11.5 6-6 7 7-6 6a1.4 1.4 0 0 1-2 0l-5-5a1.4 1.4 0 0 1 0-2z"/><path d="M5 11.5h13"/><path d="M19.5 15.5s1.5 1.9 1.5 2.9a1.5 1.5 0 0 1-3 0c0-1 1.5-2.9 1.5-2.9z"/>',
   linea: '<path d="M5.5 18.5 18.5 5.5"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="5" r="1.6"/>',
@@ -8,16 +8,16 @@ window.ICONOS = {
   rectangulo: '<rect x="4.5" y="6.5" width="15" height="11" rx=".5"/><circle cx="19.5" cy="17.5" r="1.6"/>',
   circulo: '<circle cx="12" cy="12" r="7.5"/><path d="M12 12h7.5"/><circle cx="12" cy="12" r="1.2"/>',
   poligono: '<path d="m12 4 7 4v8l-7 4-7-4V8z"/>',
-  empujar: '<path d="m4 15.5 8 4 8-4-8-4z"/><path d="M12 3v7.5"/><path d="m9 5.8 3-2.8 3 2.8"/>',
+  empujar: '<path d="M4 14 12 18l8-4-8-4z"/><path d="M4 14v2.5l8 4 8-4V14"/><path d="M12 14V3.5"/><path d="m8.8 6.6 3.2-3.2 3.2 3.2"/>',
   mover: '<path d="M12 3v18M3 12h18"/><path d="m9.5 5.5 2.5-2.5 2.5 2.5M9.5 18.5 12 21l2.5-2.5M5.5 9.5 3 12l2.5 2.5M18.5 9.5 21 12l-2.5 2.5"/>',
-  rotar: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 3.5v4h-4"/><circle cx="12" cy="12" r="1.2"/>',
+  rotar: '<path d="M3.5 18.5a8.5 8.5 0 0 1 17 0z"/><path d="M12 18.5 16.5 12"/><path d="M7.2 14.2l1 .9M12 10.5v1.3M16.8 14.2l-1 .9"/>',
   escalar: '<rect x="4" y="10" width="10" height="10" rx=".5"/><path d="M10 4h10v10" stroke-dasharray="2 2.2"/><path d="m11 13 7-7M14 6h4v4"/>',
-  equidistancia: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><rect x="8" y="8" width="8" height="8" rx="1.2"/>',
-  medir: '<path d="m3.5 15.5 12-12 5 5-12 12z"/><path d="m7 12 2 2M10 9l1.5 1.5M13 6l2 2"/>',
+  equidistancia: '<path d="M4.5 20V9.5a5 5 0 0 1 5-5H20"/><path d="M9.5 20v-7.5a3 3 0 0 1 3-3H20"/><path d="m14.5 18 2-2 2 2" opacity=".55"/>',
+  medir: '<rect x="2.5" y="7" width="12.5" height="12.5" rx="3.5"/><circle cx="8.75" cy="13.25" r="2.4"/><path d="M15 15.5h6.5v3.5H15"/><path d="M18.2 15.5v1.7"/>',
   cota: '<path d="M4 7v10M20 7v10M4 12h16"/><path d="m7 10-3 2 3 2M17 10l3 2-3 2"/>',
-  orbitar: '<circle cx="12" cy="12" r="3.2"/><ellipse cx="12" cy="12" rx="9" ry="4.2"/><path d="m18.5 5.5 1.8 1.5-2 1.2"/>',
+  orbitar: '<path d="m12 8.6 3.6 2v4.1L12 16.7l-3.6-2v-4.1z"/><path d="m8.4 10.6 3.6 2 3.6-2M12 12.6v4.1"/><path d="M4.1 10A8.4 8.4 0 0 1 18.7 6.4"/><path d="m19.3 3.3-.5 3.4-3.3-.7"/><path d="M19.9 14A8.4 8.4 0 0 1 5.3 17.6"/><path d="m4.7 20.7.5-3.4 3.3.7"/>',
   desplazar: '<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V12M14 11V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-1.9L8 14"/>',
-  extension: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6" rx=".5"/>',
+  extension: '<path d="M3.5 8V3.5H8M16 3.5h4.5V8M20.5 16v4.5H16M8 20.5H3.5V16"/><circle cx="11.3" cy="11.3" r="3.6"/><path d="m14 14 2.6 2.6"/>',
   deshacer: '<path d="M8 6 4 10l4 4"/><path d="M4 10h10a6 6 0 0 1 0 12h-3" transform="translate(0 -3)"/>',
   rehacer: '<path d="m16 6 4 4-4 4"/><path d="M20 10H10a6 6 0 0 0 0 12h3" transform="translate(0 -3)"/>',
   cubo: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
@@ -43,4 +43,4 @@ window.ICONOS = {
   copiar: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
   gotero: '<path d="m14 4.5 5.5 5.5M16.5 7.5 6.8 17.2 4 20l2.8-2.8"/><path d="m11 8 5 5"/>'
 };
-window.icono = (n, cls) => `<svg class="ico ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${window.ICONOS[n] || ''}</svg>`;
+window.icono = (n, cls) => `<svg class="ico ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${window.ICONOS[n] || ''}</svg>`;

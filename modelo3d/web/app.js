@@ -826,8 +826,35 @@
     ['medir', 'Cinta métrica', 'T'], ['cota', 'Cota', 'D'], '-',
     ['orbitar', 'Órbita', 'O'], ['desplazar', 'Desplazar', 'H']
   ];
-  function usar(n) {
+  const QUE_HACE = {
+    seleccionar: 'Toca una cara, línea o grupo para elegirlo. Toca dos veces un grupo para editarlo.',
+    borrar: 'Pasa sobre las líneas que quieras borrar.',
+    pintar: 'Elige un color o textura y toca las caras.',
+    linea: 'Toca el inicio y luego el final. Al cerrar una figura se forma la cara.',
+    arco: 'Toca los dos extremos y luego cuánto se curva.',
+    rectangulo: 'Toca una esquina y luego la esquina opuesta. Escribe 3;4 para medidas exactas.',
+    circulo: 'Toca el centro y luego el radio.',
+    poligono: 'Toca el centro y luego el radio. Escribe 6l para 6 lados.',
+    empujar: 'Toca una cara y arrástrala para darle altura (muros, losas, volúmenes).',
+    mover: 'Elige algo, toca un punto y llévalo. Con «Copiar» deja el original.',
+    rotar: 'Toca el centro del giro, luego el inicio y el ángulo.',
+    escalar: 'Elige algo y arrastra un punto para agrandar o achicar.',
+    equidistancia: 'Toca una cara para dibujar un borde paralelo hacia dentro o afuera.',
+    medir: 'Toca dos puntos para ver la distancia, o crea guías.',
+    cota: 'Toca dos puntos y luego dónde va la cota.',
+    orbitar: 'Arrastra para girar la vista alrededor del modelo.',
+    desplazar: 'Arrastra para mover la vista sin girarla.'
+  };
+  function mostrarNombre(n) {
+    const b = document.querySelector('#herramientas [data-h="' + n + '"]'), el = $('herrNombre');
+    const h = LISTA_H.find(x => x[0] === n); if (!b || !h || $('editor').classList.contains('oculto')) return;
+    const r = b.getBoundingClientRect(); el.innerHTML = `<b>${h[1]}</b>${QUE_HACE[n] || ''}`;
+    el.style.top = Math.max(8, Math.min(innerHeight - 90, r.top + r.height / 2 - 20)) + 'px';
+    el.classList.add('ver'); clearTimeout(mostrarNombre.t); mostrarNombre.t = setTimeout(() => el.classList.remove('ver'), 3200);
+  }
+  function usar(n, silencio) {
     if (herr && herr.cancelar) herr.cancelar();
+    if (!silencio && n !== nombreHerr) setTimeout(() => mostrarNombre(n), 0);
     nombreHerr = n; herr = H[n]; ejeBloq.v = null; est.hoverCara = 0; estVer++;
     document.querySelectorAll('#herramientas [data-h]').forEach(b => b.classList.toggle('on', b.dataset.h === n));
     if (n === 'pintar') $('pMat').classList.remove('oculto');
@@ -1113,13 +1140,14 @@
   $('ctxSalir').onclick = () => { limpiarSel(); salirContexto(); };
   $('bMenu').onclick = () => menu('menuPpal', [
     { tit: 'Modelo' },
-    { t: 'Importar (.dae .obj .stl)', ico: 'importar', fn: () => elegirArchivo(false) },
+    { t: 'Importar (SketchUp, AutoCAD, .dae .obj .stl)', ico: 'importar', fn: () => elegirArchivo(false) },
     { t: 'Exportar…', ico: 'exportar', fn: dlgExportar },
     { t: 'Renombrar', ico: 'lapiz', fn: renombrar },
     { t: 'Seleccionar todo', ico: 'todo', fn: seleccionarTodo },
     { t: 'Información del modelo', ico: 'ayuda', fn: infoModelo }, '-',
     { tit: 'App' },
     { t: 'Ajustes', ico: 'ajustes', fn: dlgAjustes },
+    { t: 'Tutorial', ico: 'ayuda', fn: () => verTutorial() },
     { t: 'Gestos y atajos', ico: 'ayuda', fn: dlgAyuda },
     { t: 'Mi cuenta RAIKI', ico: 'cuenta', fn: () => window.RaikiAcceso && RaikiAcceso.verCuenta() },
     { t: 'Buscar actualizaciones', ico: 'importar', fn: () => buscarActualizacion(true) }
@@ -1223,9 +1251,14 @@
         else { operacion(() => { const otro = new Modelo(); otro.cargar(mod); fusionarModelo(otro); }); avisar('Modelo insertado'); }
         return;
       }
-      if (ext === 'skp') return dialogo(`<h3>Archivo de SketchUp (.skp)</h3><p>El formato .skp es cerrado y solo lo puede leer SketchUp. En SketchUp ve a <b>Archivo → Exportar → Modelo 3D</b> y elige <b>COLLADA (.dae)</b>; ese archivo sí se abre aquí con sus colores y medidas.</p><div class="fila"><button class="pri" id="dOk">Entendido</button></div>`, () => $('dOk').onclick = cerrarDlg);
+      if (ext === 'dwg' || ext === 'dxf') return importarPlano(f, ext);
       let datos;
-      if (ext === 'stl') datos = Archivos.leerSTL(await f.arrayBuffer());
+      if (ext === 'skp') {
+        avisar('Abriendo archivo de SketchUp…'); await new Promise(r => setTimeout(r, 30));
+        try { datos = await R3.CAD.leerSKP(await f.arrayBuffer()); }
+        catch (e) { console.error(e); return dialogo(`<h3>No se pudo abrir el .skp</h3><p>${navigator.onLine ? 'Este archivo de SketchUp no se pudo leer.' : 'La primera vez que abres un .skp necesitas internet para descargar el lector.'}</p><p>Si sigue sin abrir, en SketchUp usa <b>Archivo → Exportar → Modelo 3D → COLLADA (.dae)</b> y abre ese archivo aquí.</p><div class="fila"><button class="pri" id="dOk">Entendido</button></div>`, () => $('dOk').onclick = cerrarDlg); }
+      }
+      else if (ext === 'stl') datos = Archivos.leerSTL(await f.arrayBuffer());
       else if (ext === 'obj') datos = Archivos.leerOBJ(await f.text());
       else if (ext === 'dae') datos = Archivos.leerDAE(await f.text());
       else return avisar('Formato no soportado: .' + ext);
@@ -1238,7 +1271,7 @@
         let res; operacion(() => { res = Archivos.aModelo(m, datos, escala, yArriba, nombre, colorAMat); });
         registrarMatsModelo(); verTodo(); avisar('Importado: ' + nombre); guardar();
       };
-      if (ext === 'dae') return seguir(datos.unidad || 1, datos.yArriba);
+      if (ext === 'dae' || ext === 'skp') return seguir(datos.unidad || 1, datos.yArriba);
       // OBJ/STL: preguntar unidades
       let mx = 0; for (const p of datos.polis) for (const q of p.p) mx = Math.max(mx, Math.abs(q[0]), Math.abs(q[1]), Math.abs(q[2]));
       const sug = mx > 2000 ? 'mm' : mx > 300 ? 'cm' : mx > 120 ? 'in' : 'm';
@@ -1250,6 +1283,41 @@
       });
     } catch (e) { console.error(e); avisar('No se pudo abrir: ' + e.message); }
   };
+  // Plano de AutoCAD (.dwg / .dxf): sus líneas entran como un grupo en el suelo, listo para levantar muros
+  async function importarPlano(f, ext) {
+    avisar('Leyendo el plano…'); await new Promise(r => setTimeout(r, 30));
+    let datos;
+    try { datos = await R3.CAD.leerCAD(await f.arrayBuffer(), ext); }
+    catch (e) {
+      console.error(e);
+      return dialogo(`<h3>No se pudo abrir el plano</h3><p>${navigator.onLine ? 'Este archivo de AutoCAD no se pudo leer (' + esc(e.message || 'error') + ').' : 'La primera vez que abres un .dwg necesitas internet para descargar el lector.'}</p><p>Si sigue sin abrir, en AutoCAD guárdalo como <b>DXF</b> (Guardar como → DXF) y ábrelo aquí.</p><div class="fila"><button class="pri" id="dOk">Entendido</button></div>`, () => $('dOk').onclick = cerrarDlg);
+    }
+    if (!datos.segs.length) return avisar('El plano no tiene líneas');
+    const nombre = f.name.replace(/\.\w+$/, '');
+    const claves = { 1: 'm', 0.01: 'cm', 0.001: 'mm', 0.0254: 'in', 0.3048: 'ft', 0.1: 'dm' };
+    const sug = (datos.unidad && claves[datos.unidad]) || R3.CAD.sugerirUnidad(datos.segs);
+    const muchas = datos.segs.length > 6000;
+    dialogo(`<h3>Abrir plano ${esc(f.name)}</h3>
+      <p>${datos.segs.length.toLocaleString('es')} líneas. ${datos.unidad ? 'El plano dice que está en:' : '¿En qué unidades se dibujó el plano?'}</p>
+      <select id="pU"><option value="m">Metros</option><option value="cm">Centímetros</option><option value="mm">Milímetros</option><option value="in">Pulgadas</option><option value="ft">Pies</option></select>
+      <label class="chk" style="margin-top:12px;color:inherit"><input type="checkbox" id="pC" ${muchas ? '' : 'checked'}> Formar caras en las áreas cerradas (para levantar muros con <b>Empujar / tirar</b>)</label>
+      ${muchas ? '<p class="nota">El plano es grande: formar las caras puede tardar. Mejor fórmalas tú trazando encima con Línea.</p>' : ''}
+      <p class="nota">Los textos, cotas y achurados no se traen; solo las líneas, arcos y bloques.</p>
+      <div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Abrir plano</button></div>`, () => {
+      $('pU').value = sug; $('dNo').onclick = cerrarDlg;
+      $('dSi').onclick = async () => {
+        const u = { m: 1, cm: 0.01, mm: 0.001, in: 0.0254, ft: 0.3048 }[$('pU').value]; const caras = $('pC').checked; cerrarDlg();
+        if (importarEnNuevo || !doc.id) await abrirNuevo(nombre, null);
+        avisar('Colocando el plano…'); await new Promise(r => setTimeout(r, 30));
+        let res; operacion(() => { res = R3.CAD.planoAModelo(m, datos, u, 'Plano ' + nombre, caras); });
+        if (!res) return;
+        registrarMatsModelo(); vista('iso');
+        entrarContexto(res.gid);
+        avisar(`Plano listo: ${res.ancho.toFixed(2)} × ${res.largo.toFixed(2)} m` + (res.caras ? ` · ${res.caras} caras` : ''));
+        guardar();
+      };
+    });
+  }
   function fusionarModelo(otro) {
     const d = otro.serializar(), mapa = new Map(); const nid = x => { if (!mapa.has(x)) mapa.set(x, m.id()); return mapa.get(x); };
     for (const g of d.grupos) m.grupos.set(nid(g[0]), { id: nid(g[0]), nombre: g[1] });
@@ -1292,15 +1360,17 @@
   function mostrarEditor() {
     $('galeria').classList.add('oculto'); $('editor').classList.remove('oculto');
     $('bNombre').textContent = doc.nombre; limpiarSel(); salirContexto();
-    tamano(); usar(nombreHerr === 'orbitar' || nombreHerr === 'desplazar' ? 'seleccionar' : (nombreHerr || 'seleccionar')); pintarBotones(); pintarMateriales();
+    tamano(); usar(nombreHerr === 'orbitar' || nombreHerr === 'desplazar' ? 'seleccionar' : (nombreHerr || 'seleccionar'), true); pintarBotones(); pintarMateriales();
     construido = -1; pedir();
+    if (!R3.Tutorial.visto()) setTimeout(verTutorial, 450);
   }
   async function irGaleria() {
     $('editor').classList.add('oculto'); $('galeria').classList.remove('oculto');
     let L = []; try { L = await Archivos.Almacen.todos(); } catch (e) {}
     L.sort((a, b) => b.fecha - a.fecha);
     const g = $('gLista');
-    if (!L.length) { g.innerHTML = `<div class="gal-vacia">Todavía no tienes modelos.<br>Toca <b>Nuevo modelo</b> para empezar o <b>Importar</b> un .dae de SketchUp.</div>`; return; }
+    pintarEjemplos();
+    if (!L.length) { g.innerHTML = `<div class="gal-vacia">Todavía no tienes modelos.<br>Toca <b>Nuevo modelo</b> para empezar, abre un <b>ejemplo</b> de abajo o <b>Importa</b> un archivo de SketchUp o AutoCAD.</div>`; return; }
     g.innerHTML = L.map(r => `<div class="tarjeta"><button data-abrir="${r.id}" style="display:block;width:100%;text-align:left">${r.mini ? `<img class="mini" src="${r.mini}" alt="">` : '<span class="mini"></span>'}<div class="inf"><b>${esc(r.nombre)}</b><small>${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small></div></button><button class="mas" data-mas="${r.id}">⋯</button></div>`).join('');
     g.querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => abrir(b.dataset.abrir));
     g.querySelectorAll('[data-mas]').forEach(b => b.onclick = () => opcionesModelo(L.find(r => r.id === b.dataset.mas)));
@@ -1313,9 +1383,55 @@
       $('oBorrar').onclick = () => dialogo(`<h3>¿Eliminar “${esc(r.nombre)}”?</h3><p>No se puede deshacer.</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Eliminar</button></div>`, () => { $('dNo').onclick = cerrarDlg; $('dSi').onclick = async () => { await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); }; });
     });
   }
-  $('gNuevo').innerHTML = icono('mas') + 'Nuevo modelo'; $('gImportar').innerHTML = icono('importar') + 'Importar';
+  $('gNuevo').innerHTML = icono('mas') + 'Nuevo modelo'; $('gImportar').innerHTML = icono('importar') + 'Importar'; $('gTutorial').innerHTML = icono('ayuda') + 'Tutorial';
   $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes');
   $('gNuevo').onclick = () => abrirNuevo('Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }), null);
+
+  // ---------------- ejemplos ----------------
+  const ILUS = {
+    casa: '<path d="M20 62 60 82l40-20V40L60 20 20 40z" fill="#fff"/><path d="M20 40l40 20 40-20M60 60v22" /><path d="M14 40 60 14l46 26-46 26z" fill="#c7714a" opacity=".85"/><path d="M60 66v16l-8-4V62z" fill="#a0784f"/><path d="M78 58l12-6v10l-12 6z" fill="#9fd0e8"/>',
+    mesa: '<path d="M22 50 60 32l38 18-38 18z" fill="#c69a6b"/><path d="M22 50v4l38 18 38-18v-4" fill="#a87d52"/><path d="M28 56v22M92 56v22M60 72v18" stroke-width="3"/><path d="M14 66l12-6 12 6-12 6z" fill="#5b5f63"/><path d="M14 66V48l4-2v18" fill="#5b5f63"/><path d="M84 30l12-6 12 6-12 6z" fill="#5b5f63"/>',
+    escalera: '<path d="M20 82h14V72h14V62h14V52h14V42h14V32h12v50z" fill="#d6d6d2"/><path d="M20 82h14V72h14V62h14V52h14V42h14V32h12"/>',
+    plano: '<path d="M18 22h84v58H18z" fill="#f0e8dc"/><path d="M18 22h84v58H18zM22 26h76v50H22z" fill="none"/><path d="M58 26v20M58 58v18" stroke-width="4"/><path d="M60 46a10 10 0 0 1 10 10" stroke-dasharray="2 2"/>'
+  };
+  function pintarEjemplos() {
+    const c = $('gEjemplos'); if (!c || !R3.Ejemplos) return;
+    c.innerHTML = R3.Ejemplos.lista.map(e => `<button class="tarjeta ejemplo" data-ej="${e.id}"><svg class="mini" viewBox="0 0 120 96" fill="none" stroke="#18191b" stroke-width="1.6" stroke-linejoin="round">${ILUS[e.id] || ''}</svg><div class="inf"><b>${esc(e.nombre)}</b><small>${esc(e.desc)}</small></div></button>`).join('');
+    c.querySelectorAll('[data-ej]').forEach(b => b.onclick = () => abrirEjemplo(b.dataset.ej));
+  }
+  async function abrirEjemplo(id) {
+    const e = R3.Ejemplos.lista.find(x => x.id === id); if (!e) return;
+    await abrirNuevo(e.nombre + ' (ejemplo)', null);
+    try { e.construir(m); } catch (err) { console.error(err); }
+    m.todoSucio = true; m.cambio++; registrarMatsModelo();
+    cam.orto = false; vista('iso'); estVer++; pedir();
+    avisar(e.id === 'plano' ? 'Elige Empujar / tirar y sube los muros' : 'Ejemplo abierto: gíralo y explóralo');
+    if (e.id === 'plano') usar('empujar');
+    await guardar();
+  }
+
+  // ---------------- tutorial ----------------
+  const GESTOS = `<div class="tuto-gestos">
+    <div><b>${icono('lapiz')} Con lápiz</b><span>El lápiz dibuja</span><span>1 dedo gira</span><span>2 dedos: zoom y desplazar</span></div>
+    <div><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V12m0-1a1.5 1.5 0 0 1 3 0v3.5a6 6 0 0 1-6 6h-.6a5 5 0 0 1-4-2L5 15.5a1.5 1.5 0 0 1 2.3-1.9L9 15"/></svg> Sin lápiz</b><span>1 dedo dibuja</span><span>2 dedos: girar y zoom</span><span>3 dedos desplazan</span></div>
+  </div><p class="tuto-mini">Toque con 2 dedos = deshacer · con 3 dedos = rehacer</p>`;
+  function verTutorial() {
+    if ($('editor').classList.contains('oculto')) { abrirEjemplo('casa').then(() => setTimeout(verTutorial, 300)); return; }
+    cerrarDlg(); usar('seleccionar', true);
+    R3.Tutorial.iniciar([
+      { tit: 'Bienvenido a Flexio', ilus: '<img src="marca.svg" alt="" style="height:46px">', txt: 'En unos pasos aprendes lo básico para modelar. Puedes volver a verlo cuando quieras en <b>Menú → Tutorial</b>.' },
+      { sel: '#herramientas', tit: 'Tus herramientas', txt: 'Toca una y aparece su <b>nombre y cómo se usa</b>. La que está activa se pinta de <b style="color:#6666ff">morado</b> y lleva una <b>línea al costado</b>.' },
+      { tit: 'Mover la vista', ilus: GESTOS, txt: '' },
+      { sel: '#herramientas [data-h="orbitar"]', antes: () => { const b = document.querySelector('#herramientas [data-h="orbitar"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Órbita', txt: 'Si prefieres no usar gestos: con <b>Órbita</b> arrastras y la vista <b>gira alrededor del modelo</b>, como si caminaras a su alrededor. La <b>mano</b> de abajo mueve la vista sin girarla.' },
+      { sel: '#herramientas [data-h="rectangulo"]', antes: () => { const b = document.querySelector('#herramientas [data-h="rectangulo"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Dibuja en el suelo', txt: 'Elige <b>Rectángulo</b>, toca una esquina y luego la opuesta. Toda figura cerrada forma una <b>cara</b>.' },
+      { sel: '#herramientas [data-h="empujar"]', antes: () => { const b = document.querySelector('#herramientas [data-h="empujar"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Dale volumen', txt: 'Con <b>Empujar / tirar</b> toca una cara y súbela. Así levantas muros, losas y muebles.' },
+      { sel: '#vcb', tit: 'Medidas exactas', txt: 'Mientras dibujas, toca esta caja y escribe la medida: <b>2.5</b> (metros), <b>250cm</b>, o <b>3;4</b> para un rectángulo de 3 × 4.' },
+      { sel: '.barra-sup .grupo:last-child', tit: 'Vistas y materiales', txt: 'Cambia a planta, frente o isométrica; mira a través con <b>Rayos X</b>; <b>Ver todo</b> encuadra el modelo; y <b>Materiales</b> para pintar con colores y texturas.' },
+      { sel: '#bMenu', tit: 'Abre tus archivos', txt: 'En <b>Menú → Importar</b> abres modelos de <b>SketchUp (.skp)</b> y planos de <b>AutoCAD (.dwg / .dxf)</b>. El plano llega al suelo, listo para levantar los muros.' },
+      { tit: '¡Listo para modelar!', txt: 'En la galería tienes <b>modelos de ejemplo</b> (casa, comedor, escalera y un plano para levantar). Ábrelos, gíralos y cámbialos sin miedo: siempre puedes deshacer.', fin: '¡Empezar!' }
+    ]);
+  }
+  $('gTutorial').onclick = () => verTutorial();
   $('gImportar').onclick = () => elegirArchivo(true);
   $('gCuenta').onclick = () => window.RaikiAcceso && RaikiAcceso.verCuenta();
   $('gAjustes').onclick = dlgAjustes;

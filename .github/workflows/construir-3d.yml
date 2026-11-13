@@ -32,6 +32,7 @@ jobs:
         run: |
           npm install
           rm -rf www android && mkdir www && cp -r ../web/* www/
+          rm -rf www/lib/dwg www/lib/skp  # los lectores de SketchUp y AutoCAD se descargan de la web al usarlos
           cp sin-conexion.html www/
           V=$(node -p "require('./package.json').version")
           sed -i "s/__R3D_VERSION__/$V/g" www/index.html

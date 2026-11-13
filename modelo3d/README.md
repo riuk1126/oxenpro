@@ -15,14 +15,20 @@ Seleccionar · Borrador · Pintar (colores y texturas: ladrillo, concreto, mader
 
 **Medidas exactas:** mientras dibujas, toca la caja de abajo a la derecha y escribe: `2.5`, `250cm`, `3;4` (rectángulo), `36l` (lados del círculo), `x3` (repetir copias).
 
+## Para empezar
+- **Tutorial** de bienvenida la primera vez que entras (y en *Menú → Tutorial* o en la galería).
+- **Modelos de ejemplo** en la galería: casa de un piso, comedor, escalera y un plano para levantar.
+- Al tocar una herramienta aparece su nombre y cómo se usa; la activa se marca en morado con una línea al costado.
+
 ## Gestos
 - **Con lápiz:** el lápiz usa la herramienta; 1 dedo gira; 2 dedos desplazan y hacen zoom.
 - **Sin lápiz:** 1 dedo usa la herramienta; 2 dedos giran y hacen zoom; 3 dedos desplazan.
 - Toque con 2 dedos = deshacer · con 3 dedos = rehacer.
 
 ## Archivos
-- **Abre:** COLLADA `.dae` (con colores y unidades), `.obj`, `.stl` y `.r3d` (formato propio).
-- **SketchUp (.skp):** es un formato cerrado; desde SketchUp usa *Archivo → Exportar → Modelo 3D → COLLADA (.dae)* y ábrelo aquí.
+- **Abre:** SketchUp `.skp` (con sus colores), planos de AutoCAD `.dwg` y `.dxf`, COLLADA `.dae`, `.obj`, `.stl` y `.r3d` (formato propio).
+- **Planos de AutoCAD:** las líneas, arcos, polilíneas y bloques llegan al suelo como un grupo (centrado y en metros), con la opción de formar las caras de las áreas cerradas para levantar los muros con *Empujar / tirar*. Los textos, cotas y achurados no se traen.
+- Los lectores de `.skp` ([OpenSKP](https://github.com/iamahsanmehmood/openskp), MIT) y `.dwg` ([LibreDWG](https://github.com/mlightcad/libredwg-web), GPL) están en `web/lib/` y se descargan la primera vez que abres un archivo de ese tipo (hace falta internet esa vez).
 - **Exporta:** `.dae` (para volver a SketchUp, Blender, Revit…), `.obj`, `.stl`, `.r3d` e imagen `.png`.
 - Los modelos se guardan solos en el equipo.
 
