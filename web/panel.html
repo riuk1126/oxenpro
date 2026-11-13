@@ -129,6 +129,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-g oculto" id="bInstalar">⬇ Instalar en esta computadora</button>
         <button class="btn btn-g" id="bRecargar">Actualizar</button>
+        <button class="btn btn-g" id="bAlertas" style="position:relative">🔔 Instalaciones<span id="alBadge" class="oculto" style="position:absolute;top:-6px;right:-6px;background:#ff5a5a;color:#fff;border-radius:10px;font-size:11px;font-weight:800;padding:2px 6px">0</span></button>
         <button class="btn btn-g" id="bCuentas">👥 Cuentas RAIKI</button>
         <button class="btn btn-g" id="bPagos">💰 Pagos</button>
         <button class="btn btn-g" id="bPrecios">🏷️ Precios</button>
@@ -251,6 +252,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     try { admin = await A.rpc('es_admin'); }
     catch (e) { return verLogin(e.sinSesion ? '' : A.traducir(e)); }
     if (!admin) { await A.salir(); return verLogin('Ese correo no es administrador del panel.'); }
+    iniciarAlertas();
     // ¿todavía tiene la contraseña temporal?
     try {
       const yo = await A.tabla('licencias?select=debe_cambiar&email=eq.' + encodeURIComponent(A.sesion().email));
@@ -333,6 +335,54 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     });
   }
   $('buscar').oninput = pintar;
+
+  // ---------- Alertas: alguien instaló (abrió por primera vez) una app RAIKI ----------
+  const K_VISTO = 'raiki-panel-inst-visto';
+  const NOMAPP = { kivo: 'Kivo', oxen: 'OXEN PRO', flexio: 'Flexio' };
+  const PLAT = { android: 'tableta/celular Android', windows: 'Windows', linux: 'Linux', mac: 'Mac', web: 'navegador', ios: 'iPhone/iPad' };
+  let alertasOn = false, INST = [];
+  const visto = () => { try { return localStorage.getItem(K_VISTO) || new Date(Date.now() - 7 * 864e5).toISOString(); } catch (e) { return null; } };
+  function textoInst(x) { return `${x.nombre || x.email} instaló ${NOMAPP[x.app] || x.app}${x.plataforma ? ' en ' + (PLAT[x.plataforma] || x.plataforma) : ''}${x.primera_vez_app ? '' : ' (otro equipo)'}`; }
+  async function revisarInstalaciones(primera) {
+    let L = [];
+    try { L = await A.rpc('raiki_instalaciones', { p_desde: visto(), p_limite: 50 }); } catch (e) { return; }
+    const ya = new Set(INST.map(x => x.email + x.app + x.primera));
+    const nuevas = L.filter(x => !ya.has(x.email + x.app + x.primera));
+    INST = L;
+    const b = $('alBadge'); b.textContent = L.length; b.classList.toggle('oculto', !L.length);
+    if (!nuevas.length) return;
+    if (!primera || nuevas.length) {
+      const t = nuevas.length === 1 ? textoInst(nuevas[0]) : nuevas.length + ' instalaciones nuevas de apps RAIKI';
+      avisar('🔔 ' + t);
+      try { if ('Notification' in window && Notification.permission === 'granted') { const n = new Notification('RAIKI · instalación nueva', { body: nuevas.slice(0, 4).map(textoInst).join('\n'), icon: 'panel-icono-192.png', tag: 'raiki-inst' }); n.onclick = () => { window.focus(); verAlertas(); }; } } catch (e) {}
+      try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = 0.05; o.connect(g); g.connect(c.destination); o.start(); setTimeout(() => { o.frequency.value = 1320; }, 120); setTimeout(() => { o.stop(); c.close(); }, 260); } catch (e) {}
+    }
+  }
+  function iniciarAlertas() {
+    if (alertasOn) return; alertasOn = true;
+    revisarInstalaciones(true);
+    setInterval(() => revisarInstalaciones(false), 45 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarInstalaciones(false); });
+  }
+  async function verAlertas() {
+    let T = [];
+    try { T = await A.rpc('raiki_instalaciones', { p_desde: null, p_limite: 60 }); } catch (e) { return avisar(A.traducir(e)); }
+    const v = visto();
+    const fila = x => `<div class="cli"><div><div class="nom">${x.primera > v ? '<span class="est e-prueba" style="margin-right:6px">NUEVO</span>' : ''}${esc(x.nombre || x.email)}</div>
+      <div class="info"><span>Instaló <b>${esc(NOMAPP[x.app] || x.app)}</b>${x.plataforma ? ' en ' + esc(PLAT[x.plataforma] || x.plataforma) : ''}${x.version ? ' · v' + esc(x.version) : ''}${x.primera_vez_app ? '' : ' · otro equipo'}</span><span>${fechaHora(x.primera)}</span>${x.nombre ? '<span>' + esc(x.email) + '</span>' : ''}</div></div></div>`;
+    const permiso = 'Notification' in window ? Notification.permission : 'no';
+    abrir(`<h3>🔔 Instalaciones</h3>
+      <p class="sub">Cada vez que alguien abre por primera vez Kivo, OXEN PRO o Flexio en un equipo, te aviso aquí con un sonido${permiso === 'granted' ? ' y con una notificación de la computadora' : ''}. El panel revisa cada 45 segundos mientras está abierto.</p>
+      ${permiso === 'default' ? '<p><button class="btn btn-v btn-s" id="alPermiso">Activar notificaciones de la computadora</button></p>' : permiso === 'denied' ? '<p class="sub">Las notificaciones de la computadora están bloqueadas para el panel; puedes activarlas en la configuración del navegador.</p>' : ''}
+      <div class="lista">${T.length ? T.map(fila).join('') : '<div class="vacio">Todavía no hay instalaciones registradas.</div>'}</div>
+      <p style="text-align:right;margin-top:12px"><button class="btn btn-g" id="alCerrar">Listo</button></p>`, () => {
+      $('alCerrar').onclick = cerrar;
+      if ($('alPermiso')) $('alPermiso').onclick = async () => { try { await Notification.requestPermission(); } catch (e) {} verAlertas(); };
+    });
+    try { localStorage.setItem(K_VISTO, new Date().toISOString()); } catch (e) {}
+    INST = []; $('alBadge').classList.add('oculto');
+  }
+  $('bAlertas').onclick = verAlertas;
 
   // ---------- Cuentas RAIKI (una cuenta para todas las apps) ----------
   $('bCuentas').onclick = verCuentas;
