@@ -342,7 +342,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
   const PLAT = { android: 'tableta/celular Android', windows: 'Windows', linux: 'Linux', mac: 'Mac', web: 'navegador', ios: 'iPhone/iPad' };
   let alertasOn = false, INST = [];
   const visto = () => { try { return localStorage.getItem(K_VISTO) || new Date(Date.now() - 7 * 864e5).toISOString(); } catch (e) { return null; } };
-  function textoInst(x) { return `${x.nombre || x.email} instaló ${NOMAPP[x.app] || x.app}${x.plataforma ? ' en ' + (PLAT[x.plataforma] || x.plataforma) : ''}${x.primera_vez_app ? '' : ' (otro equipo)'}`; }
+  function textoInst(x) { return `${x.nombre || x.email} instaló ${NOMAPP[x.app] || x.app}${x.equipo ? ' en ' + x.equipo : x.plataforma ? ' en ' + (PLAT[x.plataforma] || x.plataforma) : ''}${x.primera_vez_app ? '' : ' (otro equipo)'}`; }
   async function revisarInstalaciones(primera) {
     let L = [];
     try { L = await A.rpc('raiki_instalaciones', { p_desde: visto(), p_limite: 50 }); } catch (e) { return; }
@@ -369,7 +369,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     try { T = await A.rpc('raiki_instalaciones', { p_desde: null, p_limite: 60 }); } catch (e) { return avisar(A.traducir(e)); }
     const v = visto();
     const fila = x => `<div class="cli"><div><div class="nom">${x.primera > v ? '<span class="est e-prueba" style="margin-right:6px">NUEVO</span>' : ''}${esc(x.nombre || x.email)}</div>
-      <div class="info"><span>Instaló <b>${esc(NOMAPP[x.app] || x.app)}</b>${x.plataforma ? ' en ' + esc(PLAT[x.plataforma] || x.plataforma) : ''}${x.version ? ' · v' + esc(x.version) : ''}${x.primera_vez_app ? '' : ' · otro equipo'}</span><span>${fechaHora(x.primera)}</span>${x.nombre ? '<span>' + esc(x.email) + '</span>' : ''}</div></div></div>`;
+      <div class="info"><span>Instaló <b>${esc(NOMAPP[x.app] || x.app)}</b>${x.equipo ? ' en <b>' + esc(x.equipo) + '</b>' : x.plataforma ? ' en ' + esc(PLAT[x.plataforma] || x.plataforma) : ''}${x.version ? ' · v' + esc(x.version) : ''}${x.primera_vez_app ? '' : ' · otro equipo'}</span><span>${fechaHora(x.primera)}</span>${x.nombre ? '<span>' + esc(x.email) + '</span>' : ''}</div></div></div>`;
     const permiso = 'Notification' in window ? Notification.permission : 'no';
     abrir(`<h3>🔔 Instalaciones</h3>
       <p class="sub">Cada vez que alguien abre por primera vez Kivo, OXEN PRO o Flexio en un equipo, te aviso aquí con un sonido${permiso === 'granted' ? ' y con una notificación de la computadora' : ''}. El panel revisa cada 45 segundos mientras está abierto.</p>
@@ -398,6 +398,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
     try { AJ = await A.rpc('raiki_ajustes_ver'); } catch (e) {}
     const chip = (t, ok) => `<span class="est ${ok ? 'e-ok' : 'e-venc'}" style="margin-left:6px">${t}</span>`;
     const NOM = { kivo: 'Kivo', oxen: 'OXEN PRO', flexio: 'Flexio' };
+    const ICOEQ = { android: '📱', windows: '🖥️', linux: '🐧', mac: '💻', web: '🌐', ios: '📱' };
+    // resumen: quién tiene qué instalado
+    const marca = (c, k) => { const x = (c.apps || {})[k] || (k === 'kivo' && c.kivo ? {} : null); if (!x) return '<span style="color:var(--tx2)">—</span>'; const pl = (x.plataformas || '').split(', ').filter(Boolean).map(p => ICOEQ[p] || '💻').join(''); return `<span style="color:var(--verde);font-weight:700">✓</span> ${pl}`; };
+    const resumen = C.filter(c => c.cuenta).map(c => `<tr><td style="padding:6px 8px">${esc((c.licencia && c.licencia.nombre) || c.email)}</td><td style="text-align:center">${marca(c, 'kivo')}</td><td style="text-align:center">${marca(c, 'oxen')}</td><td style="text-align:center">${marca(c, 'flexio')}</td></tr>`).join('');
     const filas = C.map(c => {
       const L = c.licencia, E = c.equipo;
       // programas activos: por su plan o por el equipo al que pertenece
@@ -417,6 +421,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <div class="nom">${esc(L && L.nombre ? L.nombre + ' · ' : '')}${esc(c.email)}${L ? `<span class="prod ${PRODUCTOS[L.producto] ? PRODUCTOS[L.producto].c : ''}" style="margin-left:6px">${esc(PRODUCTOS[L.producto] ? PRODUCTOS[L.producto].corto : L.producto)}</span>` : ''}</div>
         <div class="info" style="margin-bottom:6px"><span>${c.cuenta ? 'Último ingreso: <b>' + (c.ultimo_ingreso ? fechaHora(c.ultimo_ingreso) : 'nunca') + '</b>' + (pend ? ' · <b style="color:#ffc46b">aún usa la contraseña temporal</b>' : '') : '<b>Cuenta sin crear</b>'}</span></div>
         ${fila('kivo')}${fila('oxen')}${fila('flexio')}
+        ${(c.equipos || []).length ? `<div style="margin-top:8px;font-size:12px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px">Dónde lo tiene instalado</div>` + c.equipos.map(q => `<div style="display:flex;gap:10px;align-items:center;padding:6px 0;font-size:13px;border-top:1px solid var(--g3)"><span style="font-size:18px">${ICOEQ[q.plataforma] || '💻'}</span><span style="flex:1"><b>${esc(q.nombre || PLAT[q.plataforma] || q.plataforma)}</b><br><span style="color:var(--tx2)">${(q.apps || []).map(a => NOM[a] || a).join(' · ')}</span></span><span style="color:var(--tx2);text-align:right">usó ${fechaHora(q.ultima)}</span></div>`).join('') : ''}
         <div id="cl-${c.email.replace(/[^a-z0-9]/gi, '_')}"></div>
       </div>
       <div class="acc" style="flex-direction:column;align-items:stretch">${faltan.length && c.cuenta ? `<button class="btn btn-g btn-s" data-invitar="${esc(c.email)}" data-faltan="${faltan.join(',')}">Invitar</button>` : ''}<button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? '🔑 Contraseña' : 'Crear cuenta'}</button></div></div>`;
@@ -428,6 +433,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
         <input class="buscar" id="cNueva" type="email" placeholder="correo@ejemplo.com (cuenta nueva para Kivo)" style="flex:1">
         <button class="btn btn-v btn-s" id="cCrear">Crear cuenta</button>
       </div>
+      <div style="overflow:auto;margin:6px 0 14px;border:1px solid var(--g3);border-radius:12px"><table style="width:100%;border-collapse:collapse;font-size:13.5px">
+        <tr style="color:var(--tx2);text-align:center"><th style="text-align:left;padding:8px">¿Quién tiene qué instalado?</th><th>Kivo</th><th>OXEN PRO</th><th>Flexio</th></tr>${resumen}</table>
+        <div style="font-size:12px;color:var(--tx2);padding:6px 8px">📱 Android · 🖥️ Windows · 🐧 Linux · 🌐 navegador</div></div>
       <div id="cClave"></div>
       <div class="lista">${filas || '<div class="vacio">Sin cuentas.</div>'}</div>
       <p style="text-align:right;margin-top:12px"><button class="btn btn-g" id="cCerrar">Cerrar</button></p>`, () => {
