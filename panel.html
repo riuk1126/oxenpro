@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="robots" content="noindex,nofollow">
+<title>Panel RAIKI</title>
+<link rel="manifest" href="panel.webmanifest">
+<link rel="icon" href="panel-icono-192.png">
+<link rel="apple-touch-icon" href="panel-icono.png">
+<meta name="apple-mobile-web-app-title" content="Panel RAIKI">
+<style>
+:root{--verde:#8ACF00;--verde2:#a4e61a;--negro:#0b0b0c;--g1:#151517;--g2:#1d1d20;--g3:#2b2b30;--linea:rgba(255,255,255,.08);
+  --tx:#f2f2f3;--tx2:#9b9ba1;--rojo:#ff7a6b;--ambar:#ffc24d;--azul:#7fb4ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--negro);color:var(--tx);font-family:-apple-system,"SF Pro Text",Roboto,"Segoe UI",system-ui,sans-serif;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:var(--verde)}
+.oculto{display:none!important}
+.envoltura{max-width:1100px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.marca{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;letter-spacing:-.02em}
+.marca img{width:34px;height:34px;border-radius:9px}
+.marca b{color:var(--verde)} .marca small{color:var(--tx2);font-weight:500;font-size:13px;margin-left:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 16px;border-radius:999px;font-weight:600;white-space:nowrap;text-decoration:none}
+.btn-v{background:var(--verde);color:#0b0b0c}.btn-v:hover{background:var(--verde2)}
+.btn-g{background:var(--g2);border:1px solid var(--g3);color:var(--tx)}.btn-g:hover{border-color:#44444a}
+.btn-r{background:rgba(255,122,107,.12);border:1px solid rgba(255,122,107,.35);color:var(--rojo)}
+.btn-s{padding:7px 12px;font-size:13px}
+.btn:disabled{opacity:.55;cursor:default}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--g1);border:1px solid var(--linea);border-radius:14px;padding:14px 16px}
+.stat span{color:var(--tx2);font-size:12.5px}.stat b{display:block;font-size:24px;margin-top:4px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.buscar{flex:1;min-width:200px;background:var(--g1);border:1px solid var(--g3);border-radius:12px;padding:11px 14px;outline:none}
+.buscar:focus{border-color:var(--verde)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 12px;border-radius:999px;background:var(--g1);border:1px solid var(--g3);color:var(--tx2);font-size:13px}
+.chip.on{border-color:var(--verde);color:var(--verde)}
+.lista{display:grid;gap:10px}
+.cli{background:var(--g1);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:10px 16px;align-items:center}
+.cli .nom{font-weight:650;font-size:15px}.cli .mail{color:var(--tx2);font-size:13px;word-break:break-all}
+.cli .info{display:flex;gap:6px 14px;flex-wrap:wrap;color:var(--tx2);font-size:13px;margin-top:6px}
+.cli .info b{color:var(--tx);font-weight:600}
+.cli .acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.est{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin-left:6px;vertical-align:2px;letter-spacing:.02em}
+.e-ok{background:rgba(138,207,0,.14);color:var(--verde)}.e-pronto{background:rgba(255,194,77,.14);color:var(--ambar)}
+.e-venc{background:rgba(255,122,107,.14);color:var(--rojo)}.e-bloq{background:var(--g3);color:var(--tx2)}
+.vacio{color:var(--tx2);text-align:center;padding:40px 10px}
+/* Ventanas */
+.fondo{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:max(20px,env(safe-area-inset-top)) 12px 20px;overflow:auto;z-index:50}
+.ven{width:100%;max-width:520px;background:var(--g1);border:1px solid var(--g3);border-radius:20px;padding:20px;margin:auto 0}
+.ven h3{margin:0 0 4px;font-size:18px}.ven .sub{color:var(--tx2);margin:0 0 16px;font-size:13px;word-break:break-all}
+.campos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.campo{display:flex;flex-direction:column;gap:5px}.campo.ancho{grid-column:1/-1}
+.campo label{color:var(--tx2);font-size:12.5px}
+.campo input,.campo select,.campo textarea{background:var(--negro);border:1px solid var(--g3);border-radius:10px;padding:10px 12px;outline:none;width:100%}
+.campo input:focus,.campo select:focus,.campo textarea:focus{border-color:var(--verde)}
+.planes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.plan{padding:10px 6px;border-radius:10px;background:var(--negro);border:1px solid var(--g3);font-size:13px;text-align:center}
+.e-prueba{background:rgba(10,132,255,.16);color:#64a8ff}
+.plan.on{border-color:var(--verde);color:var(--verde);background:rgba(138,207,0,.07)}
+.resumen{margin:14px 0 0;padding:10px 12px;border-radius:10px;background:var(--negro);color:var(--tx2);font-size:13px}
+.resumen b{color:var(--verde)}
+.pie{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.err{color:var(--rojo);font-size:13px;min-height:16px;margin-top:8px}
+.filas{display:grid;gap:6px;margin:6px 0}
+.fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--negro);border-radius:10px;font-size:13px}
+.fila small{color:var(--tx2);display:block}
+
+.clave-caja{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;background:rgba(138,207,0,.08);border:1px solid rgba(138,207,0,.35)}
+.clave-caja span{color:var(--tx2);font-size:12.5px}
+.clave-caja b{flex:1;font-size:24px;letter-spacing:.12em;color:var(--verde);font-family:ui-monospace,Consolas,monospace}
+.seccion{color:var(--tx2);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px}
+.aviso{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--g2);border:1px solid var(--g3);padding:11px 16px;border-radius:12px;z-index:80;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+/* Acceso */
+.login{max-width:380px;margin:12vh auto 0;background:var(--g1);border:1px solid var(--g3);border-radius:20px;padding:26px 22px}
+.login h2{margin:18px 0 6px;font-size:19px}.login p{color:var(--tx2);margin:0 0 14px;line-height:1.5}
+.login input{width:100%;background:var(--negro);border:1px solid var(--g3);border-radius:12px;padding:12px 14px;outline:none;font-size:16px;margin-bottom:10px}
+.login input:focus{border-color:var(--verde)}
+.login .btn{width:100%}
+@media (max-width:640px){
+  .cli{grid-template-columns:1fr}.cli .acc{justify-content:flex-start}
+  .campos{grid-template-columns:1fr}.planes{grid-template-columns:repeat(2,1fr)}
+  .stat b{font-size:20px}
+}
+.marca-raiki{display:flex;flex-direction:column;align-items:flex-start;gap:8px}.marca-raiki small{color:var(--tx2);font-size:12px}
+#vLogin .marca-raiki{align-items:center}.raiki-logo{width:180px;height:auto;color:var(--tx)}.raiki-logo.chico{width:120px}
+.prod{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.04em;vertical-align:2px}
+.p-oxen{background:rgba(138,207,0,.14);color:var(--verde)}.p-kivo{background:rgba(127,180,255,.14);color:var(--azul)}
+.p-combo{background:linear-gradient(90deg,rgba(182,253,14,.2),rgba(127,180,255,.2));color:#e9ffd0}.p-flexio{background:rgba(102,102,255,.2);color:#b3b3ff}.p-todo{background:linear-gradient(90deg,rgba(182,253,14,.22),rgba(127,180,255,.22),rgba(102,102,255,.3));color:#fff}.p-uso{background:var(--g2);color:var(--tx2);font-weight:600}
+.chips .sep{display:inline-block;width:1px;height:20px;background:var(--g3);margin:0 6px;vertical-align:middle}
+.productos .plan{flex:1 1 auto}
+.tabla-precios{display:grid;grid-template-columns:auto repeat(5,1fr);gap:8px;align-items:center;margin-top:6px}
+.tabla-precios b{font-size:12px;color:var(--tx2);text-align:center}.tabla-precios span{color:var(--tx2)}
+.tabla-precios input{width:100%;background:var(--negro);border:1px solid var(--g3);border-radius:10px;padding:9px 10px;outline:none;text-align:right}
+.tabla-precios input:focus{border-color:var(--verde)}
+.ven p.sub{word-break:normal;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="envoltura">
+  <!-- Acceso -->
+  <section id="vLogin" class="login oculto">
+    <div class="marca marca-raiki"><svg class="raiki-logo" viewBox="0 0 4359.77 1160.77" role="img" aria-label="RAIKI" xmlns="http://www.w3.org/2000/svg"><path fill="#B6FD0E" d="M961.53 1141.28c44.1,24.33 359.63,12.49 424.71,12.28 181.21,-0.59 164.28,-54.2 333.33,-328.36 96.23,-156.07 -204.59,-117.87 -321.55,-117.77 -182.56,0.15 -172.02,13.39 -364.78,291.72 -39.64,57.24 -81.83,91.57 -71.71,142.14z"/><path fill="#B6FD0E" d="M911.33 8.16c-100.67,20.32 -143.12,54.63 -199.9,133.18 -87.93,121.64 -707.1,955.31 -710.57,970.66 -15.38,68.13 178.48,41.71 295.51,42.81 235.47,2.2 411.44,43.28 543.41,-125.08 49.88,-63.63 95.57,-129.2 143.76,-192.14 166.23,-217.08 333.64,-453.32 497.74,-674.55 142.79,-192.5 -35.57,-160.34 -242.33,-160.26 -83.46,0.03 -256.31,-9.01 -327.64,5.38z"/><path fill="currentColor" d="M2217.36 620.51l0 -58.45 230.54 0c32.85,0 59.18,-8.4 79.02,-25.21 19.83,-16.68 29.99,-38.85 30.3,-66.13l0 0c0,-27.64 -9.99,-49.69 -29.83,-66.37 -19.83,-16.68 -46.33,-24.97 -79.49,-24.97l-230.54 0 0 -58.57 226.89 0c39.35,0 73.78,6.33 103.13,18.75 29.51,12.54 52.36,29.96 68.54,52.24 16.34,22.41 24.44,48.71 24.44,78.91l0 0c0,29.96 -8.25,56.14 -24.59,78.67 -16.5,22.41 -39.35,39.94 -68.54,52.36 -29.35,12.54 -63.62,18.75 -102.97,18.75l-226.89 0zm-41.41 219.45l0 -519.14 80.92 0 0 519.14 -80.92 0zm396.5 0l-154.7 -235.52 78.06 -16.32 172.94 251.84 -96.31 0zm135.81 0l249.26 -518.78 80.76 0 249.26 518.78 -88.37 0 -201.34 -441.69 -201.18 441.69 -88.37 0zm769.35 -518.78l0 518.78 -80.92 0 0 -518.78 80.92 0zm234.66 400.29l-6.98 -74.53 334.78 -325.76 101.23 0 -429.02 400.29zm-60.45 118.49l0 -518.78 80.92 0 0 518.78 -80.92 0zm419.82 0l-214.83 -276.8 56.8 -53.22 256.08 330.02 -98.05 0zm288.13 -518.78l0 518.78 -80.92 0 0 -518.78 80.92 0z"/></svg><small>Panel · OXEN PRO + Kivo</small></div>
+    <div id="lPaso1">
+      <h2>Panel de clientes</h2>
+      <p>Entra con tu cuenta RAIKI de administrador.</p>
+      <input id="lMail" type="email" placeholder="Correo" autocomplete="username">
+      <input id="lClave" type="password" placeholder="Contraseña" autocomplete="current-password">
+      <button class="btn btn-v" id="lEntrar">Entrar</button>
+    </div>
+    <div id="lPaso2" class="oculto">
+      <h2>Crea tu contraseña</h2>
+      <p>Es tu primera vez. Cambia la contraseña temporal por una tuya (mínimo 8 caracteres).</p>
+      <input id="lN1" type="password" placeholder="Nueva contraseña" autocomplete="new-password">
+      <input id="lN2" type="password" placeholder="Repítela" autocomplete="new-password">
+      <button class="btn btn-v" id="lGuardar">Guardar</button>
+    </div>
+    <div class="err" id="lErr"></div>
+  </section>
+
+  <!-- Panel -->
+  <section id="vPanel" class="oculto">
+    <header>
+      <div class="marca marca-raiki"><svg class="raiki-logo chico" viewBox="0 0 4359.77 1160.77" role="img" aria-label="RAIKI" xmlns="http://www.w3.org/2000/svg"><path fill="#B6FD0E" d="M961.53 1141.28c44.1,24.33 359.63,12.49 424.71,12.28 181.21,-0.59 164.28,-54.2 333.33,-328.36 96.23,-156.07 -204.59,-117.87 -321.55,-117.77 -182.56,0.15 -172.02,13.39 -364.78,291.72 -39.64,57.24 -81.83,91.57 -71.71,142.14z"/><path fill="#B6FD0E" d="M911.33 8.16c-100.67,20.32 -143.12,54.63 -199.9,133.18 -87.93,121.64 -707.1,955.31 -710.57,970.66 -15.38,68.13 178.48,41.71 295.51,42.81 235.47,2.2 411.44,43.28 543.41,-125.08 49.88,-63.63 95.57,-129.2 143.76,-192.14 166.23,-217.08 333.64,-453.32 497.74,-674.55 142.79,-192.5 -35.57,-160.34 -242.33,-160.26 -83.46,0.03 -256.31,-9.01 -327.64,5.38z"/><path fill="currentColor" d="M2217.36 620.51l0 -58.45 230.54 0c32.85,0 59.18,-8.4 79.02,-25.21 19.83,-16.68 29.99,-38.85 30.3,-66.13l0 0c0,-27.64 -9.99,-49.69 -29.83,-66.37 -19.83,-16.68 -46.33,-24.97 -79.49,-24.97l-230.54 0 0 -58.57 226.89 0c39.35,0 73.78,6.33 103.13,18.75 29.51,12.54 52.36,29.96 68.54,52.24 16.34,22.41 24.44,48.71 24.44,78.91l0 0c0,29.96 -8.25,56.14 -24.59,78.67 -16.5,22.41 -39.35,39.94 -68.54,52.36 -29.35,12.54 -63.62,18.75 -102.97,18.75l-226.89 0zm-41.41 219.45l0 -519.14 80.92 0 0 519.14 -80.92 0zm396.5 0l-154.7 -235.52 78.06 -16.32 172.94 251.84 -96.31 0zm135.81 0l249.26 -518.78 80.76 0 249.26 518.78 -88.37 0 -201.34 -441.69 -201.18 441.69 -88.37 0zm769.35 -518.78l0 518.78 -80.92 0 0 -518.78 80.92 0zm234.66 400.29l-6.98 -74.53 334.78 -325.76 101.23 0 -429.02 400.29zm-60.45 118.49l0 -518.78 80.92 0 0 518.78 -80.92 0zm419.82 0l-214.83 -276.8 56.8 -53.22 256.08 330.02 -98.05 0zm288.13 -518.78l0 518.78 -80.92 0 0 -518.78 80.92 0z"/></svg><small>Panel de clientes · OXEN PRO + Kivo</small></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-g oculto" id="bInstalar">⬇ Instalar en esta computadora</button>
+        <button class="btn btn-g" id="bRecargar">Actualizar</button>
+        <button class="btn btn-g" id="bAlertas" style="position:relative">🔔 Instalaciones<span id="alBadge" class="oculto" style="position:absolute;top:-6px;right:-6px;background:#ff5a5a;color:#fff;border-radius:10px;font-size:11px;font-weight:800;padding:2px 6px">0</span></button>
+        <button class="btn btn-g" id="bCuentas">👥 Cuentas RAIKI</button>
+        <button class="btn btn-g" id="bPagos">💰 Pagos</button>
+        <button class="btn btn-g" id="bPrecios">🏷️ Precios</button>
+        <button class="btn btn-g" id="bPrueba">🎁 Prueba gratis 7 días</button>
+        <button class="btn btn-v" id="bNuevo">+ Nuevo cliente</button>
+      </div>
+    </header>
+    <div class="stats" id="stats"></div>
+    <div class="barra">
+      <input class="buscar" id="buscar" placeholder="Buscar por nombre, correo o teléfono">
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="lista" id="lista"></div>
+    <p style="text-align:center;margin-top:28px"><a href="#" id="bSalir" style="color:var(--tx2)">Cerrar sesión</a></p>
+  </section>
+</div>
+<div id="ventana" class="fondo oculto"></div>
+
+<script src="oxen-auth.js"></script>
+<script>
+(function () {
+  const A = window.OxenAuth;
+  const APK = 'https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk';
+  const FLEXIO_APK = 'https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk';
+  const KIVO = {
+    win: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo-Setup.exe',
+    apk: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo.apk',
+    web: 'https://riuk1126.github.io/kivo/'
+  };
+  // Lo que puede comprar un cliente con su cuenta RAIKI
+  const PRODUCTOS = {
+    oxen:   { n: 'OXEN PRO', corto: 'OXEN', c: 'p-oxen', oxen: true, kivo: false },
+    kivo:   { n: 'Kivo', corto: 'Kivo', c: 'p-kivo', oxen: false, kivo: true },
+    flexio: { n: 'Flexio (3D)', corto: 'Flexio', c: 'p-flexio', oxen: false, kivo: false },
+    combo:  { n: 'Combo OXEN PRO + Kivo', corto: 'Combo', c: 'p-combo', oxen: true, kivo: true },
+    oxen_flexio: { n: 'OXEN PRO + Flexio', corto: 'OXEN+Flexio', c: 'p-combo', oxen: true, kivo: false },
+    kivo_flexio: { n: 'Kivo + Flexio', corto: 'Kivo+Flexio', c: 'p-combo', oxen: false, kivo: true },
+    todo:   { n: 'Todo RAIKI (OXEN PRO + Kivo + Flexio)', corto: 'Todo RAIKI', c: 'p-todo', oxen: true, kivo: true }
+  };
+  // lo que se ofrece al vender (las otras combinaciones salen solas al sumar compras)
+  const VENTA = ['oxen', 'kivo', 'flexio', 'combo', 'todo'];
+  const APPS_DE = { oxen: ['oxen'], kivo: ['kivo'], flexio: ['flexio'], combo: ['oxen', 'kivo'], oxen_flexio: ['oxen', 'flexio'], kivo_flexio: ['kivo', 'flexio'], todo: ['oxen', 'kivo', 'flexio'] };
+  const unirProductos = (a, b) => { const s = new Set([...(APPS_DE[a] || []), ...(APPS_DE[b] || [])]); return Object.keys(APPS_DE).find(k => APPS_DE[k].length === s.size && APPS_DE[k].every(x => s.has(x))) || b; };
+  const prod = l => PRODUCTOS[(l && l.producto) || 'oxen'] || PRODUCTOS.oxen;
+  const etiqueta = l => `<span class="prod ${prod(l).c}">${prod(l).corto}</span>`;
+  const PLANES = [
+    { id: 'prueba', nombre: 'Prueba 7 días', meses: 0, dias: 7 },
+    { id: '1m', nombre: '1 mes', meses: 1, dias: 0 },
+    { id: '3m', nombre: '3 meses', meses: 3, dias: 0 },
+    { id: '6m', nombre: '6 meses', meses: 6, dias: 0 },
+    { id: '12m', nombre: '1 año', meses: 12, dias: 0 },
+    { id: 'otro', nombre: 'Personalizado', meses: 0, dias: 0 }
+  ];
+  const METODOS = ['Yape', 'Plin', 'Transferencia', 'Efectivo', 'Mercado Pago', 'Otro'];
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fecha = f => new Date(f).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' });
+  const fechaHora = f => new Date(f).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const dias = f => Math.ceil((new Date(f) - Date.now()) / 864e5);
+  const soles = n => 'S/ ' + Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const q = e => encodeURIComponent(e);
+  function avisar(t) { const d = document.createElement('div'); d.className = 'aviso'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
+  function whats(tel, texto) {
+    let n = String(tel || '').replace(/\D/g, ''); if (!n) return '';
+    if (n.length === 9 && n[0] === '9') n = '51' + n;     // celular peruano sin código
+    return 'https://wa.me/' + n + '?text=' + encodeURIComponent(texto);
+  }
+  // en prueba: su único tiempo fue la prueba gratis (aún no paga)
+  const esPrueba = l => /prueba/i.test(l.plan || '') && !PAGOS.some(p => p.email === l.email && Number(p.monto) > 0);
+  function estadoDe(l) {
+    if (!l.activo) return { k: 'bloq', t: 'BLOQUEADO', c: 'e-bloq' };
+    const d = dias(l.vence);
+    if (d < 0) return { k: 'venc', t: 'VENCIDO', c: 'e-venc' };
+    if (esPrueba(l)) return { k: 'prueba', t: d <= 0 ? 'PRUEBA: VENCE HOY' : 'EN PRUEBA · ' + d + ' D', c: 'e-prueba' };
+    if (d <= 7) return { k: 'pronto', t: d <= 0 ? 'VENCE HOY' : 'VENCE EN ' + d + ' D', c: 'e-pronto' };
+    return { k: 'ok', t: 'ACTIVO', c: 'e-ok' };
+  }
+  function msgAcceso(l, clave) {
+    const P = prod(l);
+    const desc = [];
+    if (P.oxen) desc.push(`• OXEN PRO (tableta Android): ${APK}`);
+    if (P.kivo) desc.push(`• Kivo para Windows: ${KIVO.win}\n• Kivo para Android: ${KIVO.apk}\n• Kivo en el navegador: ${KIVO.web}`);
+    if ((APPS_DE[l.producto] || []).includes('flexio')) desc.push(`• Flexio, modelado 3D (tableta Android): ${FLEXIO_APK}`);
+    return `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu acceso a ${P.n} está activo hasta el ${fecha(l.vence)}.\n\n` +
+      `1) Descarga:\n${desc.join('\n')}\n\n2) Entra con tu cuenta RAIKI (${(APPS_DE[l.producto] || []).length > 1 ? 'la misma para todas tus apps' : 'sirve para todas las apps RAIKI'}):\n   Correo: ${l.email}\n   Contraseña: ${clave || '(la que ya creaste)'}\n` +
+      (clave ? `3) La primera vez la app te pedirá crear tu propia contraseña.\n` : '') + `\n¡Bienvenido a RAIKI!`;
+  }
+
+  // ---------- Acceso ----------
+  function verLogin(msg) {
+    $('vPanel').classList.add('oculto'); $('vLogin').classList.remove('oculto');
+    $('lPaso1').classList.remove('oculto'); $('lPaso2').classList.add('oculto'); $('lErr').textContent = msg || '';
+  }
+  $('lEntrar').onclick = async () => {
+    const mail = $('lMail').value.trim().toLowerCase(), clave = $('lClave').value.trim();
+    if (!mail || !clave) { $('lErr').textContent = 'Escribe tu correo y contraseña.'; return; }
+    $('lEntrar').disabled = true; $('lErr').textContent = '';
+    try { await A.entrar(mail, clave); $('lClave').value = ''; await iniciar(); }
+    catch (e) { $('lErr').textContent = A.traducir(e); }
+    $('lEntrar').disabled = false;
+  };
+  $('lMail').onkeydown = e => { if (e.key === 'Enter') $('lClave').focus(); };
+  $('lClave').onkeydown = e => { if (e.key === 'Enter') $('lEntrar').click(); };
+  $('lGuardar').onclick = async () => {
+    const n1 = $('lN1').value, n2 = $('lN2').value;
+    if (n1.length < A.MIN_CLAVE) { $('lErr').textContent = 'Usa al menos ' + A.MIN_CLAVE + ' caracteres.'; return; }
+    if (n1 !== n2) { $('lErr').textContent = 'Las dos contraseñas no son iguales.'; return; }
+    $('lGuardar').disabled = true; $('lErr').textContent = '';
+    try { await A.cambiarClave(n1); $('lN1').value = $('lN2').value = ''; await iniciar(); avisar('Contraseña guardada'); }
+    catch (e) { $('lErr').textContent = A.traducir(e); }
+    $('lGuardar').disabled = false;
+  };
+  $('lN2').onkeydown = e => { if (e.key === 'Enter') $('lGuardar').click(); };
+  $('bSalir').onclick = async e => { e.preventDefault(); await A.salir(); verLogin(); };
+
+  async function iniciar() {
+    if (!A.sesion()) return verLogin();
+    let admin = false;
+    try { admin = await A.rpc('es_admin'); }
+    catch (e) { return verLogin(e.sinSesion ? '' : A.traducir(e)); }
+    if (!admin) { await A.salir(); return verLogin('Ese correo no es administrador del panel.'); }
+    iniciarAlertas();
+    // ¿todavía tiene la contraseña temporal?
+    try {
+      const yo = await A.tabla('licencias?select=debe_cambiar&email=eq.' + encodeURIComponent(A.sesion().email));
+      if (yo[0] && yo[0].debe_cambiar) {
+        $('vPanel').classList.add('oculto'); $('vLogin').classList.remove('oculto');
+        $('lPaso1').classList.add('oculto'); $('lPaso2').classList.remove('oculto'); $('lErr').textContent = ''; $('lN1').focus();
+        return;
+      }
+    } catch (e) {}
+    $('vLogin').classList.add('oculto'); $('vPanel').classList.remove('oculto');
+    cargar();
+  }
+
+  // ---------- Datos ----------
+  let LIC = [], DISP = [], PAGOS = [], MIEM = [], PRECIOS = [], filtro = 'todos', filtroProd = 'todos';
+  const precioDe = (producto, planId) => { const x = PRECIOS.find(p => p.producto === producto && p.plan === planId); return x ? Number(x.monto) : null; };
+  async function cargar() {
+    try {
+      [LIC, DISP, PAGOS, MIEM] = await Promise.all([
+        A.tabla('licencias?select=*&order=vence.asc'),
+        A.tabla('dispositivos?select=*&order=ultimo_uso.desc'),
+        A.tabla('pagos?select=*&order=creado.desc'),
+        A.tabla('equipo_miembros?select=*&order=agregado.asc')
+      ]);
+      try { PRECIOS = await A.tabla('precios?select=*'); } catch (e) { PRECIOS = []; }
+    } catch (e) { if (e.sinSesion) return verLogin('Tu sesión se cerró. Vuelve a entrar.'); avisar(A.traducir(e)); }
+    pintar();
+  }
+  $('bRecargar').onclick = cargar;
+
+  function pintar() {
+    const est = LIC.map(estadoDe);
+    const cuenta = k => est.filter(e => e.k === k).length;
+    const ini = new Date(); ini.setDate(1); ini.setHours(0, 0, 0, 0);
+    const mes = PAGOS.filter(p => new Date(p.creado) >= ini).reduce((s, p) => s + Number(p.monto || 0), 0);
+    $('stats').innerHTML = [
+      ['Activos (pagan)', cuenta('ok') + cuenta('pronto')], ['En prueba', cuenta('prueba')], ['Vencen en 7 días', cuenta('pronto')],
+      ['Vencidos', cuenta('venc')], ['Combos activos', LIC.filter((l, i) => l.producto === 'combo' && (est[i].k === 'ok' || est[i].k === 'pronto')).length], ['Ingresos del mes', soles(mes)]
+    ].map(([t, v]) => `<div class="stat"><span>${t}</span><b>${v}</b></div>`).join('');
+
+    const F = [['todos', 'Todos', LIC.length], ['activos', 'Activos', cuenta('ok') + cuenta('pronto')], ['prueba', 'En prueba', cuenta('prueba')], ['pronto', 'Por vencer', cuenta('pronto')], ['venc', 'Vencidos', cuenta('venc')], ['bloq', 'Bloqueados', cuenta('bloq')]];
+    $('chips').innerHTML = F.map(([k, t, n]) => `<button class="chip${filtro === k ? ' on' : ''}" data-f="${k}">${t} · ${n}</button>`).join('');
+    const FP = [['todos', 'Todos'], ['oxen', 'OXEN PRO'], ['kivo', 'Kivo'], ['flexio', 'Flexio'], ['combo', 'Combo'], ['todo', 'Todo RAIKI']];
+    $('chips').innerHTML += '<span class="sep"></span>' + FP.map(([k, t]) => `<button class="chip${filtroProd === k ? ' on' : ''}" data-fp="${k}">${t} · ${k === 'todos' ? LIC.length : LIC.filter(l => (l.producto || 'oxen') === k || (k === 'flexio' && (APPS_DE[l.producto || 'oxen'] || []).includes('flexio'))).length}</button>`).join('');
+    $('chips').querySelectorAll('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
+    $('chips').querySelectorAll('[data-fp]').forEach(b => b.onclick = () => { filtroProd = b.dataset.fp; pintar(); });
+
+    const txt = $('buscar').value.trim().toLowerCase();
+    const vis = LIC.filter((l, i) => {
+      const k = est[i].k;
+      if (filtro === 'activos' && !(k === 'ok' || k === 'pronto')) return false;
+      if (filtro !== 'todos' && filtro !== 'activos' && k !== filtro) return false;
+      if (filtroProd !== 'todos' && (l.producto || 'oxen') !== filtroProd && !(filtroProd === 'flexio' && (APPS_DE[l.producto || 'oxen'] || []).includes('flexio'))) return false;
+      return !txt || [l.email, l.nombre, l.telefono, l.notas].some(x => (x || '').toLowerCase().includes(txt));
+    });
+    if (!LIC.length) { $('lista').innerHTML = '<div class="vacio">Aún no tienes clientes. Toca <b>+ Nuevo cliente</b> cuando alguien te pague (OXEN PRO, Kivo o el combo).</div>'; return; }
+    if (!vis.length) { $('lista').innerHTML = '<div class="vacio">Nadie coincide con la búsqueda.</div>'; return; }
+    $('lista').innerHTML = vis.map(l => {
+      const e = estadoDe(l), nd = DISP.filter(d => d.email === l.email).length, d = dias(l.vence);
+      const venceTxt = d > 3650 ? 'Sin vencimiento' : fecha(l.vence) + (d >= 0 ? ` · quedan ${d} d` : ` · hace ${-d} d`);
+      const wa = whats(l.telefono, e.k === 'venc' || e.k === 'pronto'
+        ? `Hola${l.nombre ? ' ' + l.nombre.split(' ')[0] : ''}, tu plan de ${prod(l).n} ${e.k === 'venc' ? 'venció' : 'vence'} el ${fecha(l.vence)}. ¿Quieres renovarlo?`
+        : msgAcceso(l));
+      return `<div class="cli">
+        <div>
+          <div class="nom">${esc(l.nombre || l.email)}${etiqueta(l)}<span class="est ${e.c}">${e.t}</span></div>
+          ${l.nombre ? `<div class="mail">${esc(l.email)}</div>` : ''}
+          <div class="info"><span>Vence: <b>${venceTxt}</b></span>${l.plan ? `<span>Plan: <b>${esc(l.plan)}</b></span>` : ''}
+            ${prod(l).oxen ? `<span>Dispositivos: <b>${nd}/${l.max_dispositivos}</b></span>` : ''}${l.max_equipo ? `<span>Equipo: <b>${MIEM.filter(m => m.dueno === l.email).length}/${l.max_equipo}</b></span>` : ''}${l.telefono ? `<span>Tel: <b>${esc(l.telefono)}</b></span>` : ''}</div>
+        </div>
+        <div class="acc">
+          <button class="btn btn-v btn-s" data-a="renovar" data-e="${esc(l.email)}">${e.k === 'prueba' ? 'Activar plan' : 'Renovar'}</button>
+          ${wa ? `<a class="btn btn-g btn-s" target="_blank" rel="noopener" href="${esc(wa)}">WhatsApp</a>` : ''}
+          <button class="btn btn-g btn-s" data-a="ver" data-e="${esc(l.email)}">Detalles</button>
+        </div></div>`;
+    }).join('');
+    $('lista').querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+      const l = LIC.find(x => x.email === b.dataset.e);
+      if (b.dataset.a === 'renovar') formulario(l); else detalles(l);
+    });
+  }
+  $('buscar').oninput = pintar;
+
+  // ---------- Alertas: alguien instaló (abrió por primera vez) una app RAIKI ----------
+  const K_VISTO = 'raiki-panel-inst-visto';
+  const NOMAPP = { kivo: 'Kivo', oxen: 'OXEN PRO', flexio: 'Flexio' };
+  const PLAT = { android: 'tableta/celular Android', windows: 'Windows', linux: 'Linux', mac: 'Mac', web: 'navegador', ios: 'iPhone/iPad' };
+  let alertasOn = false, INST = [];
+  const visto = () => { try { return localStorage.getItem(K_VISTO) || new Date(Date.now() - 7 * 864e5).toISOString(); } catch (e) { return null; } };
+  function textoInst(x) { return `${x.nombre || x.email} instaló ${NOMAPP[x.app] || x.app}${x.equipo ? ' en ' + x.equipo : x.plataforma ? ' en ' + (PLAT[x.plataforma] || x.plataforma) : ''}${x.primera_vez_app ? '' : ' (otro equipo)'}`; }
+  async function revisarInstalaciones(primera) {
+    let L = [];
+    try { L = await A.rpc('raiki_instalaciones', { p_desde: visto(), p_limite: 50 }); } catch (e) { return; }
+    const ya = new Set(INST.map(x => x.email + x.app + x.primera));
+    const nuevas = L.filter(x => !ya.has(x.email + x.app + x.primera));
+    INST = L;
+    const b = $('alBadge'); b.textContent = L.length; b.classList.toggle('oculto', !L.length);
+    if (!nuevas.length) return;
+    if (!primera || nuevas.length) {
+      const t = nuevas.length === 1 ? textoInst(nuevas[0]) : nuevas.length + ' instalaciones nuevas de apps RAIKI';
+      avisar('🔔 ' + t);
+      try { if ('Notification' in window && Notification.permission === 'granted') { const n = new Notification('RAIKI · instalación nueva', { body: nuevas.slice(0, 4).map(textoInst).join('\n'), icon: 'panel-icono-192.png', tag: 'raiki-inst' }); n.onclick = () => { window.focus(); verAlertas(); }; } } catch (e) {}
+      try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = 0.05; o.connect(g); g.connect(c.destination); o.start(); setTimeout(() => { o.frequency.value = 1320; }, 120); setTimeout(() => { o.stop(); c.close(); }, 260); } catch (e) {}
+    }
+  }
+  function iniciarAlertas() {
+    if (alertasOn) return; alertasOn = true;
+    revisarInstalaciones(true);
+    setInterval(() => revisarInstalaciones(false), 45 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarInstalaciones(false); });
+  }
+  async function verAlertas() {
+    let T = [];
+    try { T = await A.rpc('raiki_instalaciones', { p_desde: null, p_limite: 60 }); } catch (e) { return avisar(A.traducir(e)); }
+    const v = visto();
+    const fila = x => `<div class="cli"><div><div class="nom">${x.primera > v ? '<span class="est e-prueba" style="margin-right:6px">NUEVO</span>' : ''}${esc(x.nombre || x.email)}</div>
+      <div class="info"><span>Instaló <b>${esc(NOMAPP[x.app] || x.app)}</b>${x.equipo ? ' en <b>' + esc(x.equipo) + '</b>' : x.plataforma ? ' en ' + esc(PLAT[x.plataforma] || x.plataforma) : ''}${x.version ? ' · v' + esc(x.version) : ''}${x.primera_vez_app ? '' : ' · otro equipo'}</span><span>${fechaHora(x.primera)}</span>${x.nombre ? '<span>' + esc(x.email) + '</span>' : ''}</div></div></div>`;
+    const permiso = 'Notification' in window ? Notification.permission : 'no';
+    abrir(`<h3>🔔 Instalaciones</h3>
+      <p class="sub">Cada vez que alguien abre por primera vez Kivo, OXEN PRO o Flexio en un equipo, te aviso aquí con un sonido${permiso === 'granted' ? ' y con una notificación de la computadora' : ''}. El panel revisa cada 45 segundos mientras está abierto.</p>
+      ${permiso === 'default' ? '<p><button class="btn btn-v btn-s" id="alPermiso">Activar notificaciones de la computadora</button></p>' : permiso === 'denied' ? '<p class="sub">Las notificaciones de la computadora están bloqueadas para el panel; puedes activarlas en la configuración del navegador.</p>' : ''}
+      <div class="lista">${T.length ? T.map(fila).join('') : '<div class="vacio">Todavía no hay instalaciones registradas.</div>'}</div>
+      <p style="text-align:right;margin-top:12px"><button class="btn btn-g" id="alCerrar">Listo</button></p>`, () => {
+      $('alCerrar').onclick = cerrar;
+      if ($('alPermiso')) $('alPermiso').onclick = async () => { try { await Notification.requestPermission(); } catch (e) {} verAlertas(); };
+    });
+    try { localStorage.setItem(K_VISTO, new Date().toISOString()); } catch (e) {}
+    INST = []; $('alBadge').classList.add('oculto');
+  }
+  $('bAlertas').onclick = verAlertas;
+
+  // ---------- Cuentas RAIKI (una cuenta para todas las apps) ----------
+  $('bCuentas').onclick = verCuentas;
+  let AJ = {};
+  function abrirInvitacion(email, msg) {
+    const v = document.createElement('div'); v.className = 'stat'; v.style.marginBottom = '10px';
+    v.innerHTML = `<span>Invitación para ${esc(email)} (ya está copiada)</span><textarea style="width:100%;min-height:150px;margin-top:8px;border-radius:10px;padding:10px;font:inherit;background:transparent;color:inherit;border:1px solid #8884">${esc(msg)}</textarea><p style="margin-top:8px"><a class="btn btn-v btn-s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Enviar por WhatsApp</a></p>`;
+    const c = $('cClave'); c.innerHTML = ''; c.appendChild(v); c.scrollIntoView({ behavior: 'smooth' });
+  }
+  async function verCuentas() {
+    let C = [];
+    try { C = await A.rpc('raiki_cuentas'); } catch (e) { return avisar(A.traducir(e)); }
+    try { AJ = await A.rpc('raiki_ajustes_ver'); } catch (e) {}
+    const chip = (t, ok) => `<span class="est ${ok ? 'e-ok' : 'e-venc'}" style="margin-left:6px">${t}</span>`;
+    const NOM = { kivo: 'Kivo', oxen: 'OXEN PRO', flexio: 'Flexio' };
+    const ICOEQ = { android: '📱', windows: '🖥️', linux: '🐧', mac: '💻', web: '🌐', ios: '📱' };
+    // resumen: quién tiene qué instalado
+    const marca = (c, k) => { const x = (c.apps || {})[k] || (k === 'kivo' && c.kivo ? {} : null); if (!x) return '<span style="color:var(--tx2)">—</span>'; const pl = (x.plataformas || '').split(', ').filter(Boolean).map(p => ICOEQ[p] || '💻').join(''); return `<span style="color:var(--verde);font-weight:700">✓</span> ${pl}`; };
+    const resumen = C.filter(c => c.cuenta).map(c => `<tr><td style="padding:6px 8px">${esc((c.licencia && c.licencia.nombre) || c.email)}</td><td style="text-align:center">${marca(c, 'kivo')}</td><td style="text-align:center">${marca(c, 'oxen')}</td><td style="text-align:center">${marca(c, 'flexio')}</td></tr>`).join('');
+    const filas = C.map(c => {
+      const L = c.licencia, E = c.equipo;
+      // programas activos: por su plan o por el equipo al que pertenece
+      const activo = k => (L && L.activo && (L.apps || []).includes(k)) ? { por: 'plan', vence: L.vence } : (E && E.activo && (E.apps || []).includes(k)) ? { por: 'equipo de ' + E.dueno, vence: E.vence } : null;
+      const tieneVencido = k => (L && !L.activo && (L.apps || []).includes(k));
+      const ap = c.apps || {};
+      const fila = k => {
+        const a = activo(k), ins = ap[k] || (k === 'kivo' && c.kivo ? { equipos: 0 } : null);
+        const est = a ? `<b style="color:var(--verde)">Activo</b> · ${new Date(a.vence).getFullYear() > 2090 ? 'sin vencimiento' : 'hasta ' + fecha(a.vence)}${a.por !== 'plan' ? ' · ' + esc(a.por) : ''}`
+          : tieneVencido(k) ? `<b style="color:#ff8a8a">Vencido</b> el ${fecha(L.vence)}` : k === 'kivo' ? '<span style="color:var(--tx2)">Kivo libre</span>' : '<span style="color:var(--tx2)">Sin plan</span>';
+        const inst = ins ? `instalado${ins.equipos ? ' en ' + ins.equipos + ' equipo' + (ins.equipos > 1 ? 's' : '') : ''}${ins.ultima ? ' · usó ' + fechaHora(ins.ultima) : ''}` : 'sin instalar';
+        return `<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid var(--g3);font-size:13px"><span style="min-width:72px"><b>${NOM[k]}</b></span><span style="flex:1">${est}</span><span style="color:var(--tx2);text-align:right">${inst}</span></div>`;
+      };
+      const faltan = ['kivo', 'oxen', 'flexio'].filter(k => !ap[k] && !(k === 'kivo' && c.kivo));
+      const pend = (L && L.debe_cambiar) || (E && E.debe_cambiar);
+      return `<div class="cli" style="align-items:flex-start"><div style="flex:1;min-width:0">
+        <div class="nom">${esc(L && L.nombre ? L.nombre + ' · ' : '')}${esc(c.email)}${L ? `<span class="prod ${PRODUCTOS[L.producto] ? PRODUCTOS[L.producto].c : ''}" style="margin-left:6px">${esc(PRODUCTOS[L.producto] ? PRODUCTOS[L.producto].corto : L.producto)}</span>` : ''}</div>
+        <div class="info" style="margin-bottom:6px"><span>${c.cuenta ? 'Último ingreso: <b>' + (c.ultimo_ingreso ? fechaHora(c.ultimo_ingreso) : 'nunca') + '</b>' + (pend ? ' · <b style="color:#ffc46b">aún usa la contraseña temporal</b>' : '') : '<b>Cuenta sin crear</b>'}</span></div>
+        ${fila('kivo')}${fila('oxen')}${fila('flexio')}
+        ${(c.equipos || []).length ? `<div style="margin-top:8px;font-size:12px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px">Dónde lo tiene instalado</div>` + c.equipos.map(q => `<div style="display:flex;gap:10px;align-items:center;padding:6px 0;font-size:13px;border-top:1px solid var(--g3)"><span style="font-size:18px">${ICOEQ[q.plataforma] || '💻'}</span><span style="flex:1"><b>${esc(q.nombre || PLAT[q.plataforma] || q.plataforma)}</b><br><span style="color:var(--tx2)">${(q.apps || []).map(a => NOM[a] || a).join(' · ')}</span></span><span style="color:var(--tx2);text-align:right">usó ${fechaHora(q.ultima)}</span></div>`).join('') : ''}
+        <div id="cl-${c.email.replace(/[^a-z0-9]/gi, '_')}"></div>
+      </div>
+      <div class="acc" style="flex-direction:column;align-items:stretch">${faltan.length && c.cuenta ? `<button class="btn btn-g btn-s" data-invitar="${esc(c.email)}" data-faltan="${faltan.join(',')}">Invitar</button>` : ''}<button class="btn btn-g btn-s" data-clave="${esc(c.email)}">${c.cuenta ? '🔑 Contraseña' : 'Crear cuenta'}</button></div></div>`;
+    }).join('');
+    abrir(`<h3>Cuentas RAIKI</h3>
+      <p class="sub">Cada persona tiene una sola cuenta para Kivo, OXEN PRO y Flexio. En cada cuenta ves qué programas tiene <b>activos</b> (y hasta cuándo) y cuáles tiene <b>instalados</b>. Con <b>🔑 Contraseña</b> le pones una nueva si la olvidó. Para venderle algo (OXEN, Kivo o combo) usa <b>+ Nuevo cliente</b>. Flexio se activa como cualquier producto: <b>+ Nuevo cliente</b> o <b>Renovar</b> → «Flexio (3D)» o «Todo RAIKI».</p>
+      <label style="display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:600"><input type="checkbox" id="cInvitar" ${AJ.invitar_apps !== false ? 'checked' : ''}> Invitar dentro de cada app a instalar las apps RAIKI que les faltan</label>
+      <div style="display:flex;gap:8px;margin:12px 0">
+        <input class="buscar" id="cNueva" type="email" placeholder="correo@ejemplo.com (cuenta nueva para Kivo)" style="flex:1">
+        <button class="btn btn-v btn-s" id="cCrear">Crear cuenta</button>
+      </div>
+      <div style="overflow:auto;margin:6px 0 14px;border:1px solid var(--g3);border-radius:12px"><table style="width:100%;border-collapse:collapse;font-size:13.5px">
+        <tr style="color:var(--tx2);text-align:center"><th style="text-align:left;padding:8px">¿Quién tiene qué instalado?</th><th>Kivo</th><th>OXEN PRO</th><th>Flexio</th></tr>${resumen}</table>
+        <div style="font-size:12px;color:var(--tx2);padding:6px 8px">📱 Android · 🖥️ Windows · 🐧 Linux · 🌐 navegador</div></div>
+      <div id="cClave"></div>
+      <div class="lista">${filas || '<div class="vacio">Sin cuentas.</div>'}</div>
+      <p style="text-align:right;margin-top:12px"><button class="btn btn-g" id="cCerrar">Cerrar</button></p>`, () => {
+      $('cCerrar').onclick = cerrar;
+      $('cInvitar').onchange = async () => { const v = $('cInvitar').checked; try { await A.rpc('admin_invitar_apps', { p_valor: v }); AJ.invitar_apps = v; avisar(v ? 'Las apps invitarán a instalar las que faltan' : 'Invitaciones apagadas'); } catch (e) { avisar(A.traducir(e)); $('cInvitar').checked = !v; } };
+      document.querySelectorAll('[data-invitar]').forEach(b => b.onclick = () => {
+        const N = { kivo: 'Kivo (pendientes del equipo)', oxen: 'OXEN PRO (bocetos con lápiz)', flexio: 'Flexio (modelado 3D)' };
+        const L = { kivo: 'https://github.com/riuk1126/kivo/releases/latest/download/Kivo.apk', oxen: 'https://github.com/riuk1126/oxenpro/releases/latest/download/OXEN-PRO.apk', flexio: 'https://github.com/riuk1126/oxenpro/releases/download/flexio-v1.0.0/Flexio.apk' };
+        const f = b.dataset.faltan.split(',');
+        const msg = 'Hola, te invito a probar ' + f.map(k => N[k]).join(' y ') + '. Entras con tu misma cuenta RAIKI (' + b.dataset.invitar + ').\n\nDescarga para tu tableta o celular Android:\n' + f.map(k => '• ' + N[k].split(' (')[0] + ': ' + L[k]).join('\n') + '\n\nTambién te aparecerá la invitación dentro de la app que ya usas.';
+        try { navigator.clipboard.writeText(msg); } catch (e) {}
+        abrirInvitacion(b.dataset.invitar, msg);
+      });
+      const mostrarClave = (r, msg) => {
+        const t = `Hola, tu nueva contraseña RAIKI (sirve para Kivo, OXEN PRO y Flexio):\nCorreo: ${r.email}\nContraseña: ${r.clave}` + (r.temporal ? '\nAl entrar, la app te pedirá crear la tuya.' : '');
+        $('cClave').innerHTML = `<div class="stat" style="margin-bottom:10px;flex-direction:column;align-items:stretch;gap:8px"><span>${msg}</span><b style="user-select:all;letter-spacing:.08em;font-size:20px">${esc(r.clave)}</b>
+          <span style="font-size:12.5px">${r.temporal ? 'La tendrá que cambiar la próxima vez que entre.' : 'Se queda con esta contraseña (no se le pedirá cambiarla).'} Anótala ahora: por seguridad no se guarda en ningún lado y no se puede volver a ver.</span>
+          <span><button class="btn btn-g btn-s" id="cCopiar">Copiar mensaje</button> <a class="btn btn-v btn-s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(t)}">Enviar por WhatsApp</a></span></div>`;
+        $('cCopiar').onclick = () => { try { navigator.clipboard.writeText(t); avisar('Mensaje copiado'); } catch (e) {} };
+        $('cClave').scrollIntoView({ behavior: 'smooth' });
+      };
+      const dar = async (email, clave, temporal) => {
+        try {
+          const r = await A.funcion('admin-contrasena', clave ? { email, clave, temporal } : { email });
+          await verCuentas();
+          mostrarClave(r, (clave ? 'Nueva contraseña de ' : 'Contraseña temporal de ') + esc(r.email));
+        } catch (e) { avisar(A.traducir(e)); }
+      };
+      // ventanita para cambiar la contraseña de una cuenta
+      const formClave = email => {
+        const box = document.getElementById('cl-' + email.replace(/[^a-z0-9]/gi, '_'));
+        if (!box) return dar(email);
+        if (box.innerHTML) { box.innerHTML = ''; return; }
+        box.innerHTML = `<div style="margin-top:8px;padding:10px;border-radius:12px;background:var(--g2)">
+          <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Las contraseñas van cifradas: nadie puede verlas, ni tú. Si la olvidó, ponle una nueva aquí.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <input class="buscar" type="text" data-nc placeholder="Escribe la nueva (mín. 8) o déjalo vacío" style="flex:1;min-width:180px">
+            <button class="btn btn-v btn-s" data-poner>Poner contraseña</button>
+          </div>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" data-temp checked> Que la cambie por una suya al entrar</label>
+          <div style="font-size:12.5px;color:var(--tx2);margin-top:4px">Si dejas el campo vacío se genera una contraseña temporal segura.</div></div>`;
+        box.querySelector('[data-poner]').onclick = () => {
+          const v = box.querySelector('[data-nc]').value.trim(), t = box.querySelector('[data-temp]').checked;
+          if (v && v.length < 8) return avisar('Usa al menos 8 caracteres');
+          dar(email, v || null, t);
+        };
+      };
+      $('cCrear').onclick = () => {
+        const m = $('cNueva').value.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) return avisar('Escribe un correo válido');
+        dar(m);
+      };
+      document.querySelectorAll('[data-clave]').forEach(b => b.onclick = () => { const c = C.find(x => x.email === b.dataset.clave); if (c && c.cuenta) formClave(c.email); else dar(b.dataset.clave); });
+    });
+  }
+
+  // ---------- Ventanas ----------
+  function abrir(html, alPintar) {
+    const v = $('ventana'); v.innerHTML = `<div class="ven">${html}</div>`; v.classList.remove('oculto');
+    v.onclick = e => { if (e.target === v) cerrar(); };
+    if (alPintar) alPintar();
+  }
+  function cerrar() { $('ventana').classList.add('oculto'); $('ventana').innerHTML = ''; }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+
+  // Nuevo cliente o renovación
+  function formulario(l, prueba) {
+    const nuevo = !l; let plan = prueba ? PLANES[0] : PLANES[1];
+    let producto = l ? (l.producto || 'oxen') : 'combo';
+    abrir(`<h3>${prueba ? '🎁 Prueba gratis de 7 días' : nuevo ? 'Nuevo cliente' : esPrueba(l) ? 'Activar plan (terminó o sigue en prueba)' : 'Renovar acceso'}</h3>
+      ${prueba ? '<p class="sub">Crea su acceso por 7 días sin pago. Cuando te pague (Yape, Plin…), búscalo en la lista y toca <b>Activar plan</b>.</p>' : ''}
+      <p class="sub">${nuevo ? 'Registra a quien te pagó. Con este correo tendrá su cuenta RAIKI.' : esc(l.nombre || '') + ' · ' + esc(l.email) + ' · ahora tiene ' + esc(prod(l).n)}</p>
+      <div class="campos">
+        <div class="campo ancho"><label>¿Qué compró?</label><div class="planes productos" id="fProd">${VENTA.map(k => `<button class="plan${k === producto ? ' on' : ''}" data-prod="${k}">${k === 'todo' ? '⭐ ' : ''}${PRODUCTOS[k].n}</button>`).join('')}</div></div>
+        ${nuevo ? `<div class="campo ancho"><label>Correo del cliente *</label><input id="fMail" type="email" placeholder="cliente@gmail.com"></div>
+        <div class="campo"><label>Nombre</label><input id="fNom" placeholder="Nombre y apellido"></div>
+        <div class="campo"><label>WhatsApp</label><input id="fTel" inputmode="tel" placeholder="987 654 321"></div>` : ''}
+        <div class="campo ancho"><label>Tiempo que agregas</label><div class="planes" id="fPlanes">${PLANES.map(p => `<button class="plan${p.id === plan.id ? ' on' : ''}" data-p="${p.id}">${p.nombre}</button>`).join('')}</div></div>
+        <div class="campo oculto" id="fOtro1"><label>Meses</label><input id="fMeses" type="number" min="0" value="0"></div>
+        <div class="campo oculto" id="fOtro2"><label>Días</label><input id="fDias" type="number" min="0" value="0"></div>
+        <div class="campo"><label>Monto pagado (S/)</label><input id="fMonto" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="campo"><label>Método de pago</label><select id="fMet">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
+        ${nuevo ? `<div class="campo solo-oxen"><label>Dispositivos de OXEN</label><select id="fMax"><option>1</option><option selected>2</option><option>3</option></select></div>
+        <div class="campo solo-oxen"><label>Personas en su equipo OXEN</label><select id="fEq">${[0, 1, 2, 3, 4, 5, 8, 10, 15, 20].map(n => `<option value="${n}">${n ? n + ' persona' + (n > 1 ? 's' : '') : 'Sin equipo'}</option>`).join('')}</select></div>` : ''}
+        <div class="campo ${nuevo ? '' : 'ancho'}"><label>Nota (opcional)</label><input id="fNota" placeholder="N.º de operación, etc."></div>
+      </div>
+      <div class="resumen" id="fRes"></div>
+      <div class="err" id="fErr"></div>
+      <div class="pie"><button class="btn btn-g" id="fNo">Cancelar</button><button class="btn btn-v" id="fSi">${nuevo ? 'Crear acceso' : 'Renovar'}</button></div>`, () => {
+      const meses = () => plan.id === 'otro' ? Math.max(0, +$('fMeses').value || 0) : plan.meses;
+      const ds = () => plan.id === 'otro' ? Math.max(0, +$('fDias').value || 0) : plan.dias;
+      const resumen = () => {
+        const base = !nuevo && new Date(l.vence) > new Date() ? new Date(l.vence) : new Date();
+        const h = new Date(base); h.setMonth(h.getMonth() + meses()); h.setDate(h.getDate() + ds());
+        const final = !nuevo && l.producto && l.producto !== producto ? unirProductos(l.producto, producto) : producto;
+        $('fRes').innerHTML = (meses() || ds()) ? `Tendrá <b>${esc(PRODUCTOS[final].n)}</b> hasta el <b>${fecha(h)}</b>${!nuevo && new Date(l.vence) > new Date() ? ' (se suma a lo que le quedaba)' : ''}.` +
+          (final !== producto ? '<br><small>Ya tenía ' + esc(prod(l).n) + ', así que queda con ' + esc(PRODUCTOS[final].n) + '.</small>' : '') : 'Elige cuánto tiempo agregar.';
+        document.querySelectorAll('#ventana .solo-oxen').forEach(x => x.classList.toggle('oculto', !PRODUCTOS[final].oxen));
+      };
+      const ponerPrecio = () => { const v = plan.id === 'prueba' ? null : precioDe(producto, plan.id); if (v != null) $('fMonto').value = v.toFixed(2); };
+      $('fProd').querySelectorAll('.plan').forEach(b => b.onclick = () => {
+        producto = b.dataset.prod;
+        $('fProd').querySelectorAll('.plan').forEach(x => x.classList.toggle('on', x === b));
+        ponerPrecio(); resumen();
+      });
+      $('fPlanes').querySelectorAll('.plan').forEach(b => b.onclick = () => {
+        plan = PLANES.find(p => p.id === b.dataset.p);
+        $('fPlanes').querySelectorAll('.plan').forEach(x => x.classList.toggle('on', x === b));
+        $('fOtro1').classList.toggle('oculto', plan.id !== 'otro'); $('fOtro2').classList.toggle('oculto', plan.id !== 'otro');
+        if (plan.id === 'prueba') $('fMonto').value = ''; else ponerPrecio();
+        resumen();
+      });
+      ['fMeses', 'fDias'].forEach(id => $(id).oninput = resumen);
+      ponerPrecio(); resumen();
+      $('fNo').onclick = cerrar;
+      $('fSi').onclick = async () => {
+        const email = nuevo ? $('fMail').value.trim().toLowerCase() : l.email;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('fErr').textContent = 'Escribe un correo válido.'; return; }
+        if (!meses() && !ds()) { $('fErr').textContent = 'Elige cuánto tiempo agregar.'; return; }
+        if (nuevo && LIC.some(x => x.email === email)) { $('fErr').textContent = 'Ese correo ya es cliente. Búscalo en la lista y usa Renovar.'; return; }
+        $('fSi').disabled = true; $('fErr').textContent = '';
+        try {
+          const nombrePlan = plan.id === 'otro' ? [meses() ? meses() + ' mes(es)' : '', ds() ? ds() + ' día(s)' : ''].filter(Boolean).join(' + ') : plan.nombre;
+          const r = await A.rpc('admin_guardar_licencia', {
+            p_email: email, p_nombre: nuevo ? $('fNom').value : null, p_telefono: nuevo ? $('fTel').value : null,
+            p_meses: meses(), p_dias: ds(), p_max: nuevo ? +$('fMax').value : null,
+            p_monto: $('fMonto').value === '' ? null : +$('fMonto').value, p_metodo: plan.id === 'prueba' && !+$('fMonto').value ? 'Prueba gratis' : $('fMet').value,
+            p_nota: $('fNota').value, p_plan: nombrePlan, p_producto: producto
+          });
+          if (nuevo && PRODUCTOS[producto].oxen && +$('fEq').value > 0) await A.tabla('licencias?email=eq.' + q(email), 'PATCH', { max_equipo: +$('fEq').value });
+          let clave = null;
+          if (nuevo) {
+            try { clave = (await A.funcion('admin-contrasena', { email })).clave; }
+            catch (e) { await cargar(); listo(r, null, 'Se creó el cliente, pero no se pudo generar su contraseña: ' + A.traducir(e)); return; }
+          }
+          await cargar();
+          listo(r, clave);
+        } catch (e) { $('fErr').textContent = A.traducir(e); $('fSi').disabled = false; }
+      };
+      if (nuevo) setTimeout(() => $('fMail').focus(), 30);
+    });
+  }
+
+  // Después de crear o renovar: enviarle el acceso
+  async function generarClave(l) {
+    if (!confirm('¿Generar una contraseña nueva para ' + l.email + '? La anterior dejará de funcionar y la app le pedirá crear la suya al entrar.')) return;
+    try { const r = await A.funcion('admin-contrasena', { email: l.email }); await cargar(); listo(LIC.find(x => x.email === l.email) || l, r.clave); }
+    catch (e) { avisar(A.traducir(e)); }
+  }
+
+  // Después de crear, renovar o generar contraseña: lo que hay que mandarle al cliente
+  function listo(l, clave, error) {
+    const msg = msgAcceso(l, clave), wa = whats(l.telefono, msg);
+    abrir(`<h3>¡Listo!</h3><p class="sub">${esc(l.email)} tiene <b>${esc(prod(l).n)}</b> hasta el <b style="color:var(--verde)">${fecha(l.vence)}</b>.</p>
+      ${error ? `<div class="err" style="margin:0 0 12px">${esc(error)}</div>` : ''}
+      ${clave ? `<div class="clave-caja"><span>Contraseña temporal</span><b id="lClaveTxt">${esc(clave)}</b>
+        <button class="btn btn-g btn-s" id="lCopiarClave">Copiar</button></div>
+        <p class="sub" style="margin:8px 0 14px;word-break:normal">Anótala o mándala ahora: por seguridad no se vuelve a mostrar. La primera vez que entre, la app le pedirá crear su propia contraseña.</p>`
+      : `<div class="fila" style="margin-bottom:12px"><div>${l.debe_cambiar ? 'Aún no ha creado su contraseña.' : 'Ya tiene su propia contraseña.'}<small>Si la olvidó o nunca entró, genérale una nueva.</small></div>
+        <button class="btn btn-g btn-s" id="lGenerar">Generar contraseña</button></div>`}
+      <div class="campo ancho"><label>Mensaje para el cliente</label><textarea id="lMsg" rows="8" readonly>${esc(msg)}</textarea></div>
+      <div class="pie"><button class="btn btn-g" id="lCopiar">Copiar mensaje</button>
+      ${wa ? `<a class="btn btn-v" target="_blank" rel="noopener" href="${esc(wa)}">Enviar por WhatsApp</a>` : ''}
+      <button class="btn btn-g" id="lCerrar">Cerrar</button></div>`, () => {
+      const copiar = async (txt, ok) => { try { await navigator.clipboard.writeText(txt); avisar(ok); } catch (e) { $('lMsg').select(); } };
+      $('lCerrar').onclick = cerrar;
+      $('lCopiar').onclick = () => copiar($('lMsg').value, 'Mensaje copiado');
+      if ($('lCopiarClave')) $('lCopiarClave').onclick = () => copiar(clave, 'Contraseña copiada');
+      if ($('lGenerar')) $('lGenerar').onclick = () => generarClave(l);
+    });
+  }
+
+  async function detalles(l) {
+    let pagos = [];
+    try { pagos = await A.tabla('pagos?select=*&email=eq.' + q(l.email) + '&order=creado.desc'); } catch (e) {}
+    const disp = DISP.filter(d => d.email === l.email);
+    const vLocal = new Date(new Date(l.vence).getTime() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+    abrir(`<h3>${esc(l.nombre || l.email)} ${etiqueta(l)}</h3><p class="sub">${esc(l.email)} · cliente desde ${fecha(l.creado)}</p>
+      <div class="campos">
+        <div class="campo"><label>Producto</label><select id="dProd">${Object.entries(PRODUCTOS).map(([k, p]) => `<option value="${k}"${k === (l.producto || 'oxen') ? ' selected' : ''}>${p.n}</option>`).join('')}</select></div>
+        <div class="campo"><label>Nombre</label><input id="dNom" value="${esc(l.nombre || '')}"></div>
+        <div class="campo"><label>WhatsApp</label><input id="dTel" inputmode="tel" value="${esc(l.telefono || '')}"></div>
+        <div class="campo"><label>Vence (corrección manual)</label><input id="dVence" type="date" value="${vLocal}"></div>
+        <div class="campo"><label>Dispositivos permitidos</label><select id="dMax">${[1, 2, 3, 4, 5].map(n => `<option${n === l.max_dispositivos ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="campo"><label>Personas en su equipo</label><select id="dEq">${[0, 1, 2, 3, 4, 5, 8, 10, 15, 20].concat([0, 1, 2, 3, 4, 5, 8, 10, 15, 20].includes(l.max_equipo) ? [] : [l.max_equipo]).map(n => `<option value="${n}"${n === (l.max_equipo || 0) ? ' selected' : ''}>${n ? n + ' persona' + (n > 1 ? 's' : '') : 'Sin equipo'}</option>`).join('')}</select></div>
+        <div class="campo ancho"><label>Notas</label><textarea id="dNotas" rows="2">${esc(l.notas || '')}</textarea></div>
+      </div>
+      <div class="err" id="dErr"></div>
+      <div class="pie"><button class="btn btn-v" id="dGuardar">Guardar cambios</button></div>
+
+      <div class="seccion">Contraseña</div>
+      <div class="filas"><div class="fila"><div>${l.debe_cambiar ? 'Aún usa la contraseña temporal (o nunca entró)' : 'Ya creó su propia contraseña'}
+        <small>Genera una nueva si la olvidó; la app le pedirá cambiarla al entrar.</small></div>
+        <button class="btn btn-g btn-s" id="dClave">Generar contraseña</button></div></div>
+
+      ${l.max_equipo || MIEM.some(m => m.dueno === l.email) ? `<div class="seccion">Su equipo (${MIEM.filter(m => m.dueno === l.email).length}/${l.max_equipo || 0})</div>
+      <div class="filas">${MIEM.filter(m => m.dueno === l.email).map(m => `<div class="fila"><div>${esc(m.miembro)}<small>${m.debe_cambiar ? 'Aún no entra' : 'Activo'} · desde ${fecha(m.agregado)}</small></div>
+        <button class="btn btn-g btn-s" data-quitar-m="${esc(m.miembro)}">Quitar</button></div>`).join('') || '<div class="fila"><small>Todavía no agrega a nadie. Lo hace desde la app: Mi cuenta → Mi equipo.</small></div>'}</div>` : ''}
+      ${MIEM.some(m => m.miembro === l.email) ? `<div class="seccion">Es parte del equipo de</div><div class="filas"><div class="fila"><div>${esc(MIEM.find(m => m.miembro === l.email).dueno)}</div></div></div>` : ''}
+
+      <div class="seccion">Dispositivos (${disp.length}/${l.max_dispositivos})</div>
+      <div class="filas">${disp.length ? disp.map(d => `<div class="fila"><div>${esc(d.nombre || 'Dispositivo')}<small>Último uso: ${fechaHora(d.ultimo_uso)}</small></div>
+        <button class="btn btn-g btn-s" data-lib="${d.id}">Liberar</button></div>`).join('') : '<div class="fila"><small>Todavía no entra desde ningún dispositivo.</small></div>'}</div>
+
+      <div class="seccion">Pagos</div>
+      <div class="filas">${pagos.length ? pagos.map(p => `<div class="fila"><div>${p.producto ? esc(PRODUCTOS[p.producto].corto) + ' · ' : ''}${esc(p.plan || 'Tiempo agregado')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
+        <small>${fechaHora(p.creado)} → hasta ${fecha(p.hasta)}${p.nota ? ' · ' + esc(p.nota) : ''}</small></div><b>${p.monto != null ? soles(p.monto) : '—'}</b></div>`).join('') : '<div class="fila"><small>Sin pagos registrados.</small></div>'}</div>
+
+      <div class="pie" style="justify-content:space-between">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn ${l.activo ? 'btn-r' : 'btn-v'} btn-s" id="dBloq">${l.activo ? 'Bloquear acceso' : 'Desbloquear'}</button>
+          <button class="btn btn-r btn-s" id="dBorrar">Eliminar cliente</button>
+        </div>
+        <button class="btn btn-g" id="dCerrar">Cerrar</button>
+      </div>`, () => {
+      const ruta = 'licencias?email=eq.' + q(l.email);
+      $('dCerrar').onclick = cerrar;
+      $('dGuardar').onclick = async () => {
+        const v = $('dVence').value; if (!v) { $('dErr').textContent = 'Pon una fecha.'; return; }
+        try {
+          await A.tabla(ruta, 'PATCH', { nombre: $('dNom').value.trim() || null, telefono: $('dTel').value.trim() || null,
+            vence: new Date(v + 'T23:59:59').toISOString(), producto: $('dProd').value, max_dispositivos: +$('dMax').value, max_equipo: +$('dEq').value, notas: $('dNotas').value.trim() || null, actualizado: new Date().toISOString() });
+          await cargar(); cerrar(); avisar('Cambios guardados');
+        } catch (e) { $('dErr').textContent = A.traducir(e); }
+      };
+      $('dBloq').onclick = async () => {
+        if (l.activo && !confirm('¿Bloquear a ' + l.email + '? No podrá abrir la app hasta que lo desbloquees.')) return;
+        try { await A.tabla(ruta, 'PATCH', { activo: !l.activo, actualizado: new Date().toISOString() }); await cargar(); cerrar(); avisar(l.activo ? 'Acceso bloqueado' : 'Acceso desbloqueado'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      };
+      $('dClave').onclick = () => generarClave(l);
+      document.querySelectorAll('[data-quitar-m]').forEach(b => b.onclick = async () => {
+        if (!confirm('¿Quitar a ' + b.dataset.quitarM + ' del equipo de ' + l.email + '?')) return;
+        try { await A.tabla('equipo_miembros?miembro=eq.' + q(b.dataset.quitarM), 'DELETE'); await cargar(); detalles(LIC.find(x => x.email === l.email)); avisar('Quitado del equipo'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      });
+      $('dBorrar').onclick = async () => {
+        if (!confirm('¿Eliminar a ' + l.email + ' con sus dispositivos, pagos y equipo? No se puede deshacer.')) return;
+        try { await A.tabla(ruta, 'DELETE'); await cargar(); cerrar(); avisar('Cliente eliminado'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      };
+      document.querySelectorAll('[data-lib]').forEach(b => b.onclick = async () => {
+        try { await A.tabla('dispositivos?id=eq.' + b.dataset.lib, 'DELETE'); await cargar(); detalles(LIC.find(x => x.email === l.email)); avisar('Dispositivo liberado'); }
+        catch (e) { $('dErr').textContent = A.traducir(e); }
+      });
+    });
+  }
+
+  $('bNuevo').onclick = () => formulario(null);
+  $('bPrueba').onclick = () => formulario(null, true);
+  $('bPagos').onclick = verPagos;
+  $('bPrecios').onclick = verPrecios;
+
+  // ---------- Lista de precios (se pone sola al registrar un pago) ----------
+  function verPrecios() {
+    const planes = PLANES.filter(p => p.id !== 'prueba' && p.id !== 'otro');
+    abrir(`<h3>🏷️ Precios</h3><p class="sub">Pon cuánto cobras. Al registrar un cliente, el monto se llena solo (igual puedes cambiarlo).</p>
+      <div class="tabla-precios"><div></div>${VENTA.map(k => `<b>${esc(PRODUCTOS[k].corto)}</b>`).join('')}
+      ${planes.map(pl => `<span>${esc(pl.nombre)}</span>${VENTA.map(k => { const v = precioDe(k, pl.id);
+        return `<input type="number" min="0" step="0.5" inputmode="decimal" placeholder="S/" data-pr="${k}|${pl.id}" value="${v == null ? '' : v}">`; }).join('')}`).join('')}</div>
+      <p class="sub" style="margin-top:10px">Consejo: el combo suele ir con descuento frente a comprar las dos por separado.</p>
+      <div class="err" id="prErr"></div>
+      <div class="pie"><button class="btn btn-g" id="prNo">Cerrar</button><button class="btn btn-v" id="prSi">Guardar precios</button></div>`, () => {
+      $('prNo').onclick = cerrar;
+      $('prSi').onclick = async () => {
+        const filas = [...document.querySelectorAll('[data-pr]')].filter(i => i.value !== '').map(i => { const [producto, plan] = i.dataset.pr.split('|'); return { producto, plan, monto: +i.value, actualizado: new Date().toISOString() }; });
+        const vacios = [...document.querySelectorAll('[data-pr]')].filter(i => i.value === '').map(i => i.dataset.pr.split('|'));
+        try {
+          if (filas.length) await A.tabla('precios?on_conflict=producto,plan', 'POST', filas, 'resolution=merge-duplicates');
+          for (const [producto, plan] of vacios) if (precioDe(producto, plan) != null) await A.tabla('precios?producto=eq.' + producto + '&plan=eq.' + plan, 'DELETE');
+          PRECIOS = await A.tabla('precios?select=*'); cerrar(); avisar('Precios guardados');
+        } catch (e) { $('prErr').textContent = A.traducir(e); }
+      };
+    });
+  }
+
+  // ---------- Pagos: todos los cobros, por mes y por método ----------
+  function verPagos() {
+    const meses = [...new Set(PAGOS.map(p => p.creado.slice(0, 7)))].sort().reverse();
+    let mes = meses[0] || new Date().toISOString().slice(0, 7);
+    const nomMes = m => new Date(m + '-15').toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+    const nombreDe = e => { const l = LIC.find(x => x.email === e); return l && l.nombre ? l.nombre : e; };
+    const pintarP = () => {
+      const del = PAGOS.filter(p => p.creado.startsWith(mes)), cob = del.filter(p => Number(p.monto) > 0);
+      const total = cob.reduce((s, p) => s + Number(p.monto), 0), porMet = {};
+      for (const p of cob) porMet[p.metodo || 'Otro'] = (porMet[p.metodo || 'Otro'] || 0) + Number(p.monto);
+      const porProd = {}; for (const p of cob) { const k = PRODUCTOS[p.producto] ? PRODUCTOS[p.producto].corto : 'OXEN'; porProd[k] = (porProd[k] || 0) + Number(p.monto); }
+      const anual = PAGOS.filter(p => p.creado.startsWith(mes.slice(0, 4))).reduce((s, p) => s + Number(p.monto || 0), 0);
+      $('pgCuerpo').innerHTML = `<div class="stats" style="margin:10px 0">
+          <div class="stat"><span>Cobrado en ${nomMes(mes)}</span><b>${soles(total)}</b></div>
+          <div class="stat"><span>Pagos</span><b>${cob.length}</b></div>
+          <div class="stat"><span>Pruebas gratis</span><b>${del.filter(p => !(Number(p.monto) > 0)).length}</b></div>
+          <div class="stat"><span>Total ${mes.slice(0, 4)}</span><b>${soles(anual)}</b></div></div>
+        ${Object.keys(porProd).length ? `<div class="chips" style="margin-bottom:8px">${Object.entries(porProd).map(([m, v]) => `<span class="chip on">${esc(m)} · ${soles(v)}</span>`).join('')}</div>` : ''}
+        ${Object.keys(porMet).length ? `<div class="chips" style="margin-bottom:10px">${Object.entries(porMet).map(([m, v]) => `<span class="chip">${esc(m)} · ${soles(v)}</span>`).join('')}</div>` : ''}
+        <div class="filas">${del.length ? del.map(p => `<div class="fila"><div><b>${esc(nombreDe(p.email))}</b> · ${p.producto ? esc(PRODUCTOS[p.producto].corto) + ' · ' : ''}${esc(p.plan || 'Tiempo')}${p.metodo ? ' · ' + esc(p.metodo) : ''}
+          <small>${fechaHora(p.creado)} · hasta ${fecha(p.hasta)}${p.nota ? ' · ' + esc(p.nota) : ''}</small></div><b>${Number(p.monto) > 0 ? soles(p.monto) : 'Gratis'}</b></div>`).join('')
+          : '<div class="fila"><small>No hay pagos este mes. Se registran solos al crear, renovar o activar a un cliente con su monto.</small></div>'}</div>`;
+    };
+    abrir(`<h3>💰 Pagos</h3>
+      <div class="campo"><label>Mes</label><select id="pgMes">${(meses.length ? meses : [mes]).map(m => `<option value="${m}">${nomMes(m)}</option>`).join('')}</select></div>
+      <div id="pgCuerpo"></div>
+      <div class="pie"><button class="btn btn-g" id="pgCsv">Descargar Excel (CSV)</button><button class="btn btn-g" id="pgCerrar">Cerrar</button></div>`, () => {
+      $('pgMes').onchange = () => { mes = $('pgMes').value; pintarP(); };
+      $('pgCerrar').onclick = cerrar;
+      $('pgCsv').onclick = () => {
+        const c = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        const filas = [['Fecha', 'Cliente', 'Correo', 'Producto', 'Plan', 'Método', 'Monto (S/)', 'Desde', 'Hasta', 'Nota']].concat(PAGOS.map(p => [p.creado.slice(0, 10), nombreDe(p.email), p.email, p.producto ? PRODUCTOS[p.producto].n : 'OXEN PRO', p.plan, p.metodo, p.monto, (p.desde || '').slice(0, 10), (p.hasta || '').slice(0, 10), p.nota]));
+        const b = new Blob(['\ufeff' + filas.map(f => f.map(c).join(';')).join('\r\n')], { type: 'text/csv' }), a = document.createElement('a');
+        a.href = URL.createObjectURL(b); a.download = 'pagos-raiki.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      };
+      pintarP();
+    });
+  }
+
+  // ---------- Instalar como programa ----------
+  const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  let pedido = null;
+  if (!instalado()) $('bInstalar').classList.remove('oculto');
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedido = e; if (!instalado()) $('bInstalar').classList.remove('oculto'); });
+  addEventListener('appinstalled', () => { $('bInstalar').classList.add('oculto'); avisar('¡Panel instalado! Ya lo tienes en tu escritorio.'); });
+  $('bInstalar').onclick = async () => {
+    if (pedido) { pedido.prompt(); await pedido.userChoice; pedido = null; return; }
+    const mac = /Mac/.test(navigator.userAgent) && !/Chrome|Edg/.test(navigator.userAgent);
+    abrir(`<h3>Instalar el panel</h3><p class="sub">Así queda como un programa, con su ícono y su propia ventana.</p>
+      <div class="filas">${mac
+        ? `<div class="fila"><div>En Safari: menú <b>Archivo → Agregar al Dock</b>.</div></div>`
+        : `<div class="fila"><div><b>Chrome o Edge:</b> toca el ícono de instalar ⊕ al final de la barra de direcciones, o el menú <b>⋮ → Transmitir, guardar y compartir → Instalar página como app</b>.</div></div>
+           <div class="fila"><div>Si usas otro navegador, abre esta página en Chrome o Edge.</div></div>`}</div>
+      <div class="pie"><button class="btn btn-v" id="iOk">Entendido</button></div>`, () => { $('iOk').onclick = cerrar; });
+  };
+  // atajo: N = nuevo cliente, / = buscar
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input,textarea,select') || e.ctrlKey || e.metaKey || $('vPanel').classList.contains('oculto') || !$('ventana').classList.contains('oculto')) return;
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); formulario(null); }
+    if (e.key === '/') { e.preventDefault(); $('buscar').focus(); }
+  });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  iniciar();
+})();
+</script>
+</body>
+</html>

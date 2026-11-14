@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Flexio</title>
+<link rel="icon" href="icono-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="estilos.css?v=1.0.0-b573c17">
+</head>
+<body>
+<!-- ============ GALERÍA ============ -->
+<section id="galeria">
+  <header class="gal-cab">
+    <div class="marca"><img src="icono-192.png" alt=""><div><b>Flexio</b><small>Modelado 3D para arquitectos · RAIKI</small></div></div>
+    <div class="grupo">
+      <button class="ib" id="gCuenta" title="Mi cuenta"></button>
+      <button class="ib" id="gAjustes" title="Ajustes"></button>
+    </div>
+  </header>
+  <div class="gal-acciones">
+    <button class="btn-osc" id="gNuevo"></button>
+    <button class="btn-cla" id="gImportar"></button>
+    <button class="btn-cla" id="gTutorial"></button>
+  </div>
+  <div id="gInv" style="max-width:1100px;margin:0 auto"></div>
+  <div id="gLista" class="gal-lista"></div>
+  <h2 class="gal-sub oculto" id="gCompTit">Compartidos conmigo</h2>
+  <div id="gComp" class="gal-lista oculto"></div>
+  <h2 class="gal-sub">Modelos de ejemplo</h2>
+  <div id="gEjemplos" class="gal-lista"></div>
+  <p class="gal-pie">Abre modelos de SketchUp <b>.skp</b>, planos de AutoCAD <b>.dwg</b> y <b>.dxf</b>, y también <b>.dae</b>, <b>.obj</b>, <b>.stl</b> y <b>.r3d</b>.</p>
+</section>
+
+<!-- ============ EDITOR ============ -->
+<section id="editor" class="oculto">
+  <canvas id="gl"></canvas>
+  <canvas id="ov"></canvas>
+
+  <div class="barra-sup">
+    <div class="grupo panel">
+      <button class="ib" id="bAtras" title="Mis modelos"></button>
+      <button class="nombre" id="bNombre">Sin título</button>
+    </div>
+    <div class="grupo panel">
+      <button class="ib" id="bDeshacer" title="Deshacer"></button>
+      <button class="ib" id="bRehacer" title="Rehacer"></button>
+    </div>
+    <div class="grupo panel">
+      <button class="ib" id="bVistas" title="Vistas"></button>
+      <button class="ib" id="bRayos" title="Rayos X"></button>
+      <button class="ib" id="bExt" title="Ver todo"></button>
+      <button class="ib" id="bMat" title="Materiales"></button>
+      <button class="ib" id="bMenu" title="Menú"></button>
+    </div>
+  </div>
+
+  <nav id="herramientas" class="panel"></nav>
+  <div id="herrNombre"></div>
+
+  <div id="contexto" class="oculto"><span id="ctxNombre"></span><button id="ctxSalir">Cerrar grupo</button></div>
+
+  <div class="barra-inf">
+    <div id="opciones" class="panel oculto"></div>
+    <div id="pista"></div>
+  </div>
+
+  <nav id="biblio" class="panel"></nav>
+
+  <button id="vcb" class="panel"><span id="vcbEt">Medidas</span><b id="vcbVal"></b></button>
+  <div id="teclado" class="panel oculto"></div>
+
+  <div id="selBar" class="panel oculto"></div>
+
+  <aside id="pMat" class="lateral panel oculto">
+    <div class="lat-cab"><b>Materiales</b><button class="ib" data-cerrar="pMat"></button></div>
+    <div id="matLista" class="mat-lista"></div>
+    <div class="mat-pie"><label class="chk"><input type="checkbox" id="matGotero"> Tomar de una cara</label><label class="color-prop">Color propio <input type="color" id="matColor" value="#8aa0b4"></label></div>
+  </aside>
+
+  <aside id="pBib" class="lateral panel oculto">
+    <div class="lat-cab"><b id="bibTit">Biblioteca</b><button class="ib" data-cerrar="pBib"></button></div>
+    <div id="bibLista" class="bib-lista"></div>
+    <div id="bibPar" class="bib-par"></div>
+    <div class="bib-pie"><button id="bibImportar"></button></div>
+  </aside>
+
+  <div id="menuVistas" class="menu panel oculto"></div>
+  <div id="menuPpal" class="menu panel oculto"></div>
+</section>
+
+<div id="aviso"></div>
+<div id="dialogo" class="oculto"><div class="dlg panel" id="dlgCaja"></div></div>
+<input type="file" id="archivoBib" multiple accept=".skp,.dae,.obj,.stl,.r3d,application/vnd.sketchup.skp,model/vnd.collada+xml,model/obj,model/stl,application/octet-stream,*/*" hidden>
+<input type="file" id="archivo" accept=".skp,.dwg,.dxf,.dae,.obj,.stl,.r3d,.json,application/vnd.sketchup.skp,image/vnd.dwg,application/acad,application/dwg,image/vnd.dxf,application/dxf,model/vnd.collada+xml,model/obj,model/stl,application/octet-stream,*/*" hidden>
+
+<script src="iconos.js?v=1.0.0-b573c17"></script>
+<script src="geo.js?v=1.0.0-b573c17"></script>
+<script src="render.js?v=1.0.0-b573c17"></script>
+<script src="archivos.js?v=1.0.0-b573c17"></script>
+<script src="cad.js?v=1.0.0-b573c17"></script>
+<script src="componentes.js?v=1.0.0-b573c17"></script>
+<script src="ejemplos.js?v=1.0.0-b573c17"></script>
+<script src="tutorial.js?v=1.0.0-b573c17"></script>
+<script src="raiki-auth.js?v=1.0.0-b573c17"></script>
+<script src="raiki-invitar.js?v=1.0.0-b573c17"></script>
+<script src="app.js?v=1.0.0-b573c17"></script>
+<script src="acceso.js?v=1.0.0-b573c17"></script>
+<script>window.R3D_VERSION = '1.0.0-b573c17';</script>
+</body>
+</html>

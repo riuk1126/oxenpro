@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>OXEN PRO</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icono.png">
+<link rel="stylesheet" href="estilos.css?v=1.16.0-b573c17">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-galeria" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+    <symbol id="i-guias" viewBox="0 0 24 24"><path d="M2 12h20M12 12 3 21M12 12l9 9M12 12V3"/><circle cx="12" cy="12" r="1.6"/></symbol>
+    <symbol id="i-pincel" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5L10 19H5v-5z"/><path d="M12.5 6.5l5 5"/></symbol>
+    <symbol id="i-borrador" viewBox="0 0 24 24"><path d="M9 20h11M4.5 14.5l9-9a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 18H8z"/><path d="M8.5 10.5l5 5"/></symbol>
+    <symbol id="i-relleno" viewBox="0 0 24 24"><path d="M12 4c4.4 0 8 2.5 8 5.5S16.4 15 12 15c-1.3 0-2.6-.2-3.7-.6"/><path d="M12 4C7.6 4 4 6.5 4 9.5c0 1.6 1 3 2.6 4"/><path d="M6.6 13.5c-.6 1.6-.2 3.6 1.4 4.5 1.8 1 3.4.2 3.4-1.5 0-1.4-1.6-2-3-1.4"/></symbol>
+    <symbol id="i-gotero" viewBox="0 0 24 24"><path d="M14 6l4 4M15.5 4.5a2.1 2.1 0 0 1 3 0l1 1a2.1 2.1 0 0 1 0 3L17 11l-4-4z"/><path d="M13 7l-8 8-1 4 4-1 8-8"/></symbol>
+    <symbol id="i-capas" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 16.5l9 5 9-5"/></symbol>
+    <symbol id="i-deshacer" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+    <symbol id="i-rehacer" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></symbol>
+    <symbol id="i-ojo" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-ojo-no" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/></symbol>
+    <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-basura" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-arriba" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+    <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+    <symbol id="i-actualizar" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/></symbol>
+    <symbol id="i-nube" viewBox="0 0 24 24"><path d="M7 18h10.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.4 9.1 4.5 4.5 0 0 0 7 18z"/><path d="M12 15.5v-5M9.8 12.6 12 10.4l2.2 2.2"/></symbol>
+    <symbol id="i-muro" viewBox="0 0 24 24"><path d="M3 5h18v5H3zM3 14h18v5H3z"/><path d="M8 5v5M15 5v5M5.5 14v5M12 14v5M18.5 14v5"/></symbol>
+    <symbol id="i-cota" viewBox="0 0 24 24"><path d="M3 8v8M21 8v8M3 12h18"/><path d="M6.5 9.5 4 12l2.5 2.5M17.5 9.5 20 12l-2.5 2.5"/></symbol>
+    <symbol id="i-texto" viewBox="0 0 24 24"><path d="M5 6V4.5h14V6M12 4.5v15M9 19.5h6"/></symbol>
+    <symbol id="i-simbolo" viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20V8"/><path d="M6 8a12 12 0 0 1 12 12"/></symbol>
+    <symbol id="i-notas" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10h7M8.5 14h7M8.5 18h4"/></symbol>
+    <symbol id="i-ayuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6M12 17h.01"/></symbol>
+ <symbol id="i-seleccion" viewBox="0 0 24 24"><path d="M4 7V4h3M10 4h4M17 4h3v3M20 10v4M20 17v3h-3M14 20h-4M7 20H4v-3M4 14v-4"/><path d="M10 10l7 3-3 1-1 3z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><path d="M9.5 9.5h5M9.5 12h3"/></symbol>
+    <symbol id="i-candado" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-carpeta" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-combinar" viewBox="0 0 24 24"><path d="M12 4v10M7 9l5 5 5-5M4 20h16"/></symbol>
+  </defs>
+</svg>
+
+<!-- ================= GALERÍA ================= -->
+<section id="galeria" class="pantalla">
+  <header class="gal-cab">
+    <div class="marca"><img src="icono.png" alt=""><span>OXEN<b class="pro">PRO</b></span></div>
+    <div class="grupo">
+      <button id="btnNube" class="ib btn-nube" title="Nube"><svg><use href="#i-nube"/></svg></button>
+      <button id="btnAyuda" class="ib" title="Tutorial"><svg><use href="#i-ayuda"/></svg></button>
+      <button id="btnActualizar" class="ib" title="Buscar actualizaciones"><svg><use href="#i-actualizar"/></svg></button>
+      <button id="btnNuevo" class="btn-verde"><svg><use href="#i-mas"/></svg>Nuevo boceto</button>
+    </div>
+  </header>
+  <div id="galAct" class="act-banner oculto"><span id="galActTxt"></span><button class="btn-verde" id="galActBtn">Actualizar</button></div>
+  <div id="galInv"></div>
+  <div id="galFlexio" class="flexio-banner oculto">
+    <img src="flexio.svg" alt="Flexio">
+    <div class="fx-txt"><b>Prueba el nuevo aplicativo: Flexio</b><span>Modelado 3D para arquitectos. Entras con tu misma cuenta RAIKI.</span></div>
+    <button class="fx-btn" id="flexioBajar">Descargar</button>
+    <button class="fx-x" id="flexioCerrar" aria-label="Ocultar">×</button>
+  </div>
+  <div id="galGrid" class="gal-grid"></div>
+  <p id="galVacia" class="gal-vacia">Aún no tienes bocetos. Toca <b>Nuevo boceto</b> para empezar.</p>
+</section>
+
+<!-- ================= LIENZO ================= -->
+<section id="editor" class="pantalla oculto">
+  <div id="escenario">
+    <div id="doc"><canvas id="papel"></canvas><div id="capasDOM"></div></div>
+    <canvas id="vivoCv"></canvas>
+    <canvas id="superpuesto"></canvas>
+    <canvas id="cursorCv"></canvas>
+  </div>
+
+  <header id="barra">
+    <div class="grupo">
+      <button class="ib" id="bGaleria" title="Galería"><svg><use href="#i-galeria"/></svg></button>
+      <button class="ib" id="bMenu" title="Acciones"><svg><use href="#i-menu"/></svg></button>
+      <button class="ib" id="bGuias" title="Guías y perspectiva"><svg><use href="#i-guias"/></svg></button>
+      <button class="ib" id="bNotas" title="Notas y datos de la hoja"><svg><use href="#i-notas"/></svg></button>
+      <button class="act-pill oculto" id="bAct"><svg><use href="#i-actualizar"/></svg>Actualizar</button>
+    </div>
+    <div class="grupo">
+      <button class="ib herr" data-h="pincel" id="bPincel" title="Pincel"><svg><use href="#i-pincel"/></svg></button>
+      <button class="ib herr" data-h="borrador" id="bBorrador" title="Borrador"><svg><use href="#i-borrador"/></svg></button>
+      <button class="ib herr" data-h="relleno" id="bRelleno" title="Relleno con textura"><svg><use href="#i-relleno"/></svg></button>
+      <button class="ib herr" data-h="seleccion" id="bSeleccion" title="Seleccionar y transformar (mover, escalar, girar)"><svg><use href="#i-seleccion"/></svg></button>
+      <span class="sep"></span>
+      <button class="ib herr oculto" data-h="muro" id="bMuro" title="Muro (editable)"><svg><use href="#i-muro"/></svg></button>
+      <button class="ib herr" data-h="cota" id="bCota" title="Cota a escala"><svg><use href="#i-cota"/></svg></button>
+      <button class="ib herr" data-h="texto" id="bTexto" title="Nota / texto"><svg><use href="#i-texto"/></svg></button>
+ <button class="ib herr" data-h="pin" id="bPin" title="Nota en el plano: arrástrala al punto o toca la hoja"><svg><use href="#i-pin"/></svg></button>
+      <button class="ib herr" data-h="simbolo" id="bSimbolo" title="Símbolos: puertas, ventanas, mobiliario…"><svg><use href="#i-simbolo"/></svg></button>
+      <span class="sep"></span>
+      <button class="color-btn" id="bColor" title="Color"><span id="colorActual"></span></button>
+      <button class="ib" id="bCapas" title="Capas"><svg><use href="#i-capas"/></svg></button>
+    </div>
+  </header>
+
+  <aside id="lateral">
+    <div class="vslider" id="sTamano" title="Tamaño"><div class="vs-relleno"></div><div class="vs-mango"></div></div>
+    <button class="ib chico" id="bGotero2" title="Gotero"><svg><use href="#i-gotero"/></svg></button>
+    <div class="vslider" id="sOpacidad" title="Opacidad"><div class="vs-relleno"></div><div class="vs-mango"></div></div>
+    <button class="ib chico" id="bDeshacer" title="Deshacer"><svg><use href="#i-deshacer"/></svg></button>
+    <button class="ib chico" id="bRehacer" title="Rehacer"><svg><use href="#i-rehacer"/></svg></button>
+  </aside>
+
+  <div id="burbuja" class="oculto"><div id="burbujaPunto"></div><span id="burbujaTxt"></span></div>
+  <div id="aviso" class="oculto"></div>
+  <div id="selBar" class="sel-bar oculto">
+    <button id="selGirar15">↻ 15°</button><button id="selGirar">↻ 90°</button><button id="selVoltear">⇋ Voltear</button>
+    <button id="selAncho">Ancho…</button><button id="selSeccion">Sección…</button><button id="selAlto">Alturas…</button><button id="selTexto">Texto…</button><button id="selDup">Duplicar</button><button id="selBorrar" class="peligro">Eliminar</button>
+  </div>
+  <div id="transfBar" class="sel-bar transf-bar oculto">
+    <button id="tfVoltH">⇋ Voltear</button><button id="tfVoltV">⇅ Voltear</button><button id="tfGirar">↻ 90°</button><button id="tfDup">Duplicar</button><button id="tfBorrar" class="peligro">Borrar</button><button id="tfCancelar">Cancelar</button><button id="tfListo" class="ok">Listo</button>
+  </div>
+  <button id="salirSinUI" class="oculto" title="Mostrar la interfaz">⤢</button>
+  <div id="pinGlobo" class="pin-globo oculto"></div>
+  <div id="moverBar" class="sel-bar transf-bar oculto"><span class="mv-et">Arrastra para mover todo el dibujo</span><button id="mvCentrar">Centrar en la hoja</button><button id="mvCancelar">Cancelar</button><button id="mvListo" class="ok">Listo</button></div>
+  <div id="chipLev" class="chip-lev oculto"></div>
+  <div id="terrenoPanel" class="pines-ventana terreno-panel oculto"></div>
+  <div id="pinesVentana" class="pines-ventana oculto"></div>
+  <div id="tip" class="tip oculto"></div>
+
+  <!-- Paneles -->
+  <div id="pPinceles" class="panel oculto">
+    <div class="panel-cols">
+      <nav id="pinCats" class="cats"></nav>
+      <div id="pinLista" class="lista-pinceles"></div>
+    </div>
+    <div class="fila-ajuste"><label>Estabilización</label><input type="range" id="rEstab" min="0" max="0.95" step="0.01"><span id="vEstab"></span></div>
+  </div>
+
+  <div id="pTexturas" class="panel oculto">
+    <div class="seg" id="segRelleno">
+      <button data-v="textura">Textura</button><button data-v="solido">Color sólido</button><button data-v="borrar">Borrar zona</button>
+    </div>
+    <div id="texGrid" class="tex-grid"></div>
+    <div class="fila-ajuste"><label>Escala</label><input type="range" id="rEscala" min="0.3" max="3" step="0.05"><span id="vEscala"></span></div>
+    <p class="nota">Dibuja el contorno con el lápiz y se rellena al soltar. El pincel <b>Textura</b> también usa la textura elegida.</p>
+  </div>
+
+  <div id="pCapas" class="panel oculto">
+    <div class="panel-cab"><b>Capas</b><button class="ib chico" id="bCapaNueva" title="Nueva capa"><svg><use href="#i-mas"/></svg></button></div>
+    <div id="listaCapas"></div>
+    <div class="capa-acciones">
+      <button id="cDuplicar"><svg><use href="#i-copiar"/></svg>Duplicar</button>
+      <button id="cCombinar"><svg><use href="#i-combinar"/></svg>Combinar abajo</button>
+      <button id="cAgrupar"><svg><use href="#i-carpeta"/></svg>Agrupar</button>
+      <button id="cLimpiar">Limpiar</button>
+      <button id="cBorrar" class="peligro"><svg><use href="#i-basura"/></svg>Eliminar</button>
+    </div>
+    <div class="fila-ajuste"><label>Opacidad</label><input type="range" id="rCapaOp" min="0" max="1" step="0.01"><span id="vCapaOp"></span></div>
+    <div class="fila-ajuste"><label>Mezcla</label>
+      <div class="seg chico" id="segMezcla"><button data-v="normal">Normal</button><button data-v="multiply">Multiplicar</button></div>
+    </div>
+  </div>
+
+  <div id="pColor" class="panel oculto">
+    <canvas id="cvSV" width="260" height="170"></canvas>
+    <canvas id="cvHue" width="260" height="22"></canvas>
+    <div class="color-fila"><span id="colorPrev"></span><input id="colorHex" maxlength="7" spellcheck="false"></div>
+    <div id="paletas"></div>
+  </div>
+
+  <div id="pGuias" class="panel oculto">
+    <div class="panel-cab"><b>Guías de dibujo</b></div>
+    <div class="guia-modos" id="guiaModos"></div>
+    <div class="etq">Simetría</div>
+    <div class="seg chico" id="segSim"><button data-v="no">No</button><button data-v="v">↔ Vertical</button><button data-v="h">↕ Horizontal</button><button data-v="4">✛ 4 partes</button></div>
+    <label class="interruptor"><input type="checkbox" id="chkAsist"><span></span>Asistencia de trazo (las líneas se alinean solas)</label>
+    <div class="fila-ajuste"><label>Opacidad</label><input type="range" id="rGuiaOp" min="0.1" max="1" step="0.05"></div>
+    <div class="fila-ajuste"><label>Tamaño</label><input type="range" id="rGuiaTam" min="20" max="300" step="5"></div>
+    <p class="nota" id="guiaNota"></p>
+  </div>
+
+
+  <div id="pSimbolos" class="panel oculto">
+    <div class="panel-cols">
+      <nav id="simCats" class="cats"></nav>
+      <div style="flex:1;min-width:0"><div id="simGrid" class="tex-grid" style="margin-top:0"></div></div>
+    </div>
+    <p class="nota" id="simAyuda">Toca la hoja para ponerlo (en puertas, ventanas y muros arrastra <b>de jamba a jamba</b> y toma el ancho a escala). Después <b>tócalo para seleccionarlo</b>: arrástralo para moverlo y usa la manija verde para girarlo.</p>
+  </div>
+
+  <div id="pNotas" class="panel oculto">
+    <div class="seg" id="segNotas"><button data-v="hoja">Hoja</button><button data-v="lista">Lista</button><button data-v="notas">Notas</button></div>
+    <div id="nHoja" class="n-sec">
+      <div class="fila-ajuste"><label>Tipo de hoja</label><select id="nTipo"></select></div>
+      <div class="fila-ajuste"><label>Escala</label><select id="nEscala"></select></div>
+      <div class="campo"><label>Proyecto</label><input type="text" id="nProyecto" data-k="proyecto" placeholder="Ej.: Vivienda Sr. Ramírez"></div>
+      <div class="campo"><label>Plano / ambiente</label><input type="text" id="nPlano" data-k="plano" placeholder="Ej.: Planta 1er piso"></div>
+      <div class="campo"><label>Ubicación</label><input type="text" id="nUbic" data-k="ubicacion" placeholder="Dirección, distrito"></div>
+      <div class="campo"><label>Levantó / dibujó</label><input type="text" id="nAutor" data-k="autor" placeholder="Tu nombre"></div>
+      <div class="campo"><label>Fecha</label><input type="text" id="nFecha" data-k="fecha"></div>
+      <label class="interruptor"><input type="checkbox" id="nRotulo"><span></span>Mostrar rótulo y escala gráfica</label>
+      <div class="logo-fila"><button class="item n-logo" id="nLogo"></button><button class="item oculto" id="nLogoQuitar">Quitar</button></div>
+      <label class="interruptor"><input type="checkbox" id="nCotaAuto"><span></span>Cota automática al trazar líneas rectas</label>
+      <label class="interruptor"><input type="checkbox" id="nPedir"><span></span>Pedir la medida real al crear una cota</label>
+      <label class="interruptor"><input type="checkbox" id="nVerAnot"><span></span>Ver cotas y notas</label>
+    </div>
+    <div id="nLista" class="n-sec oculto">
+      <div id="nItems"></div>
+      <div class="campo fila"><input type="text" id="nNuevo" placeholder="Agregar pendiente…"><button class="btn-verde chico" id="nAgregar">Agregar</button></div>
+    </div>
+    <div id="nNotas" class="n-sec oculto">
+      <div class="etq">Notas en el plano</div>
+      <div id="nPines" class="pin-lista"></div>
+      <div class="etq">Notas generales</div>
+      <textarea id="nTexto" rows="12" placeholder="Medidas sueltas, observaciones, estado de acabados, pedido del cliente…"></textarea>
+    </div>
+  </div>
+  <div id="pMenu" class="panel oculto">
+    <button class="item" id="mImportar">Imagen de referencia (foto o plano para calcar)…</button>
+    <button class="item" id="mPdfFondo">PDF de fondo (plano para revisar o calcar)…</button>
+    <button class="item" id="mVanos">Cuadro de vanos (puertas y ventanas)</button>
+    <button class="item" id="mCopiar">Copiar y pegar…</button>
+    <button class="item" id="mTerreno">Terreno por medidas…</button>
+    <button class="item" id="mMoverTodo">Mover o centrar todo el dibujo…</button>
+    <button class="item" id="mHoja">Agrandar la hoja…</button>
+    <button class="item" id="mSinUI">Pantalla completa</button>
+    <button class="item" id="mExportar">Exportar imagen PNG</button>
+    <button class="item" id="mExportarJpg">Exportar imagen JPG</button>
+    <button class="item" id="mExportarPdf">Exportar PDF (a escala, para imprimir)</button>
+    <button class="item" id="mExportarDxf">Exportar a CAD (DXF para AutoCAD)</button>
+    <button class="item" id="mPapel">Cambiar papel…</button>
+    <button class="item" id="mVoltear">Voltear vista horizontal</button>
+    <button class="item" id="mAjustar">Ajustar a la pantalla</button>
+    <button class="item" id="mTutorial">Ver tutorial</button>
+    <hr>
+    <div class="fila-ajuste"><label>Presión del lápiz</label><input type="range" id="rPresion" min="0.4" max="2.5" step="0.05"><span id="vPresion"></span></div>
+    <canvas id="cvPresion"></canvas>
+    <p class="nota" id="vPresionReal"></p>
+    <label class="interruptor"><input type="checkbox" id="chkSoloLapiz"><span></span>Solo el lápiz dibuja (el dedo mueve)</label>
+    <label class="interruptor"><input type="checkbox" id="chkZurdo"><span></span>Barra a la derecha (zurdo)</label>
+    <p class="nota">Gestos: 2 dedos = mover, girar y acercar · toque con 2 dedos = deshacer · toque con 3 dedos = rehacer · 3 dedos hacia abajo = copiar y pegar · toque con 4 dedos = pantalla completa · pellizco rápido = encajar la hoja · mantén el lápiz quieto al empezar = tomar color · arrastra el círculo de color a un ambiente para rellenarlo · mantén el trazo al final para enderezar líneas y figuras; sin soltar, mueve el lápiz para agrandarlas o girarlas y toca con un dedo para hacerlas perfectas (círculo, cuadrado, ángulo exacto).</p>
+    <hr>
+    <button class="item" id="mActualizar"><svg style="width:18px;height:18px;vertical-align:-4px;margin-right:8px"><use href="#i-actualizar"/></svg>Buscar actualizaciones</button>
+    <button class="item" id="mFlexio"><img src="flexio.svg" alt="" style="width:18px;height:18px;vertical-align:-4px;margin-right:8px">Descargar Flexio (3D)</button>
+    <p class="nota version">OXEN PRO <span id="verTxt"></span> · <span id="actEstado">al día</span></p>
+  </div>
+
+  <input type="file" id="fImportar" accept="image/*" hidden>
+  <input type="file" id="fPdf" accept="application/pdf,.pdf" hidden>
+  <input type="file" id="fLogo" accept="image/*" hidden>
+  <input type="file" id="fPinceles" multiple hidden>
+</section>
+
+
+<!-- ================= TUTORIAL ================= -->
+<div id="tutorial" class="tutorial oculto">
+  <div class="tut-caja">
+    <div id="tutPasos"></div>
+    <div class="tut-pie"><div id="tutPuntos" class="tut-puntos"></div><div class="tut-btns"><button id="tutSaltar">Saltar</button><button class="btn-verde" id="tutSig">Siguiente</button></div></div>
+  </div>
+</div>
+<!-- ================= DIÁLOGOS ================= -->
+<div id="modal" class="modal oculto"><div class="modal-caja" id="modalCaja"></div></div>
+
+<script>window.PD_VERSION='1.16.0-b573c17';</script>
+<script src="texturas.js?v=1.16.0-b573c17"></script>
+<script src="simbolos.js?v=1.16.0-b573c17"></script>
+<script src="oxen-auth.js?v=1.16.0-b573c17"></script>
+<script src="acceso.js?v=1.16.0-b573c17"></script>
+<script src="muros.js?v=1.16.0-b573c17"></script>
+<script src="exportar.js?v=1.16.0-b573c17"></script>
+<script src="raiki-invitar.js?v=1.16.0-b573c17"></script>
+<script src="app.js?v=1.16.0-b573c17"></script>
+<script src="equipo.js?v=1.16.0-b573c17"></script>
+<script src="nube.js?v=1.16.0-b573c17"></script>
+</body>
+</html>
