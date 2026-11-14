@@ -2053,6 +2053,13 @@
           });
         }
       }
+      // la app carga la web publicada: si hay una más nueva que la que está en pantalla (caché), se recarga sola
+      const aqui = window.R3D_VERSION || '';
+      if (v.version && aqui && aqui.indexOf('__') < 0 && v.version !== aqui) {
+        const enGaleria = $('editor').classList.contains('oculto');
+        if (visible || enGaleria) { avisar('Actualizando Flexio…'); await guardar(); setTimeout(() => location.replace(location.pathname + '?v=' + encodeURIComponent(v.version)), 500); return; }
+        return avisar('Hay una mejora lista: sal a «Mis modelos» y se actualiza sola');
+      }
       if (visible) avisar('Tienes la última versión (' + (v.version || '') + ')');
     } catch (e) { if (visible) avisar('No se pudo comprobar (¿sin internet?)'); }
   }
@@ -2064,6 +2071,7 @@
   herr = H.seleccionar;
   irGaleria();
   document.addEventListener('raiki-listo', () => setTimeout(() => buscarActualizacion(false), 3000), { once: true });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') buscarActualizacion(false); });
   // invitaciones a las otras apps RAIKI (Kivo y OXEN PRO) y registro de este equipo
   document.addEventListener('raiki-listo', () => {
     if (!window.RaikiInvitar || !window.RaikiAuth || !RaikiAuth.sesion()) return;
