@@ -1132,36 +1132,40 @@
   // ---------- muros (modelado arquitectónico) ----------
   // Se traza el eje del muro punto a punto en planta; cada tramo se levanta con la altura y el espesor elegidos,
   // con las esquinas unidas. Cada trazo queda como un grupo «Muro».
-  const EJES_MURO = { centro: 'Al centro', izq: 'A la izquierda', der: 'A la derecha' };
-  function dlgMuros(alListo, titulo) {
-    dialogo(`<h3>${titulo || 'Muros'}</h3><p>Medidas en metros. Las puedes cambiar cuando quieras desde la herramienta Muro.</p>
-      <label>Altura del muro</label><input type="text" inputmode="decimal" id="mAlto" value="${AJ.muroAlto}">
-      <label>Espesor</label><select id="mEspS"><option>0.10</option><option>0.15</option><option>0.20</option><option>0.25</option><option value="">Otro…</option></select><input type="text" inputmode="decimal" id="mEsp" value="${AJ.muroEsp}" style="margin-top:8px">
-      <label>El muro queda, respecto a la línea que trazas</label><select id="mEje">${Object.keys(EJES_MURO).map(k => `<option value="${k}">${EJES_MURO[k]}</option>`).join('')}</select>
+  const EJES_MURO = { centro: 'Muro al centro', izq: 'Muro a la izquierda', der: 'Muro a la derecha' };
+  // una medida a la vez, sin salir del modelo. rapidos: valores de un toque
+  function pedirMedida(titulo, valor, rapidos, min, max, alListo) {
+    dialogo(`<h3>${titulo}</h3>${rapidos.length ? `<div class="rapidos">${rapidos.map(r => `<button data-r="${r}"${Math.abs(r - valor) < 1e-6 ? ' class="on"' : ''}>${r.toFixed(2)}</button>`).join('')}</div>` : ''}
+      <label>En metros</label><input type="text" inputmode="decimal" enterkeyhint="done" id="pmV" value="${+valor.toFixed(3)}">
       <div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Listo</button></div>`, () => {
-      const ss = $('mEspS'), ie = $('mEsp'); const std = [...ss.options].find(o => o.value && Math.abs(+o.value - AJ.muroEsp) < 1e-6);
-      ss.value = std ? std.value : ''; ie.style.display = std ? 'none' : ''; $('mEje').value = AJ.muroEje;
-      ss.onchange = () => { ie.style.display = ss.value ? 'none' : ''; if (!ss.value) ie.focus(); };
-      $('dNo').onclick = cerrarDlg;
-      $('dSi').onclick = () => {
-        const num = t => parseFloat(String(t).replace(',', '.')), h = num($('mAlto').value), e = num(ss.value || ie.value);
-        if (!(h >= 0.05 && h <= 60) || !(e >= 0.02 && e <= 3)) return avisar('Revisa las medidas');
-        AJ.muroAlto = h; AJ.muroEsp = e; AJ.muroEje = $('mEje').value; guardarAjustes(); cerrarDlg(); pintarOpciones(); pista(); pedir(); if (alListo) alListo();
-      };
+      const i = $('pmV'), ok = v => { v = parseFloat(String(v).replace(',', '.')); if (!(v >= min && v <= max)) return avisar('Medida no válida'); cerrarDlg(); alListo(v); pintarOpciones(); pista(); pedir(); };
+      i.onfocus = () => i.select(); i.onkeydown = e => { if (e.key === 'Enter') ok(i.value); };
+      $('dNo').onclick = cerrarDlg; $('dSi').onclick = () => ok(i.value);
+      $('dlgCaja').querySelectorAll('[data-r]').forEach(b => b.onclick = () => ok(b.dataset.r));
     });
   }
   H.muro = {
-    pts: [], cur: null, recien: false, base: null, etiqueta: 'Largo',
-    pista() { return this.pts.length ? 'Toca el siguiente punto del muro · escribe el largo · toca dos veces o «Terminar» para acabar' : `Toca dónde empieza el muro · altura ${fmt(AJ.muroAlto)}, espesor ${fmt(AJ.muroEsp)}`; },
+    pts: [], cur: null, recien: false, base: null, etiqueta: 'Largo', modo: 'trazar',
+    pista() { if (this.modo === 'levantar') return `Toca cada muro del plano (el área entre sus dos líneas) y sube a ${fmt(AJ.muroAlto)}`; return this.pts.length ? 'Toca el siguiente punto del muro · escribe el largo · toca dos veces o «Terminar» para acabar' : `Toca dónde empieza el muro · altura ${fmt(AJ.muroAlto)}, espesor ${fmt(AJ.muroEsp)}`; },
     activa() { return this.pts.length > 0; },
     deshacerSigue() { return this.pts.length > 1; },
-    terminar() { this.pts = []; this.cur = null; this.base = null; ejeBloq.v = null; pista(); pintarOpciones(); pedir(); },
+    terminar() { this.pts = []; this.cur = null; this.base = null; ejeBloq.v = null; if (est.hoverCara) { est.hoverCara = 0; estVer++; } pista(); pintarOpciones(); pedir(); },
+    // cara plana (en planta) bajo el puntero: la del plano importado o una dibujada
+    caraPlano(inf) { const f = inf.golpe && inf.golpe.f; return f && Math.abs(f.n[2]) > 0.999 ? f : null; },
     cancelar() { this.terminar(); },
     opt() { if (!this.pts.length) return {}; const u = this.pts[this.pts.length - 1]; return { desde: u, bloqueo: ejeBloq.v, plano: { n: Z, p0: u }, planoEjes: Z }; },
     punto(inf) { const p = inf.p.slice(); if (this.pts.length) p[2] = this.pts[0][2]; return p; },
-    abajo(inf) { if (!this.pts.length) { this.pts = [this.punto(inf)]; this.base = null; this.recien = true; } else this.recien = false; this.cur = inf; pista(); },
-    mover(inf) { this.cur = inf; },
+    abajo(inf) { if (this.modo === 'levantar') return; if (!this.pts.length) { this.pts = [this.punto(inf)]; this.base = null; this.recien = true; } else this.recien = false; this.cur = inf; pista(); },
+    mover(inf) {
+      this.cur = inf;
+      if (this.modo === 'levantar') { const f = this.caraPlano(inf), id = f ? f.id : 0; if (id !== est.hoverCara) { est.hoverCara = id; estVer++; pedir(); } }
+    },
     arriba(inf, ev, arrastre) {
+      if (this.modo === 'levantar') {
+        const f = this.caraPlano(inf); if (!f) return avisar('Toca un muro del plano: el área cerrada entre sus dos líneas');
+        const id = f.id, d = f.n[2] > 0 ? AJ.muroAlto : -AJ.muroAlto;
+        est.hoverCara = 0; estVer++; operacion(() => m.empujar(id, d)); return;
+      }
       if (!this.pts.length) return; if (this.recien && !arrastre) { this.recien = false; return; }
       this.recien = false; this.cur = inf; this.agregar(this.punto(inf));
     },
@@ -1188,7 +1192,12 @@
       this.agregar(V.add(a, V.mul(V.norm(V.sub(b, a)), L))); return true;
     },
     opciones() {
-      const L = [{ t: 'Altura ' + fmt(AJ.muroAlto), fn: () => dlgMuros() }, { t: 'Espesor ' + fmt(AJ.muroEsp), fn: () => dlgMuros() }, { t: EJES_MURO[AJ.muroEje], fn: () => { const k = Object.keys(EJES_MURO); AJ.muroEje = k[(k.indexOf(AJ.muroEje) + 1) % k.length]; guardarAjustes(); pintarOpciones(); pedir(); } }];
+      const lev = this.modo === 'levantar', L = [];
+      if (!this.pts.length) L.push({ t: 'Trazar muros', on: !lev, fn: () => { this.modo = 'trazar'; this.terminar(); } }, { t: 'Levantar del plano', on: lev, fn: () => { this.modo = 'levantar'; this.terminar(); } });
+      L.push({ t: 'Altura ' + fmt(AJ.muroAlto), fn: () => pedirMedida('Altura del muro', AJ.muroAlto, [2.4, 2.6, 2.8, 3], 0.05, 60, v => { AJ.muroAlto = v; guardarAjustes(); }) });
+      if (!lev) L.push({ t: 'Espesor ' + fmt(AJ.muroEsp), fn: () => pedirMedida('Espesor del muro', AJ.muroEsp, [0.1, 0.15, 0.2, 0.25], 0.02, 3, v => { AJ.muroEsp = v; guardarAjustes(); }) },
+        { t: EJES_MURO[AJ.muroEje], fn: () => { const k = Object.keys(EJES_MURO); AJ.muroEje = k[(k.indexOf(AJ.muroEje) + 1) % k.length]; guardarAjustes(); pintarOpciones(); pedir(); } });
+      if (!this.pts.length) L.push({ t: 'Importar plano', ico: 'importar', fn: () => elegirArchivo(false) });
       if (this.pts.length) L.push(...['x', 'y'].map(k => ({ t: k.toUpperCase(), cls: k, on: ejeBloq.v === EJES[k], fn: () => { ejeBloq.v = ejeBloq.v === EJES[k] ? null : EJES[k]; pintarOpciones(); } })));
       if (this.pts.length >= 3) L.push({ t: 'Cerrar', fn: () => this.agregar(this.pts[0].slice()) });
       if (this.pts.length >= 2) L.push({ t: 'Terminar', fn: () => this.terminar() });
@@ -1706,6 +1715,7 @@
         if (!res) return;
         registrarMatsModelo(); vista('iso');
         entrarContexto(res.gid);
+        if (nombreHerr === 'muro') { H.muro.modo = res.caras ? 'levantar' : 'trazar'; H.muro.terminar(); }
         avisar(`Plano listo: ${res.ancho.toFixed(2)} × ${res.largo.toFixed(2)} m` + (res.caras ? ` · ${res.caras} caras` : ''));
         guardar();
       };
@@ -2011,7 +2021,7 @@
       <div class="fila"><button id="dNo">Cancelar</button></div>`, () => {
       $('dNo').onclick = cerrarDlg;
       $('nLib').onclick = () => { cerrarDlg(); abrirNuevo(nombre(), null); };
-      $('nArq').onclick = () => dlgMuros(async () => { await abrirNuevo(nombre(), null); cam.eye = [7, -9, 11]; cam.apuntar([0, 0, 0]); usar('muro'); avisar('Traza los muros punto a punto. Después coloca puertas y ventanas con la barra de la derecha.'); }, 'Modelado arquitectónico');
+      $('nArq').onclick = async () => { cerrarDlg(); await abrirNuevo(nombre(), null); cam.eye = [7, -9, 11]; cam.apuntar([0, 0, 0]); H.muro.modo = 'trazar'; usar('muro'); avisar('Importa tu plano o traza los muros. La altura y el espesor se cambian en los botones de abajo.'); };
     });
   };
 
