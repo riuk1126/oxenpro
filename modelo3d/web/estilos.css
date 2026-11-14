@@ -205,7 +205,7 @@ input,select{font:inherit}
 .bib-pie .ico{width:18px;height:18px}
 
 /* iconos a dos tintas, de trazo fino: la forma en oscuro con relleno suave y la acción en el color de la marca */
-.ico{stroke-width:1.2}
+.ico{stroke-width:.9}
 .ico .f{fill:#eaebff}.ico .af{fill:var(--acento)}.ico .d{fill:currentColor}.ico .ac{stroke:var(--acento)}
 .ib.on .ico .f,.btn-osc .ico .f,.chip.on .ico .f{fill:#ffffff38}
 .ib.on .ico .af,.ib.on .ico .d,.btn-osc .ico .af,.chip.on .ico .af{fill:#fff}
