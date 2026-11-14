@@ -211,3 +211,6 @@ input,select{font:inherit}
 .ib.on .ico .af,.ib.on .ico .d,.btn-osc .ico .af,.chip.on .ico .af{fill:#fff}
 .ib.on .ico .ac,.btn-osc .ico .ac,.chip.on .ico .ac{stroke:#fff}
 #herramientas .ico,#biblio .ico{width:26px;height:26px}
+.dlg .opc2 button{height:auto;padding:12px 14px;gap:14px}.dlg .opc2 .ico{width:34px;height:34px;flex:none}
+.dlg .opc2 span{display:flex;flex-direction:column;gap:2px}.dlg .opc2 small{color:var(--txt2);font-size:12.5px}
+.dlg input[inputmode]{width:100%;height:44px;border:1px solid var(--linea);border-radius:10px;padding:0 12px;background:#fafafa;-webkit-user-select:text;user-select:text}

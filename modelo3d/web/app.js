@@ -9,7 +9,7 @@
 
   // ---------------- ajustes ----------------
   const K_AJ = 'r3d-ajustes';
-  const AJ = Object.assign({ unidad: 'm', lapiz: 'auto', decimales: 2, ejes: true, aristasSuaves: false, dosDedos: 'orbitar' }, leerLS(K_AJ) || {});
+  const AJ = Object.assign({ unidad: 'm', lapiz: 'auto', decimales: 2, ejes: true, aristasSuaves: false, dosDedos: 'orbitar', muroAlto: 2.6, muroEsp: 0.15, muroEje: 'centro' }, leerLS(K_AJ) || {});
   function leerLS(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function guardarAjustes() { try { localStorage.setItem(K_AJ, JSON.stringify(AJ)); } catch (e) {} }
 
@@ -54,7 +54,7 @@
   // ---------------- historial ----------------
   function guardarDeshacer(antes) { pila.push(antes); if (pila.length > 60) pila.shift(); rehacer.length = 0; cambio(); }
   function operacion(fn) { const antes = m.clonarDatos(); try { fn(); } catch (e) { console.error(e); m.cargar(JSON.parse(antes)); avisar('No se pudo: ' + e.message); return; } guardarDeshacer(antes); }
-  function deshacer() { if (herr && herr.activa && herr.activa()) { herr.cancelar(); return; } if (!pila.length) return avisar('Nada que deshacer'); rehacer.push(m.clonarDatos()); m.cargar(JSON.parse(pila.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Deshecho'); }
+  function deshacer() { if (herr && herr.activa && herr.activa()) { const sigue = herr.deshacerSigue && herr.deshacerSigue(); herr.cancelar(); if (!sigue) return; } if (!pila.length) return avisar('Nada que deshacer'); rehacer.push(m.clonarDatos()); m.cargar(JSON.parse(pila.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Deshecho'); }
   function rehacerOp() { if (!rehacer.length) return; pila.push(m.clonarDatos()); m.cargar(JSON.parse(rehacer.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Rehecho'); }
   let tGuardar = 0;
   function cambio() { pedir(); estVer++; clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
@@ -995,10 +995,10 @@
   function itemsDe(cat) { return Comp.FABRICA.filter(x => x.cat === cat).concat(bib.propios.filter(x => x.cat === cat).sort((a, b) => a.nombre.localeCompare(b.nombre))); }
   function pintarBibBarra() {
     const el = $('biblio');
-    el.innerHTML = Comp.CATS.map(c => `<button class="ib" data-c="${c.id}" title="${c.nombre}">${icono(c.ico)}</button>`).join('') + `<div class="sep"></div><button class="ib" data-c="+" title="Importar modelos a la biblioteca">${icono('importar')}</button>`;
-    el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => b.dataset.c === '+' ? elegirArchivosBib() : abrirBib(b.dataset.c));
+    el.innerHTML = `<button class="ib" data-c="muro" title="Muros">${icono('muro')}</button><div class="sep"></div>` + Comp.CATS.map(c => `<button class="ib" data-c="${c.id}" title="${c.nombre}">${icono(c.ico)}</button>`).join('') + `<div class="sep"></div><button class="ib" data-c="+" title="Importar modelos a la biblioteca">${icono('importar')}</button>`;
+    el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => b.dataset.c === '+' ? elegirArchivosBib() : b.dataset.c === 'muro' ? (cerrarBib(), usar(nombreHerr === 'muro' ? 'seleccionar' : 'muro')) : abrirBib(b.dataset.c));
   }
-  function marcarBib() { const ab = !$('pBib').classList.contains('oculto'); document.querySelectorAll('#biblio [data-c]').forEach(b => b.classList.toggle('on', ab && b.dataset.c === bib.cat)); }
+  function marcarBib() { const ab = !$('pBib').classList.contains('oculto'); document.querySelectorAll('#biblio [data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === 'muro' ? nombreHerr === 'muro' : ab && b.dataset.c === bib.cat)); }
   function cerrarBib() { $('pBib').classList.add('oculto'); marcarBib(); }
   function abrirBib(cat) {
     if (bib.cat === cat && !$('pBib').classList.contains('oculto')) return cerrarBib();
@@ -1129,6 +1129,83 @@
     else avisar(ok === 1 ? 'Importado a la biblioteca' : ok + ' componentes importados');
   }
 
+  // ---------- muros (modelado arquitectónico) ----------
+  // Se traza el eje del muro punto a punto en planta; cada tramo se levanta con la altura y el espesor elegidos,
+  // con las esquinas unidas. Cada trazo queda como un grupo «Muro».
+  const EJES_MURO = { centro: 'Al centro', izq: 'A la izquierda', der: 'A la derecha' };
+  function dlgMuros(alListo, titulo) {
+    dialogo(`<h3>${titulo || 'Muros'}</h3><p>Medidas en metros. Las puedes cambiar cuando quieras desde la herramienta Muro.</p>
+      <label>Altura del muro</label><input type="text" inputmode="decimal" id="mAlto" value="${AJ.muroAlto}">
+      <label>Espesor</label><select id="mEspS"><option>0.10</option><option>0.15</option><option>0.20</option><option>0.25</option><option value="">Otro…</option></select><input type="text" inputmode="decimal" id="mEsp" value="${AJ.muroEsp}" style="margin-top:8px">
+      <label>El muro queda, respecto a la línea que trazas</label><select id="mEje">${Object.keys(EJES_MURO).map(k => `<option value="${k}">${EJES_MURO[k]}</option>`).join('')}</select>
+      <div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Listo</button></div>`, () => {
+      const ss = $('mEspS'), ie = $('mEsp'); const std = [...ss.options].find(o => o.value && Math.abs(+o.value - AJ.muroEsp) < 1e-6);
+      ss.value = std ? std.value : ''; ie.style.display = std ? 'none' : ''; $('mEje').value = AJ.muroEje;
+      ss.onchange = () => { ie.style.display = ss.value ? 'none' : ''; if (!ss.value) ie.focus(); };
+      $('dNo').onclick = cerrarDlg;
+      $('dSi').onclick = () => {
+        const num = t => parseFloat(String(t).replace(',', '.')), h = num($('mAlto').value), e = num(ss.value || ie.value);
+        if (!(h >= 0.05 && h <= 60) || !(e >= 0.02 && e <= 3)) return avisar('Revisa las medidas');
+        AJ.muroAlto = h; AJ.muroEsp = e; AJ.muroEje = $('mEje').value; guardarAjustes(); cerrarDlg(); pintarOpciones(); pista(); pedir(); if (alListo) alListo();
+      };
+    });
+  }
+  H.muro = {
+    pts: [], cur: null, recien: false, base: null, etiqueta: 'Largo',
+    pista() { return this.pts.length ? 'Toca el siguiente punto del muro · escribe el largo · toca dos veces o «Terminar» para acabar' : `Toca dónde empieza el muro · altura ${fmt(AJ.muroAlto)}, espesor ${fmt(AJ.muroEsp)}`; },
+    activa() { return this.pts.length > 0; },
+    deshacerSigue() { return this.pts.length > 1; },
+    terminar() { this.pts = []; this.cur = null; this.base = null; ejeBloq.v = null; pista(); pintarOpciones(); pedir(); },
+    cancelar() { this.terminar(); },
+    opt() { if (!this.pts.length) return {}; const u = this.pts[this.pts.length - 1]; return { desde: u, bloqueo: ejeBloq.v, plano: { n: Z, p0: u }, planoEjes: Z }; },
+    punto(inf) { const p = inf.p.slice(); if (this.pts.length) p[2] = this.pts[0][2]; return p; },
+    abajo(inf) { if (!this.pts.length) { this.pts = [this.punto(inf)]; this.base = null; this.recien = true; } else this.recien = false; this.cur = inf; pista(); },
+    mover(inf) { this.cur = inf; },
+    arriba(inf, ev, arrastre) {
+      if (!this.pts.length) return; if (this.recien && !arrastre) { this.recien = false; return; }
+      this.recien = false; this.cur = inf; this.agregar(this.punto(inf));
+    },
+    agregar(p) {
+      const u = this.pts[this.pts.length - 1];
+      if (V.dist(u, p) < 0.01) { if (this.pts.length > 1) this.terminar(); return; }     // dos toques en el mismo sitio: terminar
+      const cierra = this.pts.length >= 3 && V.dist(this.pts[0], p) < 0.01;
+      if (this.base && pila[pila.length - 1] !== this.base) { this.pts = [u]; this.base = null; }   // se deshizo algo: tramo nuevo
+      const antes = this.base || m.clonarDatos(), P = cierra ? this.pts.slice() : this.pts.concat([p]);
+      try {
+        if (this.base) m.cargar(JSON.parse(this.base));
+        Comp.muro(m, P, { alto: AJ.muroAlto, esp: AJ.muroEsp, eje: AJ.muroEje, cerrado: cierra });
+      } catch (e) { console.error(e); m.cargar(JSON.parse(this.base ? pilaActual : antes)); registrarMatsModelo(); pedir(); return avisar('No se pudo: ' + e.message); }
+      registrarMatsModelo();
+      if (!this.base) { this.base = antes; guardarDeshacer(antes); } else cambio();
+      pilaActual = m.clonarDatos();
+      if (cierra) { avisar('Muros cerrados'); return this.terminar(); }
+      this.pts.push(p); ejeBloq.v = null; pista(); pintarOpciones(); pedir();
+    },
+    valor() { return this.pts.length && this.cur ? fmt(V.dist(this.pts[this.pts.length - 1], this.punto(this.cur))) : ''; },
+    vcb(t) {
+      if (!this.pts.length || !this.cur) return false; const L = leerMedida(t); if (!(L > 0)) return false;
+      const a = this.pts[this.pts.length - 1], b = this.punto(this.cur); if (V.dist(a, b) < 1e-6) return false;
+      this.agregar(V.add(a, V.mul(V.norm(V.sub(b, a)), L))); return true;
+    },
+    opciones() {
+      const L = [{ t: 'Altura ' + fmt(AJ.muroAlto), fn: () => dlgMuros() }, { t: 'Espesor ' + fmt(AJ.muroEsp), fn: () => dlgMuros() }, { t: EJES_MURO[AJ.muroEje], fn: () => { const k = Object.keys(EJES_MURO); AJ.muroEje = k[(k.indexOf(AJ.muroEje) + 1) % k.length]; guardarAjustes(); pintarOpciones(); pedir(); } }];
+      if (this.pts.length) L.push(...['x', 'y'].map(k => ({ t: k.toUpperCase(), cls: k, on: ejeBloq.v === EJES[k], fn: () => { ejeBloq.v = ejeBloq.v === EJES[k] ? null : EJES[k]; pintarOpciones(); } })));
+      if (this.pts.length >= 3) L.push({ t: 'Cerrar', fn: () => this.agregar(this.pts[0].slice()) });
+      if (this.pts.length >= 2) L.push({ t: 'Terminar', fn: () => this.terminar() });
+      return L;
+    },
+    dibujar() {
+      if (!this.pts.length || !this.cur) return;
+      const a = this.pts[this.pts.length - 1], b = this.punto(this.cur); if (V.dist(a, b) < 1e-4) return;
+      const Hh = Comp.huellaMuro([a, b], AJ.muroEsp, AJ.muroEje, false); if (!Hh) return;
+      const B = Hh[0], T = B.map(q => V.add(q, [0, 0, AJ.muroAlto]));
+      poliOV(B, '#6666ff', '#6666ff2e', 2); poliOV(T, '#6666ff', null, 1.2);
+      for (let i = 0; i < B.length; i++) lineaOV(B[i], T[i], '#6666ff', 1.2);
+      lineaOV(a, b, this.cur.tipo === 'eje' ? this.cur.color : '#18191b', 1.4, [5, 4]);
+    }
+  };
+  let pilaActual = null;
+
   const LISTA_H = [
     ['seleccionar', 'Seleccionar', 'Espacio'], ['borrar', 'Borrador', 'E'], ['pintar', 'Pintar', 'B'], '-',
     ['linea', 'Línea', 'L'], ['arco', 'Arco', 'A'], ['rectangulo', 'Rectángulo', 'R'], ['circulo', 'Círculo', 'C'], ['poligono', 'Polígono', 'G'], '-',
@@ -1168,7 +1245,7 @@
     nombreHerr = n; herr = H[n]; ejeBloq.v = null; est.hoverCara = 0; estVer++;
     document.querySelectorAll('#herramientas [data-h]').forEach(b => b.classList.toggle('on', b.dataset.h === n));
     if (n === 'pintar') { $('pMat').classList.remove('oculto'); cerrarBib(); }
-    cerrarVcb(); pintarOpciones(); pista(); pedir();
+    marcarBib(); cerrarVcb(); pintarOpciones(); pista(); pedir();
   }
   function pista() {
     const t = herr && herr.pista ? herr.pista() : '';
@@ -1926,7 +2003,17 @@
   })();
   $('gNuevo').innerHTML = icono('mas') + 'Nuevo modelo'; $('gImportar').innerHTML = icono('importar') + 'Importar'; $('gTutorial').innerHTML = icono('ayuda') + 'Tutorial';
   $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes');
-  $('gNuevo').onclick = () => abrirNuevo('Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }), null);
+  $('gNuevo').onclick = () => {
+    const nombre = () => 'Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+    dialogo(`<h3>Nuevo modelo</h3><p>¿Qué vas a modelar?</p><div class="opc opc2">
+      <button id="nArq">${icono('muro')}<span><b>Modelado arquitectónico</b><small>Muros con su altura y espesor, puertas, ventanas y vanos</small></span></button>
+      <button id="nLib">${icono('cubo')}<span><b>Modelado libre</b><small>Líneas, caras y empujar / tirar, como siempre</small></span></button></div>
+      <div class="fila"><button id="dNo">Cancelar</button></div>`, () => {
+      $('dNo').onclick = cerrarDlg;
+      $('nLib').onclick = () => { cerrarDlg(); abrirNuevo(nombre(), null); };
+      $('nArq').onclick = () => dlgMuros(async () => { await abrirNuevo(nombre(), null); cam.eye = [7, -9, 11]; cam.apuntar([0, 0, 0]); usar('muro'); avisar('Traza los muros punto a punto. Después coloca puertas y ventanas con la barra de la derecha.'); }, 'Modelado arquitectónico');
+    });
+  };
 
   // ---------------- ejemplos ----------------
   const ILUS = {
@@ -1968,7 +2055,7 @@
       { sel: '#herramientas [data-h="empujar"]', antes: () => { const b = document.querySelector('#herramientas [data-h="empujar"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Dale volumen', txt: 'Con <b>Empujar / tirar</b> toca una cara y súbela. Así levantas muros, losas y muebles. Si empujas un rectángulo dibujado en un muro hasta el otro lado, <b>el vano se abre solo</b>.' },
       { sel: '#vcb', tit: 'Medidas exactas', txt: 'Mientras dibujas, toca esta caja y escribe la medida: <b>2.5</b> (metros), <b>250cm</b>, o <b>3;4</b> para un rectángulo de 3 × 4.' },
       { sel: '.barra-sup .grupo:last-child', tit: 'Vistas y materiales', txt: 'Cambia a planta, frente o isométrica; mira a través con <b>Rayos X</b>; <b>Ver todo</b> encuadra el modelo; y <b>Materiales</b> para pintar con colores y texturas.' },
-      { sel: '#biblio', tit: 'Ventanas, puertas y vanos', txt: 'En esta barra eliges una <b>ventana, puerta o vano</b>, le pones <b>ancho, alto y alféizar</b> y tocas el muro: se corta solo y se adapta a su espesor. También guardas aquí <b>tus propios modelos</b> (inodoros, muebles…) o los importas de SketchUp.' },
+      { sel: '#biblio', tit: 'Muros, ventanas, puertas y vanos', txt: 'Con <b>Muro</b> (arriba) trazas los muros punto a punto con su <b>altura y espesor</b>. Luego eliges una <b>ventana, puerta o vano</b>, le pones <b>ancho, alto y alféizar</b> y tocas el muro: se corta solo y se adapta a su espesor. También guardas aquí <b>tus propios modelos</b> (inodoros, muebles…) o los importas de SketchUp.' },
       { sel: '#bMenu', tit: 'Abre tus archivos', txt: 'En <b>Menú → Importar</b> abres modelos de <b>SketchUp (.skp)</b> y planos de <b>AutoCAD (.dwg / .dxf)</b>. El plano llega al suelo, listo para levantar los muros.' },
       { tit: '¡Listo para modelar!', txt: 'En la galería tienes <b>modelos de ejemplo</b> (casa, comedor, escalera y un plano para levantar). Ábrelos, gíralos y cámbialos sin miedo: siempre puedes deshacer.', fin: '¡Empezar!' }
     ]);
