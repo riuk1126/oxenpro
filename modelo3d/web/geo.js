@@ -446,12 +446,15 @@
         if (this.puntoEnCara(f, pi)) { madre = f; break; }
       }
       let mat = 0, matB = 0, sentido = null;
+      if (!madre) for (const b of borradas) { // parte de una cara que ya se dividió: hereda su material y su sentido
+        if (this.coplanares(b.cara, tmp, false) && this.puntoEnCara(b.cara, pi)) { mat = b.mat; matB = b.matB; sentido = b.n; break; }
+      }
       if (madre) {
         const tocaBorde = madre.loops[0].some(v => sL.has(v)) || madre.loops.slice(1).some(h => h.some(v => sL.has(v)));
         mat = madre.mat; matB = madre.matB; sentido = madre.n;
         if (tocaBorde) {
           // la cara se divide: se borra y las partes se crean al recorrer
-          borradas.push({ cara: { n: madre.n, d: madre.d, loops: madre.loops }, n: madre.n, huecos: madre.loops.slice(1).filter(h => !h.some(v => sL.has(v))).map(h => h.slice()) });
+          borradas.push({ cara: { n: madre.n, d: madre.d, loops: madre.loops }, n: madre.n, mat: madre.mat, matB: madre.matB, huecos: madre.loops.slice(1).filter(h => !h.some(v => sL.has(v))).map(h => h.slice()) });
           this.quitarCara(madre.id);
         } else {
           // queda como hueco de la cara madre
@@ -634,10 +637,14 @@
       }
       return 'sacar';
     }
-    empujar(fid, dist) {
+    // o.previa: extrusión rápida para arrastrar (sin unir ni sanar); deja en o lo necesario para moverPrevia()
+    empujar(fid, dist, o) {
       const f = this.f.get(fid); if (!f || Math.abs(dist) < EPS) return fid;
       const tipo = this.tipoEmpuje(fid), n = f.n, desp = V.mul(n, dist), g = f.g;
+      const previa = !!(o && o.previa);
+      if (previa) { o.tipo = tipo; o.n = n.slice(); o.verts = []; }
       if (tipo === 'estirar') {
+        if (previa) for (const v of f.loops[0]) o.verts.push([v, this.P(v).slice()]);
         for (const v of f.loops[0]) this.moverVert(v, V.add(this.P(v), desp));
         for (const v of f.loops[0]) for (const e of this.ve.get(v)) for (const c of this.ef.get(e)) this.calcNormal(this.f.get(c));
         return fid;
@@ -650,7 +657,7 @@
       else if (dist > 0) this.invertirCara(fid);
       // vértices nuevos
       const nuevo = new Map();
-      for (const L of loops) for (const v of L) if (!nuevo.has(v)) nuevo.set(v, this.crearVert(V.add(this.P(v), desp), g));
+      for (const L of loops) for (const v of L) if (!nuevo.has(v)) { nuevo.set(v, this.crearVert(V.add(this.P(v), desp), g)); if (previa) o.verts.push([nuevo.get(v), this.P(v).slice()]); }
       const lados = [];
       const invertirLados = conservarBase && dist < 0;
       for (const L of loops) {
@@ -683,6 +690,7 @@
       const T = this.f.get(tid);
       const debeN = conservarBase ? (dist > 0 ? 1 : -1) : 1;
       if (V.dot(T.n, n) * debeN < 0) { T.loops = T.loops.map(L => L.slice().reverse()); this.calcNormal(T); }
+      if (previa) { this.todoSucio = true; return tid; }
       // unir lados coplanares con caras vecinas (escalones)
       for (const L of loops) for (let i = 0; i < L.length; i++) {
         const e = this.aristaEntre(L[i], L[(i + 1) % L.length]); if (e) this.unirPorArista(e);
@@ -690,6 +698,98 @@
       for (const L of loops) for (const v of L) if (this.v.has(v)) this.sanarVert(v);
       this.todoSucio = true;
       return tid;
+    }
+
+    // mueve la extrusión de vista previa a otra distancia (solo vértices: muy rápido)
+    moverPrevia(o, dist) {
+      const caras = new Set();
+      for (const [v, p0] of o.verts) { if (!this.v.has(v)) continue; this.moverVert(v, V.add(p0, V.mul(o.n, dist))); for (const e of this.ve.get(v)) for (const c of this.ef.get(e)) caras.add(c); }
+      for (const c of caras) { const f = this.f.get(c); if (f) this.calcNormal(f); }
+    }
+
+    // ----- atravesar un sólido (vanos de puertas y ventanas) -----
+    puntoEnCaraOBorde(f, p) {
+      if (Math.abs(V.dot(f.n, p) - f.d) > EPS_PL * 5) return false;
+      if (this.puntoEnCara(f, p)) return true;
+      for (const L of f.loops) for (let i = 0; i < L.length; i++) if (distSeg(p, this.P(L[i]), this.P(L[(i + 1) % L.length])) < 2e-4) return true;
+      return false;
+    }
+    // cara paralela que está detrás de fid (el otro lado del muro) y a qué distancia: { cara, dist } o null
+    fondoDe(fid) {
+      const f = this.f.get(fid); if (!f || f.loops.length !== 1) return null;
+      const o = this.puntoInterior(f), d = V.neg(f.n);
+      let best = null, bt = Infinity;
+      for (const c of this.f.values()) {
+        if (c.id === fid || c.g !== f.g) continue;
+        const den = V.dot(c.n, d); if (Math.abs(den) < 1e-9) continue;
+        const t = (c.d - V.dot(c.n, o)) / den; if (t <= 1e-4 || t >= bt) continue;
+        if (this.puntoEnCara(c, V.add(o, V.mul(d, t)))) { bt = t; best = c; }
+      }
+      if (!best || Math.abs(V.dot(best.n, f.n)) < 1 - 1e-6) return null;
+      for (const v of f.loops[0]) if (!this.puntoEnCaraOBorde(best, V.sub(this.P(v), V.mul(f.n, bt)))) return null;
+      return { cara: best.id, dist: bt };
+    }
+    // vértices (del grupo g) sobre el segmento pa→pb, en orden, creando los extremos si faltan
+    _cadena(pa, pb, g) {
+      const a = this.vertEnAristas(pa, g), b = this.vertEnAristas(pb, g);
+      const A = this.P(a), d = V.sub(this.P(b), A), L2 = V.dot(d, d), r = [[0, a], [1, b]];
+      if (L2 > 1e-14) for (const v of this.v.values()) {
+        if (v.g !== g || v.id === a || v.id === b) continue;
+        const t = V.dot(V.sub(v.p, A), d) / L2; if (t <= 1e-9 || t >= 1 - 1e-9) continue;
+        if (V.dist(V.add(A, V.mul(d, t)), v.p) < EPS && (this.ve.get(v.id) || { size: 0 }).size) r.push([t, v.id]);
+      }
+      return r.sort((x, y) => x[0] - y[0]).map(x => x[1]);
+    }
+    _caraEn(p, n, g) {
+      for (const f of this.f.values()) {
+        if (f.g !== g || Math.abs(V.dot(f.n, n)) < 1 - 1e-6) continue;
+        if (this.puntoEnCara(f, p)) return f;
+      }
+      return null;
+    }
+    // ¿todos los vértices del contorno de la cara caen sobre el polígono Q (lista de puntos)?
+    _sobreContorno(f, Q) {
+      return f.loops[0].every(v => { const p = this.P(v); for (let i = 0; i < Q.length; i++) if (distSeg(p, Q[i], Q[(i + 1) % Q.length]) < 2e-4) return true; return false; });
+    }
+    // Abre un hueco pasante: lleva la cara hasta la cara del fondo y corta las dos (y lo que pise: piso del muro, extremos).
+    perforar(fid, hacia) {
+      const f = this.f.get(fid), fo = f && this.fondoDe(fid); if (!fo) return false;
+      const g = f.g, n = f.n.slice(), T = fo.dist, mat = f.mat, matB = f.matB;
+      const P = f.loops[0].map(v => this.P(v).slice()), Q = P.map(p => V.sub(p, V.mul(n, T)));
+      const N = P.length, qi = V.sub(this.puntoInterior(f), V.mul(n, T));
+      this.quitarCara(fid);
+      // lados del hueco: ¿pisan una cara que ya existe (el piso del muro en una puerta, el extremo del muro)?
+      const lados = [];
+      for (let i = 0; i < N; i++) {
+        const a = P[i], b = P[(i + 1) % N], a2 = Q[i], b2 = Q[(i + 1) % N];
+        const c = V.mul(V.add(V.add(a, b), V.add(a2, b2)), 0.25), nq = V.norm(V.cross(V.sub(b, a), V.sub(a2, a)));
+        lados.push({ quad: [a, b, b2, a2], c, nq, pisa: !!this._caraEn(c, nq, g) });
+      }
+      // primero se trazan todos los cortes y después se quitan las regiones (así no se vuelven a formar)
+      let es = [];
+      for (let i = 0; i < N; i++) es.push(...this.linea(Q[i], Q[(i + 1) % N], g, { forzar: true }));
+      this.buscarCaras(es, g, hacia);
+      for (const l of lados) if (l.pisa) {
+        const [a, b, b2, a2] = l.quad;
+        this.buscarCaras([...this.linea(a, a2, g, { forzar: true }), ...this.linea(b, b2, g, { forzar: true })], g, hacia);
+      }
+      const rf = this._caraEn(qi, n, g);
+      if (rf && this._sobreContorno(rf, Q)) this.quitarCara(rf.id);
+      for (const l of lados) {
+        const [a, b, b2, a2] = l.quad;
+        if (l.pisa) { const r = this._caraEn(l.c, l.nq, g); if (r && this._sobreContorno(r, l.quad)) this.quitarCara(r.id); continue; }
+        const loop = [...this._cadena(a, b, g), ...this._cadena(b, b2, g).slice(1), ...this._cadena(b2, a2, g).slice(1), ...this._cadena(a2, a, g).slice(1, -1)];
+        if (new Set(loop).size !== loop.length || loop.length < 3) continue;
+        const ya = this._caraEn(l.c, l.nq, g);
+        if (!ya) this.cara([loop], g, { mat, matB }); else { ya.mat = mat; ya.matB = matB; }
+      }
+      // aristas que quedaron sin caras (umbral de una puerta) y vértices alineados
+      const vs = new Set();
+      for (let i = 0; i < N; i++) for (const [x, y] of [[P[i], P[(i + 1) % N]], [Q[i], Q[(i + 1) % N]], [P[i], Q[i]]]) for (const v of this._cadena(x, y, g)) vs.add(v);
+      for (const v of vs) for (const e of [...(this.ve.get(v) || [])]) { const E = this.e.get(e); if (E && vs.has(E.a) && vs.has(E.b) && !this.ef.get(e).size) this.quitarArista(e, false); }
+      for (const v of vs) if (this.v.has(v)) { if (!this.sanarVert(v)) this.quitarVertSiSuelto(v); }
+      this.todoSucio = true; this.cambio++;
+      return true;
     }
 
     // ----- equidistancia (offset) del contorno de una cara -----
@@ -886,6 +986,10 @@
     const p = V.add(A, V.mul(d1, s)), q = V.add(C, V.mul(d2, t));
     return [s, t, V.dist(p, q)];
   }
+  function distSeg(p, a, b) {
+    const d = V.sub(b, a), L2 = V.dot(d, d); let t = L2 > 1e-18 ? V.dot(V.sub(p, a), d) / L2 : 0; t = Math.max(0, Math.min(1, t));
+    return V.dist(p, V.add(a, V.mul(d, t)));
+  }
   const nrm2 = a => { const l = Math.hypot(a[0], a[1]) || 1; return [a[0] / l, a[1] / l]; };
   function interLineas(p, d, q, e) {
     const den = d[0] * e[1] - d[1] * e[0]; if (Math.abs(den) < 1e-12) return null;
@@ -894,5 +998,5 @@
   }
 
   G.R3 = G.R3 || {};
-  Object.assign(G.R3, { V, Modelo, triangular, ejesPlano, normalNewell, area2D, dentro2D, segSeg, EPS, EPS_PL });
+  Object.assign(G.R3, { V, Modelo, triangular, ejesPlano, normalNewell, area2D, dentro2D, segSeg, distSeg, EPS, EPS_PL });
 })(typeof window !== 'undefined' ? window : globalThis);

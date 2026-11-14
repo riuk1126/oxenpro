@@ -66,6 +66,8 @@
     <div id="pista"></div>
   </div>
 
+  <nav id="biblio" class="panel"></nav>
+
   <button id="vcb" class="panel"><span id="vcbEt">Medidas</span><b id="vcbVal"></b></button>
   <div id="teclado" class="panel oculto"></div>
 
@@ -77,12 +79,20 @@
     <div class="mat-pie"><label class="chk"><input type="checkbox" id="matGotero"> Tomar de una cara</label><label class="color-prop">Color propio <input type="color" id="matColor" value="#8aa0b4"></label></div>
   </aside>
 
+  <aside id="pBib" class="lateral panel oculto">
+    <div class="lat-cab"><b id="bibTit">Biblioteca</b><button class="ib" data-cerrar="pBib"></button></div>
+    <div id="bibLista" class="bib-lista"></div>
+    <div id="bibPar" class="bib-par"></div>
+    <div class="bib-pie"><button id="bibImportar"></button></div>
+  </aside>
+
   <div id="menuVistas" class="menu panel oculto"></div>
   <div id="menuPpal" class="menu panel oculto"></div>
 </section>
 
 <div id="aviso"></div>
 <div id="dialogo" class="oculto"><div class="dlg panel" id="dlgCaja"></div></div>
+<input type="file" id="archivoBib" multiple accept=".skp,.dae,.obj,.stl,.r3d,application/vnd.sketchup.skp,model/vnd.collada+xml,model/obj,model/stl,application/octet-stream,*/*" hidden>
 <input type="file" id="archivo" accept=".skp,.dwg,.dxf,.dae,.obj,.stl,.r3d,.json,application/vnd.sketchup.skp,image/vnd.dwg,application/acad,application/dwg,image/vnd.dxf,application/dxf,model/vnd.collada+xml,model/obj,model/stl,application/octet-stream,*/*" hidden>
 
 <script src="iconos.js?v=__R3D_VERSION__"></script>
@@ -90,6 +100,7 @@
 <script src="render.js?v=__R3D_VERSION__"></script>
 <script src="archivos.js?v=__R3D_VERSION__"></script>
 <script src="cad.js?v=__R3D_VERSION__"></script>
+<script src="componentes.js?v=__R3D_VERSION__"></script>
 <script src="ejemplos.js?v=__R3D_VERSION__"></script>
 <script src="tutorial.js?v=__R3D_VERSION__"></script>
 <script src="raiki-auth.js?v=__R3D_VERSION__"></script>

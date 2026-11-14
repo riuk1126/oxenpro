@@ -65,7 +65,7 @@ input,select{font:inherit}
 #selBar .chip .ico{width:18px;height:18px}
 #contexto{position:absolute;top:calc(64px + var(--sa-t));left:calc(74px + var(--sa-l));background:var(--osc);color:#fff;border-radius:10px;padding:6px 6px 6px 12px;display:flex;gap:10px;align-items:center;font-size:13px}
 #contexto button{background:#ffffff22;color:#fff;border-radius:7px;padding:5px 10px;font-weight:600}
-.lateral{position:absolute;right:calc(12px + var(--sa-r));top:calc(62px + var(--sa-t));bottom:calc(70px + var(--sa-b));width:262px;display:flex;flex-direction:column;overflow:hidden}
+.lateral{position:absolute;right:calc(70px + var(--sa-r));top:calc(62px + var(--sa-t));bottom:calc(70px + var(--sa-b));width:262px;display:flex;flex-direction:column;overflow:hidden}
 .lat-cab{display:flex;justify-content:space-between;align-items:center;padding:6px 6px 6px 14px;border-bottom:1px solid var(--linea)}
 .mat-lista{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:10px 6px;padding:12px;align-content:start}
 .mat{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;color:var(--txt2);text-align:center}
@@ -116,7 +116,7 @@ input,select{font:inherit}
   #vcb{min-width:160px}
   .nombre{display:none}
   #herramientas{width:50px}
-  .lateral{width:calc(100% - 90px)}
+  .lateral{width:calc(100% - 146px)}
 }
 .dlg p.nota{font-size:13px;margin:-4px 0 12px;color:var(--txt2)}
 
@@ -177,3 +177,29 @@ input,select{font:inherit}
 .dlg .eq-otro input{width:100%}
 .tarjeta small+.eq-nuevo,.tarjeta .eq-tag+.eq-nuevo{margin-left:0}
 .tarjeta .inf .eq-nuevo{margin-left:6px}
+
+/* biblioteca arquitectónica (barra derecha) */
+#biblio{position:absolute;right:calc(10px + var(--sa-r));top:calc(66px + var(--sa-t));display:flex;flex-direction:column;gap:2px;padding:5px;width:52px;max-height:calc(100% - 150px - var(--sa-t) - var(--sa-b));overflow-y:auto;scrollbar-width:none}
+#biblio::-webkit-scrollbar{display:none}
+#biblio .ib{width:42px;height:42px;flex:none;position:relative}
+#biblio .ib.on{background:var(--acento);color:#fff;box-shadow:0 2px 8px #6666ff55}
+#biblio .ib.on::before{content:"";position:absolute;right:-5px;top:8px;bottom:8px;width:3px;border-radius:3px 0 0 3px;background:var(--acento)}
+#biblio .sep{height:1px;background:var(--linea);margin:4px 6px;flex:none}
+.bib-lista{flex:1;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;align-content:start}
+.bib-it{position:relative;border-radius:12px;background:#f4f5f6}
+.bib-it>button:first-child{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;padding:8px 6px 9px;text-align:center}
+.bib-it img,.bib-ico{width:64px;height:64px;display:grid;place-items:center;color:var(--txt2)}.bib-ico .ico{width:34px;height:34px}
+.bib-it b{font-size:12px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}.bib-it small{font-size:10.5px;color:var(--txt2)}
+.bib-it.on{background:#6666ff1f;box-shadow:inset 0 0 0 2px var(--acento)}
+.bib-it .mas{position:absolute;top:2px;right:2px;width:30px;height:30px;border-radius:8px;color:var(--txt2);font-size:18px}
+.bib-vacia{grid-column:1/-1;color:var(--txt2);font-size:13px;text-align:center;padding:18px 8px;line-height:1.4}
+.bib-par{border-top:1px solid var(--linea);padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bib-par:empty{display:none}
+.bib-par-tit{grid-column:1/-1;font-weight:700;font-size:13px}.bib-par-tit small{font-weight:400;color:var(--txt2);margin-left:6px}
+.bib-par label{font-size:11.5px;color:var(--txt2);display:flex;flex-direction:column;gap:3px;justify-content:flex-end}
+.bib-par input{height:40px;border:1px solid var(--linea);border-radius:10px;padding:0 10px;background:#fafafa;font-size:15px;width:100%;-webkit-user-select:text;user-select:text}
+.bib-par input:focus{outline:2px solid var(--acento);border-color:transparent}
+.bib-orig{grid-column:1/-1;justify-content:center;background:#f1f2f4}
+.bib-pie{border-top:1px solid var(--linea);padding:8px 10px}
+.bib-pie button{width:100%;height:40px;border-radius:10px;background:#f1f2f4;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.bib-pie .ico{width:18px;height:18px}

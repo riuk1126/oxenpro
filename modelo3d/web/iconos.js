@@ -18,8 +18,8 @@ window.ICONOS = {
   orbitar: '<path d="m12 8.6 3.6 2v4.1L12 16.7l-3.6-2v-4.1z"/><path d="m8.4 10.6 3.6 2 3.6-2M12 12.6v4.1"/><path d="M4.1 10A8.4 8.4 0 0 1 18.7 6.4"/><path d="m19.3 3.3-.5 3.4-3.3-.7"/><path d="M19.9 14A8.4 8.4 0 0 1 5.3 17.6"/><path d="m4.7 20.7.5-3.4 3.3.7"/>',
   desplazar: '<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V12M14 11V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-1.9L8 14"/>',
   extension: '<path d="M3.5 8V3.5H8M16 3.5h4.5V8M20.5 16v4.5H16M8 20.5H3.5V16"/><circle cx="11.3" cy="11.3" r="3.6"/><path d="m14 14 2.6 2.6"/>',
-  deshacer: '<path d="M8 6 4 10l4 4"/><path d="M4 10h10a6 6 0 0 1 0 12h-3" transform="translate(0 -3)"/>',
-  rehacer: '<path d="m16 6 4 4-4 4"/><path d="M20 10H10a6 6 0 0 0 0 12h3" transform="translate(0 -3)"/>',
+  deshacer: '<path d="M9 14.5 4 9.5l5-5"/><path d="M4.5 9.5H14a5.5 5.5 0 0 1 0 11h-3.5"/>',
+  rehacer: '<path d="m15 14.5 5-5-5-5"/><path d="M19.5 9.5H10a5.5 5.5 0 0 0 0 11h3.5"/>',
   cubo: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
   rayos: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" stroke-dasharray="2.4 2"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
   materiales: '<circle cx="12" cy="12" r="8.5"/><circle cx="8.5" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="15.5" cy="10" r="1.3"/><path d="M12 20.5a3 3 0 0 1 0-6h1.5"/>',
@@ -42,6 +42,14 @@ window.ICONOS = {
   ayuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.7M12 17h.01"/>',
   ojo: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
   copiar: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  ventana: '<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M12 4v16M4 12h16"/>',
+  puerta: '<path d="M6.5 21V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v17"/><path d="M3.5 21h17"/><path d="M14.3 12v1.2"/>',
+  vano: '<path d="M3.5 21V3.5h17V21"/><path d="M8.5 21V9h7v12" stroke-dasharray="2.4 2"/>',
+  bano: '<rect x="5.5" y="3.5" width="5" height="8.5" rx="1"/><path d="M10.5 10.5h8.5a5 5 0 0 1-5 5h-3.5z"/><path d="M12 15.5v5h4v-5.3"/>',
+  cocina: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16"/><path d="M8 6.3h.01M12 6.3h.01M16 6.3h.01"/><rect x="7.5" y="12" width="9" height="5.5" rx="1"/>',
+  mueble: '<path d="M5.5 11V8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v3"/><path d="M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v4.5H3z"/><path d="M6 17.5V20M18 17.5V20"/>',
+  biblioteca: '<path d="m12 3.5 8 4-8 4-8-4z"/><path d="m4 12 8 4 8-4M4 16.5l8 4 8-4"/>',
+  girar: '<path d="M19.5 12a7.5 7.5 0 1 1-2.6-5.7"/><path d="M20 4v4.5h-4.5"/>',
   gotero: '<path d="m14 4.5 5.5 5.5M16.5 7.5 6.8 17.2 4 20l2.8-2.8"/><path d="m11 8 5 5"/>'
 };
 window.icono = (n, cls) => `<svg class="ico ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${window.ICONOS[n] || ''}</svg>`;

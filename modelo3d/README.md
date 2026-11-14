@@ -20,8 +20,14 @@ Seleccionar · Borrador · Pintar (colores y texturas: ladrillo, concreto, mader
 - **Modelos de ejemplo** en la galería: casa de un piso, comedor, escalera y un plano para levantar.
 - Al tocar una herramienta aparece su nombre y cómo se usa; la activa se marca en morado con una línea al costado.
 
+## Arquitectura: vanos, ventanas y puertas
+- **Vano automático:** dibuja un rectángulo en un muro y empújalo con *Empujar / tirar* hasta el otro lado: al llegar se abre solo (también si escribes el espesor). Funciona con puertas que llegan al piso y vanos en el extremo del muro.
+- **Barra derecha (biblioteca):** Ventanas, Puertas, Vanos, Baño, Cocina, Muebles y Otros. Eliges una pieza, escribes **ancho, alto y alféizar** y tocas el muro: lo corta de lado a lado y se adapta a su espesor. Mientras la ubicas ves la distancia a cada borde; después de colocarla puedes escribir la distancia exacta al borde izquierdo o cambiar las medidas en el panel y se vuelve a colocar.
+- **Tus propios componentes:** selecciona algo que modelaste → *A la biblioteca* (nombre y categoría). Los de Puertas y Ventanas abren su vano y se estiran al ancho y alto que les des; los demás (inodoros, muebles…) se colocan en el piso o contra un muro con el ancho, fondo y alto que quieras.
+- **Importar varios a la vez:** botón *Importar modelos* de la barra derecha: eliges muchos `.skp`, `.dae`, `.obj` o `.stl` y cada uno queda como componente (la categoría se adivina por el nombre del archivo). La biblioteca se guarda en el equipo.
+
 ## Gestos
-- **Con lápiz:** el lápiz usa la herramienta; 1 dedo gira; 2 dedos desplazan y hacen zoom.
+- **Con lápiz:** el lápiz usa la herramienta; **2 dedos giran (órbita) y hacen zoom**; 1 dedo o 3 dedos desplazan. En *Ajustes* se puede invertir.
 - **Sin lápiz:** 1 dedo usa la herramienta; 2 dedos giran y hacen zoom; 3 dedos desplazan.
 - Toque con 2 dedos = deshacer · con 3 dedos = rehacer.
 

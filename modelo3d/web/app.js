@@ -9,7 +9,7 @@
 
   // ---------------- ajustes ----------------
   const K_AJ = 'r3d-ajustes';
-  const AJ = Object.assign({ unidad: 'm', lapiz: 'auto', decimales: 2, ejes: true, aristasSuaves: false }, leerLS(K_AJ) || {});
+  const AJ = Object.assign({ unidad: 'm', lapiz: 'auto', decimales: 2, ejes: true, aristasSuaves: false, dosDedos: 'orbitar' }, leerLS(K_AJ) || {});
   function leerLS(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function guardarAjustes() { try { localStorage.setItem(K_AJ, JSON.stringify(AJ)); } catch (e) {} }
 
@@ -582,7 +582,7 @@
   // ---------- empujar / tirar ----------
   let ultimoEmpuje = 0;
   H.empujar = {
-    pista() { return this.fid ? 'Mueve y toca para fijar la altura · escribe la distancia' : 'Toca una cara para empujarla o tirar de ella · dos toques repite la última distancia'; },
+    pista() { return this.fid ? (this.tope != null ? 'Empuja hasta el otro lado y el vano se abre solo · o escribe la distancia' : 'Mueve y toca para fijar la altura · escribe la distancia') : 'Toca una cara para empujarla o tirar de ella · dos toques repite la última distancia'; },
     etiqueta: 'Distancia',
     fid: 0, base: null, dist: 0, ultimoToque: 0, recien: false,
     activa() { return !!this.fid; },
@@ -593,42 +593,80 @@
       const t = Date.now();
       if (t - this.ultimoToque < 380 && this.uf === c.id && ultimoEmpuje) { this.uf = 0; return; }
       this.ultimoToque = t; this.uf = c.id;
-      this.fid = c.id; this.n = c.n.slice(); this.p0 = inf.golpe.p.slice(); this.base = m.serializar(); this.baseTxt = JSON.stringify(this.base); this.dist = 0; this.recien = true;
+      this.fid = c.id; this.n = c.n.slice(); this.p0 = inf.golpe.p.slice(); this.baseTxt = m.clonarDatos(); this.base = JSON.parse(this.baseTxt); this.dist = 0; this.recien = true;
+      // ¿hay una cara paralela detrás (el otro lado del muro)? al llegar a ella se abre el vano solo
+      this.prev = null; this.tope = null; this.iman = 0;
+      if (m.tipoEmpuje(c.id) === 'sacar') { const fo = m.fondoDe(c.id); if (fo) { this.tope = -fo.dist; this.iman = Math.min(0.03, fo.dist * 0.25); } }
       est.hoverCara = 0; estVer++; pista();
     },
-    opt() { return this.fid ? { excluirCaras: new Set([this.fid]) } : {}; },
+    // lo que se está moviendo no sirve de referencia (si no, la cara se "pega" a sí misma)
+    opt() {
+      if (!this.fid) return {};
+      const P = this.prev;
+      if (P && P.verts && !P.excl) {
+        const vs = new Set(P.verts.map(x => x[0])), cs = new Set([this.fid]);
+        for (const v of vs) for (const e of m.ve.get(v) || []) for (const c of m.ef.get(e)) cs.add(c);
+        P.excl = { excluirCaras: cs, excluirVerts: vs };
+      }
+      return P && P.excl ? P.excl : { excluirCaras: new Set([this.fid]) };
+    },
     mover(inf, ev, pres) {
       if (!this.fid) return this.hover(inf);
-      let d;
-      if (inf.tipo === 'extremo' || inf.tipo === 'medio' || (inf.tipo === 'cara' && Math.abs(V.dot(m.f.get(inf.cara) ? m.f.get(inf.cara).n : X, this.n)) > 0.999)) d = V.dot(V.sub(inf.p, this.p0), this.n);
-      else { const ray = cam.rayo(inf.sx, inf.sy); const q = cercanoRecta(this.p0, this.n, ray); if (!q) return; d = V.dot(V.sub(q, this.p0), this.n); }
+      const ray = cam.rayo(inf.sx, inf.sy); const q = cercanoRecta(this.p0, this.n, ray); if (!q) return;
+      let d = V.dot(V.sub(q, this.p0), this.n);
+      // imán: extremos, puntos medios y caras paralelas cercanas al puntero
+      if (inf.tipo === 'extremo' || inf.tipo === 'medio' || (inf.tipo === 'cara' && m.f.get(inf.cara) && Math.abs(V.dot(m.f.get(inf.cara).n, this.n)) > 0.999)) {
+        const di = V.dot(V.sub(inf.p, this.p0), this.n), px = cam.pxPorM(q);
+        if (Math.abs(di - d) * px < 26 && !(this.tope != null && Math.abs(di - this.tope) < 1e-4)) d = di; // el otro lado del muro tiene su propio imán
+      }
       this.aplicar(d);
     },
-    aplicar(d) {
-      this.dist = d; m.cargar(structuredClone(this.base));
-      if (Math.abs(d) > 1e-5) { try { m.empujar(this.fid, d); } catch (e) { console.error(e); } }
+    // La extrusión se arma una sola vez y al arrastrar solo se mueven sus vértices (rápido también en modelos grandes).
+    aplicar(d, exacto) {
+      // imán hacia el otro lado del muro (y un poco más fuerte para salir de él, así no parpadea)
+      if (this.tope != null && d <= this.tope + (exacto ? 1e-4 : this.prev && this.prev.modo === 'perf' ? this.iman * 2.5 : this.iman)) d = this.tope;
+      this.dist = d;
+      const modo = Math.abs(d) < 1e-5 ? 'cero' : (this.tope != null && d === this.tope) ? 'perf' : d > 0 ? '+' : '-';
+      const P = this.prev;
+      if (P && P.verts && (modo === '+' || modo === '-') && (P.modo === modo || (P.tipo !== 'libre' && (P.modo === '+' || P.modo === '-')))) { P.modo = modo; m.moverPrevia(P, d); return pedir(); }
+      if (P && P.modo === modo && (modo === 'cero' || modo === 'perf')) return;
+      if (P) m.cargar(structuredClone(this.base));
+      this.prev = { modo };
+      try {
+        if (modo === 'perf') m.perforar(this.fid, hacia());
+        else if (modo !== 'cero') { const o = { previa: true, modo }; m.empujar(this.fid, d, o); this.prev = o; }
+      } catch (e) { console.error(e); }
       pedir();
     },
     arriba(inf, ev, arrastre) {
       if (!this.fid) {
         // doble toque: repetir
         const c = inf.golpe && inf.golpe.f;
-        if (c && Date.now() - this.ultimoToque < 400 && ultimoEmpuje && !arrastre && this.uf === 0) { const id = c.id; operacion(() => m.empujar(id, ultimoEmpuje)); avisar('Repetido: ' + fmt(ultimoEmpuje)); }
+        if (c && Date.now() - this.ultimoToque < 400 && ultimoEmpuje && !arrastre && this.uf === 0) { const id = c.id; operacion(() => { const fo = ultimoEmpuje < 0 && m.tipoEmpuje(id) === 'sacar' ? m.fondoDe(id) : null; if (fo && -ultimoEmpuje >= fo.dist - 1e-4) m.perforar(id, hacia()); else m.empujar(id, ultimoEmpuje); }); avisar('Repetido: ' + fmt(ultimoEmpuje)); }
         return;
       }
       if (this.recien && !arrastre) { this.recien = false; return; }
       this.fin();
     },
-    fin() { if (Math.abs(this.dist) > 1e-5) { ultimoEmpuje = this.dist; this.ultimaBase = this.baseTxt; this.ultimaCara = this.fid; guardarDeshacer(this.baseTxt); } else m.cargar(structuredClone(this.base)); this.fid = 0; this.base = null; pista(); pedir(); },
+    fin() {
+      const d = this.dist, perf = this.tope != null && d === this.tope;
+      if (this.prev) m.cargar(structuredClone(this.base));
+      if (Math.abs(d) > 1e-5) {
+        try { if (perf) m.perforar(this.fid, hacia()); else m.empujar(this.fid, d); } catch (e) { console.error(e); m.cargar(structuredClone(this.base)); avisar('No se pudo: ' + e.message); this.fid = 0; this.base = null; this.prev = null; return; }
+        ultimoEmpuje = d; this.ultimaBase = this.baseTxt; this.ultimaCara = this.fid; guardarDeshacer(this.baseTxt);
+        if (perf) avisar('Vano abierto');
+      }
+      this.fid = 0; this.base = null; this.prev = null; pista(); pedir();
+    },
     valor() { return this.fid ? fmt(this.dist) : ''; },
     vcb(t) {
       const d = leerMedida(t); if (isNaN(d)) return false;
-      if (this.fid) { const s = Math.sign(this.dist) || 1; this.aplicar(d * s); this.fin(); return true; }
-      if (this.ultimaBase && pila[pila.length - 1] === this.ultimaBase) { const s = Math.sign(ultimoEmpuje) || 1; m.cargar(JSON.parse(this.ultimaBase)); m.empujar(this.ultimaCara, d * s); ultimoEmpuje = d * s; cambio(); return true; }
+      if (this.fid) { const s = Math.sign(this.dist) || (this.tope != null ? -1 : 1); this.aplicar(d * s, true); this.fin(); return true; }
+      if (this.ultimaBase && pila[pila.length - 1] === this.ultimaBase) { const s = Math.sign(ultimoEmpuje) || 1; m.cargar(JSON.parse(this.ultimaBase)); const fo = d * s < 0 && m.tipoEmpuje(this.ultimaCara) === 'sacar' ? m.fondoDe(this.ultimaCara) : null; if (fo && -d * s >= fo.dist - 1e-4) { m.perforar(this.ultimaCara, hacia()); ultimoEmpuje = -fo.dist; } else { m.empujar(this.ultimaCara, d * s); ultimoEmpuje = d * s; } cambio(); return true; }
       return false;
     },
-    cancelar() { if (this.fid) { m.cargar(structuredClone(this.base)); this.fid = 0; this.base = null; pedir(); } est.hoverCara = 0; estVer++; },
-    dibujar() { if (this.fid && Math.abs(this.dist) > 1e-5) textoOV(V.add(this.p0, V.mul(this.n, this.dist)), fmt(this.dist)); }
+    cancelar() { if (this.fid) { m.cargar(structuredClone(this.base)); this.fid = 0; this.base = null; this.prev = null; pedir(); } est.hoverCara = 0; estVer++; },
+    dibujar() { if (this.fid && Math.abs(this.dist) > 1e-5) textoOV(V.add(this.p0, V.mul(this.n, this.dist)), fmt(this.dist) + (this.tope != null && this.dist === this.tope ? ' · atraviesa el muro' : '')); }
   };
 
   // ---------- mover / rotar / escalar (transforman vértices) ----------
@@ -819,6 +857,278 @@
   H.orbitar = { pista: () => 'Arrastra para girar la vista', muestraInf: false, abajo(inf) { this.u = [inf.sx, inf.sy]; this.piv = pivoteEn(inf.sx, inf.sy); }, mover(inf, ev, pres) { if (pres && this.u) { cam.orbitar(this.piv, -(inf.sx - this.u[0]) * 0.008, -(inf.sy - this.u[1]) * 0.008); this.u = [inf.sx, inf.sy]; pedir(); } }, arriba() { this.u = null; } };
   H.desplazar = { pista: () => 'Arrastra para desplazar la vista', muestraInf: false, abajo(inf) { this.u = [inf.sx, inf.sy]; this.piv = pivoteEn(inf.sx, inf.sy); }, mover(inf, ev, pres) { if (pres && this.u) { cam.desplazar(inf.sx - this.u[0], inf.sy - this.u[1], this.piv); this.u = [inf.sx, inf.sy]; pedir(); } }, arriba() { this.u = null; } };
 
+  // =================================================================
+  //  BIBLIOTECA ARQUITECTÓNICA (barra derecha)
+  //  · Ventanas, puertas y vanos paramétricos: se colocan sobre un muro, lo cortan de lado a lado
+  //    y se adaptan a su espesor. Ancho, alto y alféizar se escriben en el panel.
+  //  · Componentes propios (guardados desde la selección) o importados (.skp .dae .obj .stl):
+  //    se colocan a la medida que se les dé; los de puertas y ventanas también abren su vano.
+  // =================================================================
+  const Comp = R3.Comp;
+  const bib = { cat: null, item: null, par: null, propios: [], centrar: false, giro: 0, ajustar: false, mem: new Map() };
+  H.colocar = {
+    muestraInf: false, pos: null, ultimo: null, etiqueta: 'Dist. al borde',
+    pista() {
+      const it = bib.item; if (!it) return 'Elige una ventana, puerta o componente en la barra de la derecha';
+      return it.vano ? 'Toca el muro donde va y arrastra para ubicarlo · después puedes escribir la distancia exacta al borde izquierdo' : 'Toca el piso o un muro para colocarlo · arrastra para ubicarlo';
+    },
+    activa() { return false; },
+    cancelar() { this.pos = null; pedir(); },
+    cancelarToque() { this.pos = null; pedir(); },
+    abajo(inf) { this.pos = this.calcular(inf); },
+    mover(inf) { this.pos = this.calcular(inf); },
+    arriba(inf) { const c = this.calcular(inf); this.pos = null; if (!c) return; if (!c.ok) return avisar(c.msg); this.poner(c); },
+    calcular(inf) {
+      const it = bib.item; if (!it || !bib.par) return null;
+      const gp = inf.golpe;
+      if (!it.vano) return this.libre(inf);
+      if (!gp) return { ok: false, msg: 'Toca un muro para colocar «' + it.nombre + '»' };
+      return this.enMuro(gp.f, gp.p, null);
+    },
+    // rectángulo del vano sobre la cara f, cerca del punto p. izq: distancia exacta al borde izquierdo (o null)
+    enMuro(f, p, izq) {
+      if (Math.abs(f.n[2]) > 0.02) return { ok: false, msg: 'Va en un muro: toca una cara vertical' };
+      const n = V.norm([f.n[0], f.n[1], 0]), u = V.cross(Z, n);
+      let s0 = Infinity, s1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (const v of f.loops[0]) { const q = m.P(v), s = V.dot(q, u); s0 = Math.min(s0, s); s1 = Math.max(s1, s); z0 = Math.min(z0, q[2]); z1 = Math.max(z1, q[2]); }
+      const L = s1 - s0, { w, h, alf } = bib.par;
+      if (w > L + 1e-6) return { ok: false, msg: `No cabe: el muro mide ${fmt(L)} de largo y el vano ${fmt(w)}` };
+      if (alf + h > z1 - z0 + 1e-6) return { ok: false, msg: `No cabe: el muro tiene ${fmt(z1 - z0)} de alto` };
+      let x = izq != null ? izq : Math.round((V.dot(p, u) - s0 - w / 2) / 0.05) * 0.05;
+      if (izq == null && (bib.centrar || Math.abs(x - (L - w) / 2) < 0.04)) x = (L - w) / 2;
+      x = Math.max(0, Math.min(L - w, x));
+      let O = V.add(V.add(p, V.mul(u, s0 + x - V.dot(p, u))), [0, 0, z0 + alf - p[2]]);
+      O = V.sub(O, V.mul(f.n, V.dot(f.n, O) - f.d));
+      const R = [O, V.add(O, V.mul(u, w)), V.add(V.add(O, V.mul(u, w)), [0, 0, h]), V.add(O, [0, 0, h])];
+      const cen = V.add(O, V.add(V.mul(u, w / 2), [0, 0, h / 2]));
+      const base = { f: f.id, O, u, n, w, h, R, cen, izq: x, der: L - w - x, alf };
+      let libre = m.puntoEnCara(f, cen) && R.every(q => m.puntoEnCaraOBorde(f, q));
+      if (libre) for (const Lp of f.loops) for (const v of Lp) { const q = m.P(v), s = V.dot(q, u) - s0 - x, z = q[2] - z0 - alf; if (s > 1e-4 && s < w - 1e-4 && z > 1e-4 && z < h - 1e-4) { libre = false; break; } }
+      if (!libre) return Object.assign(base, { ok: false, msg: 'Aquí choca con otro vano o con el borde del muro' });
+      return Object.assign(base, { ok: true });
+    },
+    libre(inf) {
+      const { w, d, h, alt } = bib.par, gp = inf.golpe, k = bib.giro;
+      const muro = gp && Math.abs(gp.f.n[2]) < 0.02;
+      let n = null, a0 = 0, C = inf.p.slice(), zb = inf.p[2];
+      if (muro) {
+        n = V.norm([gp.f.n[0], gp.f.n[1], 0]); if (gp.atras) n = V.neg(n);
+        const u = V.cross(Z, n); a0 = Math.atan2(u[1], u[0]);
+        zb = Infinity; for (const v of gp.f.loops[0]) zb = Math.min(zb, m.P(v)[2]);
+        C = V.add(gp.p, V.mul(n, (k % 2 ? w : d) / 2));
+      }
+      const a = a0 + k * Math.PI / 2, x = [Math.cos(a), Math.sin(a), 0], y = [-Math.sin(a), Math.cos(a), 0];
+      const O = V.sub(V.sub(C, V.mul(x, w / 2)), V.mul(y, d / 2)); O[2] = zb + alt;
+      return { ok: true, libre: true, O, x, y, w, d, h };
+    },
+    poner(c, reemplazo) {
+      const it = bib.item, antes = m.clonarDatos(); let aviso = it.nombre + ' colocado';
+      try {
+        if (c.libre) Comp.insertar(m, it, { O: c.O, x: c.x, y: c.y }, [c.w / it.dim[0], c.d / it.dim[1], c.h / it.dim[2]], colorAMat);
+        else {
+          const g = m.f.get(c.f).g, R = c.R; let es = [];
+          for (let i = 0; i < 4; i++) es.push(...m.linea(R[i], R[(i + 1) % 4], g, { forzar: true }));
+          m.buscarCaras(es, g, hacia());
+          const reg = m._caraEn(c.cen, c.n, g);
+          if (!reg || !m._sobreContorno(reg, R)) throw new Error('no se pudo abrir el vano aquí');
+          const fo = m.fondoDe(reg.id); let T = 0;
+          if (fo) { T = fo.dist; m.perforar(reg.id, hacia()); }
+          else { m.quitarCara(reg.id); aviso += ' · el muro no tiene espesor aquí: solo se abrió esta cara'; }
+          const mk = { O: c.O, x: c.u, y: V.neg(c.n) };
+          if (it.fabrica) Comp.construirFabrica(m, it, mk, c.w, c.h, T);
+          else {
+            const sy = bib.ajustar && T > 0 ? T / it.dim[1] : 1, dy = (T - it.dim[1] * sy) / 2;
+            Comp.insertar(m, it, { O: V.add(c.O, V.mul(mk.y, dy)), x: mk.x, y: mk.y }, [c.w / it.dim[0], sy, c.h / it.dim[2]], colorAMat);
+          }
+          if (T) aviso += ` · muro de ${fmt(T)} · a ${fmt(c.izq)} del borde`;
+        }
+      } catch (e) { console.error(e); m.cargar(JSON.parse(antes)); registrarMatsModelo(); pedir(); avisar('No se pudo colocar: ' + e.message); return false; }
+      registrarMatsModelo();
+      const base = reemplazo ? this.ultimo.base : antes;
+      if (reemplazo) cambio(); else guardarDeshacer(antes);
+      this.ultimo = c.libre ? null : { c, base, item: it.id };
+      bib.mem.set(it.id, Object.assign({}, bib.par));
+      avisar(aviso); pintarVcb(); return true;
+    },
+    // vuelve a colocar el último vano con otras medidas u otra distancia (mientras no se haya hecho otra cosa)
+    reaplicar(izq) {
+      const U = this.ultimo; if (!U || !bib.item || U.item !== bib.item.id || pila[pila.length - 1] !== U.base) return false;
+      const actual = m.clonarDatos();
+      m.cargar(JSON.parse(U.base)); registrarMatsModelo();
+      const f = m.f.get(U.c.f), c = f && this.enMuro(f, U.c.O, izq != null ? izq : U.c.izq);
+      if (c && c.ok && this.poner(c, true)) return true;
+      m.cargar(JSON.parse(actual)); registrarMatsModelo(); pedir();
+      avisar(c && c.msg ? c.msg : 'No se pudo cambiar'); return true;
+    },
+    valor() { const c = this.pos && this.pos.R ? this.pos : this.ultimo && this.ultimo.c; return c ? fmt(c.izq) : ''; },
+    vcb(t) { const d = leerMedida(t); if (isNaN(d) || d < 0) return false; return this.reaplicar(d); },
+    opciones() {
+      const it = bib.item; if (!it) return [];
+      const L = [];
+      if (it.vano) L.push({ t: 'Centrar en el muro', on: bib.centrar, fn: () => { bib.centrar = !bib.centrar; pintarOpciones(); } });
+      if (it.vano && !it.fabrica) L.push({ t: 'Ajustar al espesor del muro', on: bib.ajustar, fn: () => { bib.ajustar = !bib.ajustar; pintarOpciones(); } });
+      if (!it.vano) L.push({ t: 'Girar 90°', ico: 'girar', fn: () => { bib.giro = (bib.giro + 1) % 4; pedir(); } });
+      L.push({ t: 'Terminar', fn: () => usar('seleccionar') });
+      return L;
+    },
+    dibujar() {
+      const c = this.pos; if (!c) return;
+      if (c.R) {
+        const col = c.ok ? '#6666ff' : '#d64545';
+        poliOV(c.R, col, c.ok ? '#6666ff2e' : '#d6454526', 2);
+        if (c.ok) {
+          const mid = V.add(c.O, [0, 0, c.h / 2]), mid2 = V.add(mid, V.mul(c.u, c.w));
+          if (c.izq > 1e-4) { lineaOV(mid, V.sub(mid, V.mul(c.u, c.izq)), col, 1.2, [4, 3]); textoOV(V.sub(mid, V.mul(c.u, c.izq / 2)), fmt(c.izq)); }
+          if (c.der > 1e-4) { lineaOV(mid2, V.add(mid2, V.mul(c.u, c.der)), col, 1.2, [4, 3]); textoOV(V.add(mid2, V.mul(c.u, c.der / 2)), fmt(c.der)); }
+        }
+      } else if (c.libre) {
+        const B = [c.O, V.add(c.O, V.mul(c.x, c.w)), V.add(V.add(c.O, V.mul(c.x, c.w)), V.mul(c.y, c.d)), V.add(c.O, V.mul(c.y, c.d))], T = B.map(p => V.add(p, [0, 0, c.h]));
+        poliOV(B, '#6666ff', '#6666ff2e', 2); poliOV(T, '#6666ff', null, 1.4);
+        for (let i = 0; i < 4; i++) lineaOV(B[i], T[i], '#6666ff', 1.4);
+        lineaOV(V.lerp(B[0], B[1], 0.5), V.sub(V.lerp(B[0], B[1], 0.5), V.mul(c.y, Math.min(0.25, c.d))), '#6666ff', 2.4); // marca el frente
+      }
+    }
+  };
+  const catDe = id => Comp.CATS.find(x => x.id === id);
+  const dimTxt = it => it.vano ? `${(it.w || it.dim[0]).toFixed(2)} × ${(it.h || it.dim[2]).toFixed(2)}` : it.dim.map(x => x.toFixed(2)).join(' × ');
+  async function cargarPropios() { try { bib.propios = await Comp.Almacen.todos(); } catch (e) { console.error(e); bib.propios = []; } }
+  function itemsDe(cat) { return Comp.FABRICA.filter(x => x.cat === cat).concat(bib.propios.filter(x => x.cat === cat).sort((a, b) => a.nombre.localeCompare(b.nombre))); }
+  function pintarBibBarra() {
+    const el = $('biblio');
+    el.innerHTML = Comp.CATS.map(c => `<button class="ib" data-c="${c.id}" title="${c.nombre}">${icono(c.ico)}</button>`).join('') + `<div class="sep"></div><button class="ib" data-c="+" title="Importar modelos a la biblioteca">${icono('importar')}</button>`;
+    el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => b.dataset.c === '+' ? elegirArchivosBib() : abrirBib(b.dataset.c));
+  }
+  function marcarBib() { const ab = !$('pBib').classList.contains('oculto'); document.querySelectorAll('#biblio [data-c]').forEach(b => b.classList.toggle('on', ab && b.dataset.c === bib.cat)); }
+  function cerrarBib() { $('pBib').classList.add('oculto'); marcarBib(); }
+  function abrirBib(cat) {
+    if (bib.cat === cat && !$('pBib').classList.contains('oculto')) return cerrarBib();
+    bib.cat = cat; $('pMat').classList.add('oculto'); $('pBib').classList.remove('oculto'); pintarBib(); marcarBib();
+  }
+  function pintarBib() {
+    const c = catDe(bib.cat); if (!c) return;
+    $('bibTit').textContent = c.nombre;
+    const L = itemsDe(bib.cat), el = $('bibLista');
+    el.innerHTML = L.length ? L.map(it => `<div class="bib-it${bib.item && bib.item.id === it.id ? ' on' : ''}"><button data-it="${it.id}">${it.mini ? `<img src="${it.mini}" alt="">` : `<span class="bib-ico">${icono(c.ico)}</span>`}<b>${esc(it.nombre)}</b><small>${dimTxt(it)} m</small></button>${it.fabrica ? '' : `<button class="mas" data-mas="${it.id}">⋯</button>`}</div>`).join('')
+      : `<div class="bib-vacia">Todavía no tienes nada en <b>${c.nombre}</b>.<br><br>Toca <b>Importar modelos</b> para traer tus archivos de SketchUp (.skp), o modela algo aquí, selecciónalo y toca <b>«A la biblioteca»</b>.</div>`;
+    el.querySelectorAll('[data-it]').forEach(b => b.onclick = () => elegirItem(L.find(x => x.id === b.dataset.it)));
+    el.querySelectorAll('[data-mas]').forEach(b => b.onclick = () => opcionesComp(L.find(x => x.id === b.dataset.mas)));
+    pintarBibPar();
+  }
+  function elegirItem(it) {
+    if (!it) return;
+    bib.item = it; bib.giro = 0; H.colocar.ultimo = null; H.colocar.pos = null;
+    bib.par = Object.assign({}, bib.mem.get(it.id) || (it.vano ? { w: it.w || it.dim[0], h: it.h || it.dim[2], alf: it.alf || 0 } : { w: it.dim[0], d: it.dim[1], h: it.dim[2], alt: 0 }));
+    usar('colocar'); pintarBib();
+  }
+  function pintarBibPar() {
+    const el = $('bibPar'), it = bib.item, p = bib.par;
+    if (!it || !p || it.cat !== bib.cat) { el.innerHTML = ''; return; }
+    const campos = it.vano ? [['w', 'Ancho'], ['h', 'Alto'], ['alf', 'Alféizar (desde el piso)']] : [['w', 'Ancho'], ['d', 'Fondo'], ['h', 'Alto'], ['alt', 'Altura sobre el piso']];
+    el.innerHTML = `<div class="bib-par-tit">${esc(it.nombre)}<small>medidas en metros</small></div>` + campos.map(([k, t]) => `<label>${t}<input type="text" inputmode="decimal" enterkeyhint="done" data-k="${k}" value="${+p[k].toFixed(3)}"></label>`).join('') + (it.fabrica ? '' : `<button class="chip bib-orig" id="bibOrig">Tamaño original</button>`);
+    el.querySelectorAll('[data-k]').forEach(i => {
+      i.onfocus = () => i.select();
+      i.onkeydown = e => { if (e.key === 'Enter') i.blur(); };
+      i.onchange = () => {
+        const k = i.dataset.k, v = parseFloat(String(i.value).replace(',', '.')), min = k === 'alf' || k === 'alt' ? 0 : 0.02;
+        if (!(v >= min) || v > 60) { i.value = +p[k].toFixed(3); return avisar('Medida no válida'); }
+        p[k] = v; i.value = +v.toFixed(3); bib.mem.set(it.id, Object.assign({}, p));
+        if (nombreHerr !== 'colocar') usar('colocar'); else H.colocar.reaplicar(null);
+        pedir();
+      };
+    });
+    if ($('bibOrig')) $('bibOrig').onclick = () => { bib.mem.delete(it.id); elegirItem(it); };
+  }
+  const opcCats = (sel, conVanos) => Comp.CATS.filter(c => conVanos || c.id !== 'vanos').map(c => `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${c.nombre}</option>`).join('');
+  function opcionesComp(it) {
+    if (!it) return;
+    dialogo(`<h3>${esc(it.nombre)}</h3><label>Nombre</label><input type="text" id="cNom" value="${esc(it.nombre)}"><label>Categoría</label><select id="cCat">${opcCats(it.cat)}</select>
+      <label class="chk" style="margin-top:12px;color:inherit"><input type="checkbox" id="cVano" ${it.vano ? 'checked' : ''}> Abre un vano en el muro al colocarlo (puertas y ventanas)</label>
+      <div class="fila"><button class="peligro" id="cBorrar" style="margin-right:auto">Eliminar</button><button id="dNo">Cancelar</button><button class="pri" id="dSi">Guardar</button></div>`, () => {
+      $('dNo').onclick = cerrarDlg;
+      $('dSi').onclick = async () => { it.nombre = $('cNom').value.trim() || it.nombre; it.cat = $('cCat').value; it.vano = $('cVano').checked; if (it.vano && it.alf == null) it.alf = 0; await Comp.Almacen.guardar(it); cerrarDlg(); if (bib.item && bib.item.id === it.id) { bib.item = null; bib.par = null; if (nombreHerr === 'colocar') usar('seleccionar'); } bib.cat = it.cat; pintarBib(); marcarBib(); };
+      $('cBorrar').onclick = async () => { await Comp.Almacen.borrar(it.id); cerrarDlg(); if (bib.item && bib.item.id === it.id) { bib.item = null; bib.par = null; if (nombreHerr === 'colocar') usar('seleccionar'); } await cargarPropios(); pintarBib(); avisar('Eliminado de la biblioteca'); };
+    });
+  }
+  // de un modelo suelto (selección o archivo) a un registro de la biblioteca
+  function componenteDe(tmp, nombre, cat, vano) {
+    if (vano == null) vano = cat === 'ventanas' || cat === 'puertas';
+    const r = Comp.normalizar(tmp, vano); if (!r || (!r.datos.f.length && !r.datos.e.length)) throw new Error('sin geometría');
+    const dim = r.dim.map(x => Math.max(x, 0.001));
+    return { id: Comp.nuevoId(), nombre, cat, vano, dim, alf: cat === 'ventanas' ? 0.9 : 0, datos: JSON.stringify(r.datos), mini: Comp.miniatura(r.datos), fecha: Date.now() };
+  }
+  function guardarSelEnBiblioteca() {
+    const s = selActual(), caras = new Set(s.caras), aristas = new Set(s.aristas);
+    for (const g of s.grupos) { const E = m.entidadesGrupo(g); E.caras.forEach(c => caras.add(c)); E.aristas.forEach(e => aristas.add(e)); }
+    if (!caras.size && !aristas.size) return;
+    const nomDef = s.grupos.length === 1 && !s.caras.length ? (m.grupos.get(s.grupos[0]) || {}).nombre || 'Mi componente' : 'Mi componente';
+    const porNombre = Comp.categoriaPorNombre(nomDef), catDef = porNombre !== 'otros' ? porNombre : (bib.cat && bib.cat !== 'vanos' && !$('pBib').classList.contains('oculto') ? bib.cat : 'otros');
+    dialogo(`<h3>Guardar en la biblioteca</h3><label>Nombre</label><input type="text" id="cNom" value="${esc(nomDef)}"><label>Categoría</label><select id="cCat">${opcCats(catDef)}</select>
+      <label class="chk" style="margin-top:12px;color:inherit"><input type="checkbox" id="cVano"> Abre un vano en el muro al colocarlo (puertas y ventanas)</label>
+      <p class="nota" style="margin-top:12px">Queda en la barra derecha. Al colocarlo le das el ancho y el alto que necesites y se adapta.</p>
+      <div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Guardar</button></div>`, () => {
+      const sync = () => { const c = $('cCat').value; $('cVano').checked = c === 'ventanas' || c === 'puertas'; };
+      sync(); $('cCat').onchange = sync; $('dNo').onclick = cerrarDlg;
+      $('dSi').onclick = async () => {
+        try {
+          const tmp = new Modelo(), vm = new Map(), nv = v => { if (!vm.has(v)) vm.set(v, tmp.crearVert(m.P(v), 0)); return vm.get(v); };
+          for (const c of caras) { const F = m.f.get(c); if (F) tmp.cara(F.loops.map(L => L.map(nv)), 0, { mat: F.mat, matB: F.matB, sg: F.sg }); }
+          for (const c of caras) { const F = m.f.get(c); if (F) for (const e of m.aristasCara(F)) aristas.add(e); }
+          for (const e of aristas) { const E = m.e.get(e); if (!E) continue; const a = nv(E.a), b = nv(E.b), id = tmp.aristaEntre(a, b) || tmp.arista(a, b, 0); const N = tmp.e.get(id); if (N) { N.s = E.s; N.c = E.c; } }
+          tmp.mats = (m.mats || []).slice();
+          const comp = componenteDe(tmp, $('cNom').value.trim() || nomDef, $('cCat').value, $('cVano').checked);
+          await Comp.Almacen.guardar(comp); await cargarPropios(); cerrarDlg();
+          bib.cat = comp.cat; $('pMat').classList.add('oculto'); $('pBib').classList.remove('oculto'); pintarBib(); marcarBib();
+          avisar('Guardado en ' + catDe(comp.cat).nombre);
+        } catch (e) { console.error(e); cerrarDlg(); avisar('No se pudo guardar: ' + e.message); }
+      };
+    });
+  }
+  // ----- importar archivos a la biblioteca (varios a la vez) -----
+  function elegirArchivosBib() { const i = $('archivoBib'); i.value = ''; i.click(); }
+  $('archivoBib').onchange = () => {
+    const fs = [...$('archivoBib').files]; if (!fs.length) return;
+    const def = bib.cat && bib.cat !== 'vanos' && !$('pBib').classList.contains('oculto') ? bib.cat : '';
+    dialogo(`<h3>Importar a la biblioteca</h3><p>${fs.length === 1 ? esc(fs[0].name) : fs.length + ' archivos'}. Cada archivo queda como un componente para colocar en tus modelos.</p>
+      <label>Categoría</label><select id="cCat"><option value="">Automática, por el nombre del archivo</option>${opcCats(def)}</select>
+      ${fs.some(f => /\.(obj|stl)$/i.test(f.name)) ? '<label>Unidades de los .obj y .stl</label><select id="cUni"><option value="0">Automáticas</option><option value="1">Metros</option><option value="0.01">Centímetros</option><option value="0.001">Milímetros</option><option value="0.0254">Pulgadas</option></select>' : ''}
+      <p class="nota" style="margin-top:12px">Los de <b>Puertas</b> y <b>Ventanas</b> abren su vano en el muro y se adaptan al ancho, alto y alféizar que les des.</p>
+      <div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Importar</button></div>`, () => {
+      $('dNo').onclick = cerrarDlg; $('dSi').onclick = () => { const c = $('cCat').value, u = $('cUni') ? +$('cUni').value : 0; cerrarDlg(); importarABiblioteca(fs, c, u); };
+    });
+  };
+  async function archivoAComponente(f, cat, unidad) {
+    const ext = (f.name.split('.').pop() || '').toLowerCase(), nombre = f.name.replace(/\.\w+$/, '').replace(/[_-]+/g, ' ').trim() || 'Componente';
+    const tmp = new Modelo(); tmp.mats = [];
+    if (ext === 'r3d' || ext === 'json') { const d = JSON.parse(await f.text()); tmp.cargar(d.modelo || d); }
+    else {
+      let datos;
+      if (ext === 'skp') datos = await R3.CAD.leerSKP(await f.arrayBuffer());
+      else if (ext === 'dae') datos = Archivos.leerDAE(await f.text());
+      else if (ext === 'obj') datos = Archivos.leerOBJ(await f.text());
+      else if (ext === 'stl') datos = Archivos.leerSTL(await f.arrayBuffer());
+      else throw new Error('formato no soportado');
+      if (!datos.polis.length) throw new Error('sin geometría');
+      let escala = datos.unidad || unidad || 0;
+      // sin unidades en el archivo: un mueble o una puerta no miden más de unos metros
+      if (!escala) { let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity]; for (const p of datos.polis) for (const q of p.p) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], q[k]); mx[k] = Math.max(mx[k], q[k]); } const t = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]); escala = t > 1500 ? 0.001 : t > 12 ? 0.01 : 1; }
+      const col = hex => { let x = tmp.mats.find(y => y.color === hex) || MATERIALES.find(y => y.color === hex && !y.tex); if (x) return x.id; x = { id: 101 + tmp.mats.length, nombre: 'Color ' + hex.slice(1), color: hex }; tmp.mats.push(x); return x.id; };
+      Archivos.aModelo(tmp, datos, escala, datos.yArriba, nombre, col);
+    }
+    return componenteDe(tmp, nombre, cat || Comp.categoriaPorNombre(nombre));
+  }
+  async function importarABiblioteca(fs, cat, unidad) {
+    let ok = 0, ultima = null; const mal = [];
+    for (let i = 0; i < fs.length; i++) {
+      avisar(`Importando ${i + 1} de ${fs.length}: ${fs[i].name}`); await new Promise(r => setTimeout(r, 40));
+      try { const c = await archivoAComponente(fs[i], cat, unidad); await Comp.Almacen.guardar(c); ok++; ultima = c.cat; }
+      catch (e) { console.error(e); mal.push(fs[i].name); }
+    }
+    await cargarPropios();
+    if (ultima) { bib.cat = ultima; $('pMat').classList.add('oculto'); $('pBib').classList.remove('oculto'); pintarBib(); marcarBib(); }
+    if (mal.length) dialogo(`<h3>${ok} importados, ${mal.length} sin abrir</h3><p>No se pudieron leer: ${mal.map(esc).join(', ')}.</p><p class="nota">${navigator.onLine ? 'Si es un .skp, en SketchUp expórtalo como COLLADA (.dae) y vuelve a intentarlo.' : 'La primera vez que abres un .skp necesitas internet para descargar el lector.'}</p><div class="fila"><button class="pri" id="dOk">Entendido</button></div>`, () => $('dOk').onclick = cerrarDlg);
+    else avisar(ok === 1 ? 'Importado a la biblioteca' : ok + ' componentes importados');
+  }
+
   const LISTA_H = [
     ['seleccionar', 'Seleccionar', 'Espacio'], ['borrar', 'Borrador', 'E'], ['pintar', 'Pintar', 'B'], '-',
     ['linea', 'Línea', 'L'], ['arco', 'Arco', 'A'], ['rectangulo', 'Rectángulo', 'R'], ['circulo', 'Círculo', 'C'], ['poligono', 'Polígono', 'G'], '-',
@@ -857,7 +1167,7 @@
     if (!silencio && n !== nombreHerr) setTimeout(() => mostrarNombre(n), 0);
     nombreHerr = n; herr = H[n]; ejeBloq.v = null; est.hoverCara = 0; estVer++;
     document.querySelectorAll('#herramientas [data-h]').forEach(b => b.classList.toggle('on', b.dataset.h === n));
-    if (n === 'pintar') $('pMat').classList.remove('oculto');
+    if (n === 'pintar') { $('pMat').classList.remove('oculto'); cerrarBib(); }
     cerrarVcb(); pintarOpciones(); pista(); pedir();
   }
   function pista() {
@@ -980,10 +1290,10 @@
     if (T.length !== gesto.n) return iniciarGestoToque();
     const c = centro(T), sep = separacion(T, c), dx = c[0] - gesto.c[0], dy = c[1] - gesto.c[1];
     if (Math.hypot(dx, dy) > 1 || Math.abs(sep - gesto.sep) > 1) movioToques = movioToques || T.some(p => p.movio);
-    const unoOrbita = modoLapiz ? T.length === 1 : T.length === 2;
-    const panea = modoLapiz ? T.length === 2 : T.length >= 3;
-    if (unoOrbita) cam.orbitar(gesto.piv, -dx * 0.007, -dy * 0.007);
-    if (panea || (!modoLapiz && T.length === 2 && false)) cam.desplazar(dx, dy, gesto.piv);
+    // 2 dedos giran (órbita) y hacen zoom; 1 dedo (con lápiz) o 3 dedos desplazan. En Ajustes se puede invertir.
+    const dosGira = AJ.dosDedos !== 'desplazar';
+    const orbita = T.length === 2 ? dosGira : T.length === 1 ? !dosGira : false;
+    if (orbita) cam.orbitar(gesto.piv, -dx * 0.007, -dy * 0.007); else cam.desplazar(dx, dy, gesto.piv);
     if (T.length >= 2 && gesto.sep > 10 && sep > 10) { const f = gesto.sep / sep; if (Math.abs(f - 1) > 0.002) { const zp = pivoteEn(c[0], c[1]); cam.zoom(gesto.zoomP || (gesto.zoomP = zp), f); } }
     gesto.c = c; gesto.sep = sep; pedir();
   }
@@ -1063,6 +1373,7 @@
     const extra = n ? ' · ' + area.toFixed(2) + ' m²' : a === 1 || (a && !n) ? ' · ' + fmt(largo) : '';
     const acc = [];
     if (n || a) acc.push(['grupo', 'Agrupar', hacerGrupoSel]);
+    if (n || a || g) acc.push(['biblioteca', 'A la biblioteca', guardarSelEnBiblioteca]);
     if (g === 1 && !n && !a) acc.push(['explotar', 'Explotar', explotarSel], ['grupo', 'Editar', () => entrarContexto([...est.selGrupos][0])]);
     if (n) acc.push(['invertir', 'Invertir caras', invertirSel]);
     acc.push(['papelera', 'Borrar', borrarSeleccion], ['cerrar', '', limpiarSel]);
@@ -1134,8 +1445,8 @@
   ]);
   $('bRayos').onclick = () => { if (vis) { vis.rayos = !vis.rayos; pintarBotones(); pedir(); } };
   $('bExt').onclick = () => verTodo();
-  $('bMat').onclick = () => { $('pMat').classList.toggle('oculto'); pintarMateriales(); };
-  document.querySelectorAll('[data-cerrar]').forEach(b => { b.innerHTML = icono('cerrar'); b.onclick = () => $(b.dataset.cerrar).classList.add('oculto'); });
+  $('bMat').onclick = () => { $('pMat').classList.toggle('oculto'); cerrarBib(); pintarMateriales(); };
+  document.querySelectorAll('[data-cerrar]').forEach(b => { b.innerHTML = icono('cerrar'); b.onclick = () => { $(b.dataset.cerrar).classList.add('oculto'); marcarBib(); }; });
   $('bDeshacer').onclick = deshacer; $('bRehacer').onclick = rehacerOp;
   $('ctxSalir').onclick = () => { limpiarSel(); salirContexto(); };
   $('bMenu').onclick = () => menu('menuPpal', [
@@ -1179,15 +1490,19 @@
       <label>Unidades</label><select id="aU"><option value="m">Metros</option><option value="cm">Centímetros</option><option value="mm">Milímetros</option></select>
       <label>Decimales (metros)</label><select id="aD"><option>2</option><option>3</option></select>
       <label>Lápiz</label><select id="aL"><option value="auto">Automático: si hay lápiz, el lápiz dibuja y los dedos mueven la vista</option><option value="siempre">Siempre en modo lápiz</option><option value="nunca">Sin lápiz: el dedo también dibuja</option></select>
+      <label>Mover la vista con los dedos</label><select id="aG"><option value="orbitar">2 dedos giran (órbita) · 1 dedo con lápiz o 3 dedos desplazan</option><option value="desplazar">2 dedos desplazan · 1 dedo con lápiz gira</option></select>
       <div class="fila"><button class="pri" id="dOk">Listo</button></div>`, () => {
+      $('aG').value = AJ.dosDedos || 'orbitar';
       $('aU').value = AJ.unidad; $('aD').value = String(AJ.decimales); $('aL').value = AJ.lapiz;
-      $('dOk').onclick = () => { AJ.unidad = $('aU').value; AJ.decimales = +$('aD').value; AJ.lapiz = $('aL').value; modoLapiz = AJ.lapiz === 'siempre' || (AJ.lapiz === 'auto' && modoLapiz); if (AJ.lapiz === 'nunca') modoLapiz = false; guardarAjustes(); cerrarDlg(); pista(); pintarSelBar(); pedir(); };
+      $('dOk').onclick = () => { AJ.unidad = $('aU').value; AJ.decimales = +$('aD').value; AJ.lapiz = $('aL').value; AJ.dosDedos = $('aG').value; modoLapiz = AJ.lapiz === 'siempre' || (AJ.lapiz === 'auto' && modoLapiz); if (AJ.lapiz === 'nunca') modoLapiz = false; guardarAjustes(); cerrarDlg(); pista(); pintarSelBar(); pedir(); };
     });
   }
   function dlgAyuda() {
     dialogo(`<h3>Gestos y atajos</h3><ul class="ayuda">
-      <li><b>Con lápiz:</b> el lápiz usa la herramienta; 1 dedo gira la vista; 2 dedos desplazan y hacen zoom.</li>
+      <li><b>Con lápiz:</b> el lápiz usa la herramienta; <b>2 dedos giran la vista (órbita) y hacen zoom</b>; 1 dedo o 3 dedos la desplazan.</li>
       <li><b>Sin lápiz:</b> 1 dedo usa la herramienta; 2 dedos giran y hacen zoom; 3 dedos desplazan.</li>
+      <li>En <b>Ajustes</b> puedes cambiar qué hacen los 2 dedos.</li>
+      <li><b>Vanos:</b> dibuja un rectángulo en el muro y empújalo hasta el otro lado: se abre solo. O usa las <b>ventanas, puertas y vanos</b> de la barra derecha.</li>
       <li><b>Toque con 2 dedos</b> = deshacer · <b>con 3 dedos</b> = rehacer.</li>
       <li>Las herramientas funcionan <b>tocando dos veces</b> (inicio y fin) o <b>arrastrando</b>.</li>
       <li><b>Medidas:</b> mientras dibujas, toca la caja de abajo a la derecha y escribe el valor exacto (3;4 para un rectángulo, 36l para los lados de un círculo, x3 para repetir copias).</li>
@@ -1638,7 +1953,7 @@
 
   // ---------------- tutorial ----------------
   const GESTOS = `<div class="tuto-gestos">
-    <div><b>${icono('lapiz')} Con lápiz</b><span>El lápiz dibuja</span><span>1 dedo gira</span><span>2 dedos: zoom y desplazar</span></div>
+    <div><b>${icono('lapiz')} Con lápiz</b><span>El lápiz dibuja</span><span>2 dedos: girar y zoom</span><span>1 dedo desplaza</span></div>
     <div><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V12m0-1a1.5 1.5 0 0 1 3 0v3.5a6 6 0 0 1-6 6h-.6a5 5 0 0 1-4-2L5 15.5a1.5 1.5 0 0 1 2.3-1.9L9 15"/></svg> Sin lápiz</b><span>1 dedo dibuja</span><span>2 dedos: girar y zoom</span><span>3 dedos desplazan</span></div>
   </div><p class="tuto-mini">Toque con 2 dedos = deshacer · con 3 dedos = rehacer</p>`;
   function verTutorial() {
@@ -1650,9 +1965,10 @@
       { tit: 'Mover la vista', ilus: GESTOS, txt: '' },
       { sel: '#herramientas [data-h="orbitar"]', antes: () => { const b = document.querySelector('#herramientas [data-h="orbitar"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Órbita', txt: 'Si prefieres no usar gestos: con <b>Órbita</b> arrastras y la vista <b>gira alrededor del modelo</b>, como si caminaras a su alrededor. La <b>mano</b> de abajo mueve la vista sin girarla.' },
       { sel: '#herramientas [data-h="rectangulo"]', antes: () => { const b = document.querySelector('#herramientas [data-h="rectangulo"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Dibuja en el suelo', txt: 'Elige <b>Rectángulo</b>, toca una esquina y luego la opuesta. Toda figura cerrada forma una <b>cara</b>.' },
-      { sel: '#herramientas [data-h="empujar"]', antes: () => { const b = document.querySelector('#herramientas [data-h="empujar"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Dale volumen', txt: 'Con <b>Empujar / tirar</b> toca una cara y súbela. Así levantas muros, losas y muebles.' },
+      { sel: '#herramientas [data-h="empujar"]', antes: () => { const b = document.querySelector('#herramientas [data-h="empujar"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Dale volumen', txt: 'Con <b>Empujar / tirar</b> toca una cara y súbela. Así levantas muros, losas y muebles. Si empujas un rectángulo dibujado en un muro hasta el otro lado, <b>el vano se abre solo</b>.' },
       { sel: '#vcb', tit: 'Medidas exactas', txt: 'Mientras dibujas, toca esta caja y escribe la medida: <b>2.5</b> (metros), <b>250cm</b>, o <b>3;4</b> para un rectángulo de 3 × 4.' },
       { sel: '.barra-sup .grupo:last-child', tit: 'Vistas y materiales', txt: 'Cambia a planta, frente o isométrica; mira a través con <b>Rayos X</b>; <b>Ver todo</b> encuadra el modelo; y <b>Materiales</b> para pintar con colores y texturas.' },
+      { sel: '#biblio', tit: 'Ventanas, puertas y vanos', txt: 'En esta barra eliges una <b>ventana, puerta o vano</b>, le pones <b>ancho, alto y alféizar</b> y tocas el muro: se corta solo y se adapta a su espesor. También guardas aquí <b>tus propios modelos</b> (inodoros, muebles…) o los importas de SketchUp.' },
       { sel: '#bMenu', tit: 'Abre tus archivos', txt: 'En <b>Menú → Importar</b> abres modelos de <b>SketchUp (.skp)</b> y planos de <b>AutoCAD (.dwg / .dxf)</b>. El plano llega al suelo, listo para levantar los muros.' },
       { tit: '¡Listo para modelar!', txt: 'En la galería tienes <b>modelos de ejemplo</b> (casa, comedor, escalera y un plano para levantar). Ábrelos, gíralos y cámbialos sin miedo: siempre puedes deshacer.', fin: '¡Empezar!' }
     ]);
@@ -1686,7 +2002,8 @@
   const cmpVer = (a, b) => { const A = String(a).split('.').map(Number), B = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0); } return 0; };
 
   // ---------------- inicio ----------------
-  pintarHerramientas(); pintarMateriales();
+  pintarHerramientas(); pintarMateriales(); pintarBibBarra(); cargarPropios();
+  $('bibImportar').innerHTML = icono('importar') + ' Importar modelos'; $('bibImportar').onclick = elegirArchivosBib;
   herr = H.seleccionar;
   irGaleria();
   document.addEventListener('raiki-listo', () => setTimeout(() => buscarActualizacion(false), 3000), { once: true });
@@ -1696,5 +2013,5 @@
     let disp = leerLS('r3d-dispositivo'); if (!disp) { disp = (crypto.randomUUID ? crypto.randomUUID() : 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2)); try { localStorage.setItem('r3d-dispositivo', JSON.stringify(disp)); } catch (e) {} }
     RaikiInvitar.iniciar({ app: 'flexio', rpc: (n, x) => RaikiAuth.rpc(n, x), contenedor: () => $('gInv'), dispositivo: disp, version: window.R3D_VERSION, nativo: N, avisar, email: () => (RaikiAuth.sesion() || {}).email || '' });
   }, { once: true });
-  window.R3D = { m, cam, H, usar, inferir, abrirNuevo, verTodo, vista, est, operacion, pedir, guardar, exportar, avisar }; // para pruebas
+  window.R3D = { m, cam, H, usar, inferir, abrirNuevo, verTodo, vista, est, operacion, pedir, guardar, exportar, avisar, bib, elegirItem, abrirBib, archivoAComponente, cargarPropios }; // para pruebas
 })();
