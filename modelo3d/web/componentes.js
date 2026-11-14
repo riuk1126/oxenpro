@@ -137,40 +137,6 @@
     return 'otros';
   }
 
-  // ---------------- muros ----------------
-  // Huella de un muro a partir de su eje (lista de puntos en planta). e = espesor; eje: 'centro' | 'izq' | 'der'
-  // (a qué lado del trazo queda el muro). Devuelve los contornos en planta: [exterior] o [exterior, interior] si cierra.
-  function huellaMuro(P, e, eje, cerrado) {
-    const Q = [];
-    for (const p of P) if (!Q.length || Math.hypot(p[0] - Q[Q.length - 1][0], p[1] - Q[Q.length - 1][1]) > 1e-4) Q.push(p);
-    if (Q.length > 2 && Math.hypot(Q[0][0] - Q[Q.length - 1][0], Q[0][1] - Q[Q.length - 1][1]) < 1e-4) { Q.pop(); cerrado = true; }
-    const n = Q.length; if (n < 2) return null; if (n < 3) cerrado = false;
-    const a = eje === 'izq' ? e : eje === 'der' ? 0 : e / 2, b = e - a, z = P[0][2];
-    const dir = (i, j) => { const x = Q[j][0] - Q[i][0], y = Q[j][1] - Q[i][1], l = Math.hypot(x, y) || 1; return [x / l, y / l]; };
-    const L = [], R = [];
-    for (let i = 0; i < n; i++) {
-      const d1 = i > 0 || cerrado ? dir((i + n - 1) % n, i) : null, d2 = i < n - 1 || cerrado ? dir(i, (i + 1) % n) : null;
-      const n1 = d1 && [-d1[1], d1[0]], n2 = d2 && [-d2[1], d2[0]];
-      let md = n1 || n2, k = 1;
-      if (n1 && n2) { const sx = n1[0] + n2[0], sy = n1[1] + n2[1], l = Math.hypot(sx, sy); if (l > 1e-6) { md = [sx / l, sy / l]; k = 1 / Math.max(0.25, md[0] * n2[0] + md[1] * n2[1]); } else md = n2; }
-      L.push([Q[i][0] + md[0] * a * k, Q[i][1] + md[1] * a * k, z]); R.push([Q[i][0] - md[0] * b * k, Q[i][1] - md[1] * b * k, z]);
-    }
-    const area = C => { let s = 0; for (let i = 0; i < C.length; i++) { const p = C[i], q = C[(i + 1) % C.length]; s += p[0] * q[1] - q[0] * p[1]; } return s / 2; };
-    const ccw = C => area(C) < 0 ? C.slice().reverse() : C, cw = C => area(C) > 0 ? C.slice().reverse() : C;
-    if (!cerrado) return [ccw(L.concat(R.reverse()))];
-    return Math.abs(area(L)) >= Math.abs(area(R)) ? [ccw(L), cw(R)] : [ccw(R), cw(L)];
-  }
-  // Levanta el muro (un grupo): huella + altura. Devuelve el id del grupo.
-  function muro(m, P, o) {
-    const H = huellaMuro(P, o.esp, o.eje, o.cerrado); if (!H) return 0;
-    const g = m.id(); m.grupos.set(g, { id: g, nombre: 'Muro ' + o.esp.toFixed(2) + ' · h ' + o.alto.toFixed(2) });
-    const loops = H.map(C => C.map(p => m.vert(p, g)));
-    if (loops.some(L => new Set(L).size !== L.length || L.length < 3)) { m.grupos.delete(g); throw new Error('el muro se cruza consigo mismo'); }
-    const fid = m.cara(loops, g, { mat: o.mat || 0, matB: o.mat || 0 });
-    const f = m.f.get(fid); m.empujar(fid, f.n[2] > 0 ? o.alto : -o.alto);
-    return g;
-  }
-
   // ---------------- almacén (IndexedDB aparte: no toca los modelos) ----------------
   let dbp = null;
   function db() {
@@ -189,5 +155,5 @@
   };
   const nuevoId = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-  R3.Comp = { huellaMuro, muro, CATS, FABRICA, cajas, construirFabrica, insertar, normalizar, miniatura, categoriaPorNombre, Almacen, nuevoId, aMundo };
+  R3.Comp = { CATS, FABRICA, cajas, construirFabrica, insertar, normalizar, miniatura, categoriaPorNombre, Almacen, nuevoId, aMundo };
 })(typeof window !== 'undefined' ? window : globalThis);

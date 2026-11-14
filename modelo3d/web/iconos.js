@@ -42,7 +42,6 @@ window.ICONOS = {
   ayuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.7M12 17h.01"/>',
   ojo: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
   copiar: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
-  muro: '<path class="f" d="M3 6h18v12H3z"/><path class="af" d="M6 10h6v4H6z"/><path d="M3 10h18M3 14h18M9 6v4M15 6v4M6 10v4M12 10v4M18 10v4M9 14v4M15 14v4"/>',
   ventana: '<rect class="f" x="3.5" y="3.5" width="17" height="17" rx="1.2"/><path class="af" d="M6 6h5v5H6zM13 13h5v5h-5z" stroke="none"/><path d="M12 3.5v17M3.5 12h17"/>',
   puerta: '<path d="M2.5 21h19"/><path class="f" d="M6 21V4.2a1.2 1.2 0 0 1 1.2-1.2h9.6A1.2 1.2 0 0 1 18 4.2V21z"/><circle class="af" cx="14.8" cy="12.5" r="1.5"/>',
   vano: '<path class="f" d="M3 21V3.5h18V21h-5V9.5H8V21z"/><path class="ac" d="M8 21h8" stroke-dasharray="2 2.2"/>',

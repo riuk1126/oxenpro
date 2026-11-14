@@ -792,6 +792,47 @@
       return true;
     }
 
+    // Tapa un vano rectangular hecho con perforar() en un muro vertical (para poder cambiarle las medidas o quitarlo).
+    // O: esquina inferior izquierda en la cara de frente; u: a lo ancho; n: normal de esa cara; w, h; T: espesor (0 = una sola cara).
+    // Soporta el vano dentro del muro (ventana) y el que llega al piso (puerta). Si no reconoce la forma, lanza un error.
+    cerrarVano(g, O, u, n, w, h, T) {
+      const e = 3e-4, loc = p => { const d = V.sub(p, O); return [V.dot(d, u), -V.dot(d, n), d[2]]; };
+      const en = p => { const q = loc(p); return q[0] > -e && q[0] < w + e && q[1] > -e && q[1] < T + e && q[2] > -e && q[2] < h + e; };
+      // 1) caras laterales del hueco
+      for (const f of [...this.f.values()]) if (f.g === g && Math.abs(V.dot(f.n, n)) < 1e-6 && f.loops.every(L => L.every(v => en(this.P(v))))) this.quitarCara(f.id);
+      // 2) cara de frente y cara de fondo
+      let hechos = 0; const umbral = [];
+      const soltar = (f, L) => { for (let i = 0; i < L.length; i++) { const x = this.aristaEntre(L[i], L[(i + 1) % L.length]); if (x) this.ef.get(x).delete(f.id); } };
+      for (const y0 of T > e ? [0, T] : [0]) for (const f of [...this.f.values()]) {
+        if (f.g !== g || Math.abs(V.dot(f.n, n)) < 1 - 1e-6 || Math.abs(loc(this.P(f.loops[0][0]))[1] - y0) > e) continue;
+        for (let k = f.loops.length - 1; k >= 0; k--) {
+          const L = f.loops[k], S = L.filter(v => en(this.P(v)));
+          if (!S.length) continue;
+          if (k > 0) { if (S.length !== L.length) throw new Error('el vano está unido a otro'); soltar(f, L); f.loops.splice(k, 1); hechos++; continue; }
+          // escotadura de puerta: dos esquinas arriba (z = h) entre dos puntos del piso (z = 0)
+          const altas = S.filter(v => Math.abs(loc(this.P(v))[2] - h) < e), bajas = S.filter(v => Math.abs(loc(this.P(v))[2]) < e);
+          if (altas.length !== 2 || bajas.length !== 2 || S.length !== 4) throw new Error('esta forma de vano no se puede cambiar');
+          soltar(f, L); f.loops[0] = L.filter(v => !altas.includes(v)); this._registrarLoop(f, f.loops[0]); hechos++;
+          umbral.push(bajas.slice().sort((a, b) => loc(this.P(a))[0] - loc(this.P(b))[0]));
+        }
+        f.tri = null; this.calcNormal(f); this.tocar(f.id);
+      }
+      if (!hechos) throw new Error('no se encontró el vano en el muro');
+      // 3) piso del muro bajo una puerta
+      if (umbral.length === 2) {
+        const [[a, d], [a2, d2]] = umbral, ea = this.aristaEntre(a, a2), ed = this.aristaEntre(d, d2);
+        const vec = [...(ea ? this.ef.get(ea) : [])].map(x => this.f.get(x)).find(x => Math.abs(x.n[2]) > 0.999) || [...(ed ? this.ef.get(ed) : [])].map(x => this.f.get(x)).find(x => Math.abs(x.n[2]) > 0.999);
+        const fid = this.cara([[a, d, d2, a2]], g, vec ? { mat: vec.mat, matB: vec.matB } : null), F = this.f.get(fid);
+        if (V.dot(F.n, vec ? vec.n : [0, 0, -1]) < 0) this.invertirCara(fid);
+        for (const [x, y] of [[a, a2], [d, d2]]) { const ee = this.aristaEntre(x, y); if (ee && this.e.has(ee)) { if (this.unirPorArista(ee, true) && this.e.has(ee) && !this.ef.get(ee).size) this.quitarArista(ee, false); } }
+      }
+      // 4) limpiar aristas y vértices del hueco
+      for (const E of [...this.e.values()]) if (E.g === g && !this.ef.get(E.id).size && en(this.P(E.a)) && en(this.P(E.b))) this.quitarArista(E.id, false);
+      for (const v of [...this.v.values()]) if (v.g === g && this.v.has(v.id) && en(v.p)) { if (!this.sanarVert(v.id)) this.quitarVertSiSuelto(v.id); }
+      this.todoSucio = true; this.cambio++;
+      return true;
+    }
+
     // ----- equidistancia (offset) del contorno de una cara -----
     equidistancia(fid, dist, hacia) {
       const f = this.f.get(fid); if (!f) return [];
@@ -944,7 +985,7 @@
         v: [...this.v.values()].map(v => [v.id, +v.p[0].toFixed(6), +v.p[1].toFixed(6), +v.p[2].toFixed(6), v.g]),
         e: [...this.e.values()].map(e => [e.id, e.a, e.b, e.g, e.s, e.c]),
         f: [...this.f.values()].map(f => [f.id, f.loops, f.g, f.mat, f.matB, f.sg]),
-        grupos: [...this.grupos.values()].map(g => [g.id, g.nombre]),
+        grupos: [...this.grupos.values()].map(g => g.vano ? [g.id, g.nombre, g.vano] : [g.id, g.nombre]),
         cotas: this.cotas, mats: this.mats
       };
     }
@@ -965,7 +1006,7 @@
         }
         this.calcNormal(f);
       }
-      for (const [id, nombre] of d.grupos || []) this.grupos.set(id, { id, nombre });
+      for (const [id, nombre, vano] of d.grupos || []) this.grupos.set(id, vano ? { id, nombre, vano } : { id, nombre });
       this.cotas = d.cotas || []; this.mats = d.mats || [];
       this.sig = Math.max(d.sig || 1, ...[0].concat([...this.v.keys()], [...this.e.keys()], [...this.f.keys()], [...this.grupos.keys()]).map(x => x + 1));
       this.cambio++; this.todoSucio = true;

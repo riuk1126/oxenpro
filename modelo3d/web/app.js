@@ -9,7 +9,7 @@
 
   // ---------------- ajustes ----------------
   const K_AJ = 'r3d-ajustes';
-  const AJ = Object.assign({ unidad: 'm', lapiz: 'auto', decimales: 2, ejes: true, aristasSuaves: false, dosDedos: 'orbitar', muroAlto: 2.6, muroEsp: 0.15, muroEje: 'centro' }, leerLS(K_AJ) || {});
+  const AJ = Object.assign({ unidad: 'm', lapiz: 'auto', decimales: 2, ejes: true, aristasSuaves: false, dosDedos: 'orbitar' }, leerLS(K_AJ) || {});
   function leerLS(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function guardarAjustes() { try { localStorage.setItem(K_AJ, JSON.stringify(AJ)); } catch (e) {} }
 
@@ -54,7 +54,7 @@
   // ---------------- historial ----------------
   function guardarDeshacer(antes) { pila.push(antes); if (pila.length > 60) pila.shift(); rehacer.length = 0; cambio(); }
   function operacion(fn) { const antes = m.clonarDatos(); try { fn(); } catch (e) { console.error(e); m.cargar(JSON.parse(antes)); avisar('No se pudo: ' + e.message); return; } guardarDeshacer(antes); }
-  function deshacer() { if (herr && herr.activa && herr.activa()) { const sigue = herr.deshacerSigue && herr.deshacerSigue(); herr.cancelar(); if (!sigue) return; } if (!pila.length) return avisar('Nada que deshacer'); rehacer.push(m.clonarDatos()); m.cargar(JSON.parse(pila.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Deshecho'); }
+  function deshacer() { if (herr && herr.activa && herr.activa()) { herr.cancelar(); return; } if (!pila.length) return avisar('Nada que deshacer'); rehacer.push(m.clonarDatos()); m.cargar(JSON.parse(pila.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Deshecho'); }
   function rehacerOp() { if (!rehacer.length) return; pila.push(m.clonarDatos()); m.cargar(JSON.parse(rehacer.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Rehecho'); }
   let tGuardar = 0;
   function cambio() { pedir(); estVer++; clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
@@ -582,7 +582,7 @@
   // ---------- empujar / tirar ----------
   let ultimoEmpuje = 0;
   H.empujar = {
-    pista() { return this.fid ? (this.tope != null ? 'Empuja hasta el otro lado y el vano se abre solo · o escribe la distancia' : 'Mueve y toca para fijar la altura · escribe la distancia') : 'Toca una cara para empujarla o tirar de ella · dos toques repite la última distancia'; },
+    pista() { return this.fid ? (this.tope != null ? 'Empuja hasta el otro lado y el vano se abre solo · o escribe la distancia' : 'Sube y toca para fijar · o elige el alto abajo (2.40, 2.60… u «Otra medida»)') : 'Toca una cara para empujarla o tirar de ella · dos toques repite la última distancia'; },
     etiqueta: 'Distancia',
     fid: 0, base: null, dist: 0, ultimoToque: 0, recien: false,
     activa() { return !!this.fid; },
@@ -657,6 +657,15 @@
         if (perf) avisar('Vano abierto');
       }
       this.fid = 0; this.base = null; this.prev = null; pista(); pedir();
+    },
+    // altos de un toque (y «Otra medida») al levantar una cara; después de soltar, «Cambiar alto»
+    opciones() {
+      if (this.fid) {
+        const s = () => Math.sign(this.dist) || (this.tope != null ? -1 : 1), poner = v => { if (!this.fid) return; this.aplicar(v * s(), true); this.fin(); pintarOpciones(); pintarVcb(); };
+        return [2.4, 2.6, 2.8, 3].map(v => ({ t: v.toFixed(2) + ' m', fn: () => poner(v) })).concat([{ t: 'Otra medida…', ico: 'teclado', fn: () => pedirMedida('Alto (o distancia)', Math.abs(this.dist) > 1e-3 ? Math.abs(this.dist) : 2.6, [], 0.001, 500, poner) }]);
+      }
+      if (this.ultimaBase && pila[pila.length - 1] === this.ultimaBase) return [{ t: 'Cambiar alto · ' + fmt(Math.abs(ultimoEmpuje)), ico: 'lapiz', fn: () => pedirMedida('Alto (o distancia)', Math.abs(ultimoEmpuje), [2.4, 2.6, 2.8, 3], 0.001, 500, v => { this.vcb(v + 'm'); pintarOpciones(); }) }];
+      return [];
     },
     valor() { return this.fid ? fmt(this.dist) : ''; },
     vcb(t) {
@@ -935,15 +944,19 @@
           if (fo) { T = fo.dist; m.perforar(reg.id, hacia()); }
           else { m.quitarCara(reg.id); aviso += ' · el muro no tiene espesor aquí: solo se abrió esta cara'; }
           const mk = { O: c.O, x: c.u, y: V.neg(c.n) };
-          if (it.fabrica) Comp.construirFabrica(m, it, mk, c.w, c.h, T);
+          let gid;
+          if (it.fabrica) gid = Comp.construirFabrica(m, it, mk, c.w, c.h, T);
           else {
             const sy = bib.ajustar && T > 0 ? T / it.dim[1] : 1, dy = (T - it.dim[1] * sy) / 2;
-            Comp.insertar(m, it, { O: V.add(c.O, V.mul(mk.y, dy)), x: mk.x, y: mk.y }, [c.w / it.dim[0], sy, c.h / it.dim[2]], colorAMat);
+            gid = Comp.insertar(m, it, { O: V.add(c.O, V.mul(mk.y, dy)), x: mk.x, y: mk.y }, [c.w / it.dim[0], sy, c.h / it.dim[2]], colorAMat);
           }
+          // con esto se puede volver a editar (ancho, alto, alféizar, distancia) o quitar tapando el muro
+          if (gid && m.grupos.get(gid)) m.grupos.get(gid).vano = { it: it.id, g, O: c.O, u: c.u, n: c.n, w: c.w, h: c.h, T, alf: c.alf, izq: c.izq, aj: !!bib.ajustar };
           if (T) aviso += ` · muro de ${fmt(T)} · a ${fmt(c.izq)} del borde`;
         }
       } catch (e) { console.error(e); m.cargar(JSON.parse(antes)); registrarMatsModelo(); pedir(); avisar('No se pudo colocar: ' + e.message); return false; }
       registrarMatsModelo();
+      if (reemplazo === 'editar') { this.ultimo = null; return true; }
       const base = reemplazo ? this.ultimo.base : antes;
       if (reemplazo) cambio(); else guardarDeshacer(antes);
       this.ultimo = c.libre ? null : { c, base, item: it.id };
@@ -989,16 +1002,47 @@
       }
     }
   };
+  // Editar una ventana o puerta ya colocada: tapa su vano y la vuelve a poner con las medidas nuevas.
+  function editarVano(gid) {
+    const G = m.grupos.get(gid), v = G && G.vano; if (!v) return;
+    const it = Comp.FABRICA.find(x => x.id === v.it) || bib.propios.find(x => x.id === v.it);
+    const campo = (id, t, val) => `<label>${t}<input type="text" inputmode="decimal" id="${id}" value="${+val.toFixed(3)}"></label>`;
+    dialogo(`<h3>${esc(G.nombre)}</h3><p>Medidas en metros.</p>${it ? `<div class="dos">${campo('eW', 'Ancho', v.w)}${campo('eH', 'Alto', v.h)}${campo('eA', 'Alféizar (desde el piso)', v.alf)}${campo('eI', 'Distancia al borde izquierdo', v.izq)}</div>` : '<p class="nota">Este componente ya no está en tu biblioteca: solo se puede quitar.</p>'}
+      <div class="fila"><button class="peligro" id="eQ" style="margin-right:auto">Quitar y tapar</button><button id="dNo">Cancelar</button>${it ? '<button class="pri" id="dSi">Aplicar</button>' : ''}</div>`, () => {
+      $('dlgCaja').querySelectorAll('input').forEach(i => i.onfocus = () => i.select());
+      const hacer = quitar => {
+        const num = id => parseFloat(String($(id).value).replace(',', '.'));
+        const par = quitar ? null : { w: num('eW'), h: num('eH'), alf: num('eA') }, izq = quitar ? 0 : num('eI');
+        if (par && (!(par.w >= 0.02) || !(par.h >= 0.02) || !(par.alf >= 0) || !(izq >= 0))) return avisar('Revisa las medidas');
+        cerrarDlg(); limpiarSel();
+        const antes = m.clonarDatos(), guard = [bib.item, bib.par, bib.ajustar]; let error = '';
+        try {
+          m.cerrarVano(v.g, v.O, v.u, v.n, v.w, v.h, v.T); borrarGrupo(gid);
+          if (!quitar) {
+            const cen = V.add(v.O, V.add(V.mul(v.u, v.w / 2), [0, 0, v.h / 2])), f = m._caraEn(cen, v.n, v.g);
+            if (!f) throw new Error('no se encontró el muro');
+            bib.item = it; bib.par = par; bib.ajustar = v.aj;
+            const c = H.colocar.enMuro(f, v.O, izq);
+            if (!c.ok) error = c.msg; else if (!H.colocar.poner(c, 'editar')) error = 'no se pudo colocar';
+          }
+        } catch (e) { console.error(e); error = e.message; }
+        [bib.item, bib.par, bib.ajustar] = guard;
+        if (error) { m.cargar(JSON.parse(antes)); registrarMatsModelo(); pedir(); return avisar('No se cambió: ' + error); }
+        guardarDeshacer(antes); avisar(quitar ? 'Quitado: el muro quedó tapado' : 'Medidas cambiadas');
+      };
+      $('dNo').onclick = cerrarDlg; $('eQ').onclick = () => hacer(true); if ($('dSi')) $('dSi').onclick = () => hacer(false);
+    });
+  }
   const catDe = id => Comp.CATS.find(x => x.id === id);
   const dimTxt = it => it.vano ? `${(it.w || it.dim[0]).toFixed(2)} × ${(it.h || it.dim[2]).toFixed(2)}` : it.dim.map(x => x.toFixed(2)).join(' × ');
   async function cargarPropios() { try { bib.propios = await Comp.Almacen.todos(); } catch (e) { console.error(e); bib.propios = []; } }
   function itemsDe(cat) { return Comp.FABRICA.filter(x => x.cat === cat).concat(bib.propios.filter(x => x.cat === cat).sort((a, b) => a.nombre.localeCompare(b.nombre))); }
   function pintarBibBarra() {
     const el = $('biblio');
-    el.innerHTML = `<button class="ib" data-c="muro" title="Muros">${icono('muro')}</button><div class="sep"></div>` + Comp.CATS.map(c => `<button class="ib" data-c="${c.id}" title="${c.nombre}">${icono(c.ico)}</button>`).join('') + `<div class="sep"></div><button class="ib" data-c="+" title="Importar modelos a la biblioteca">${icono('importar')}</button>`;
-    el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => b.dataset.c === '+' ? elegirArchivosBib() : b.dataset.c === 'muro' ? (cerrarBib(), usar(nombreHerr === 'muro' ? 'seleccionar' : 'muro')) : abrirBib(b.dataset.c));
+    el.innerHTML = Comp.CATS.map(c => `<button class="ib" data-c="${c.id}" title="${c.nombre}">${icono(c.ico)}</button>`).join('') + `<div class="sep"></div><button class="ib" data-c="+" title="Importar modelos a la biblioteca">${icono('importar')}</button>`;
+    el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => b.dataset.c === '+' ? elegirArchivosBib() : abrirBib(b.dataset.c));
   }
-  function marcarBib() { const ab = !$('pBib').classList.contains('oculto'); document.querySelectorAll('#biblio [data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === 'muro' ? nombreHerr === 'muro' : ab && b.dataset.c === bib.cat)); }
+  function marcarBib() { const ab = !$('pBib').classList.contains('oculto'); document.querySelectorAll('#biblio [data-c]').forEach(b => b.classList.toggle('on', ab && b.dataset.c === bib.cat)); }
   function cerrarBib() { $('pBib').classList.add('oculto'); marcarBib(); }
   function abrirBib(cat) {
     if (bib.cat === cat && !$('pBib').classList.contains('oculto')) return cerrarBib();
@@ -1129,10 +1173,6 @@
     else avisar(ok === 1 ? 'Importado a la biblioteca' : ok + ' componentes importados');
   }
 
-  // ---------- muros (modelado arquitectónico) ----------
-  // Se traza el eje del muro punto a punto en planta; cada tramo se levanta con la altura y el espesor elegidos,
-  // con las esquinas unidas. Cada trazo queda como un grupo «Muro».
-  const EJES_MURO = { centro: 'Muro al centro', izq: 'Muro a la izquierda', der: 'Muro a la derecha' };
   // una medida a la vez, sin salir del modelo. rapidos: valores de un toque
   function pedirMedida(titulo, valor, rapidos, min, max, alListo) {
     dialogo(`<h3>${titulo}</h3>${rapidos.length ? `<div class="rapidos">${rapidos.map(r => `<button data-r="${r}"${Math.abs(r - valor) < 1e-6 ? ' class="on"' : ''}>${r.toFixed(2)}</button>`).join('')}</div>` : ''}
@@ -1144,76 +1184,6 @@
       $('dlgCaja').querySelectorAll('[data-r]').forEach(b => b.onclick = () => ok(b.dataset.r));
     });
   }
-  H.muro = {
-    pts: [], cur: null, recien: false, base: null, etiqueta: 'Largo', modo: 'trazar',
-    pista() { if (this.modo === 'levantar') return `Toca cada muro del plano (el área entre sus dos líneas) y sube a ${fmt(AJ.muroAlto)}`; return this.pts.length ? 'Toca el siguiente punto del muro · escribe el largo · toca dos veces o «Terminar» para acabar' : `Toca dónde empieza el muro · altura ${fmt(AJ.muroAlto)}, espesor ${fmt(AJ.muroEsp)}`; },
-    activa() { return this.pts.length > 0; },
-    deshacerSigue() { return this.pts.length > 1; },
-    terminar() { this.pts = []; this.cur = null; this.base = null; ejeBloq.v = null; if (est.hoverCara) { est.hoverCara = 0; estVer++; } pista(); pintarOpciones(); pedir(); },
-    // cara plana (en planta) bajo el puntero: la del plano importado o una dibujada
-    caraPlano(inf) { const f = inf.golpe && inf.golpe.f; return f && Math.abs(f.n[2]) > 0.999 ? f : null; },
-    cancelar() { this.terminar(); },
-    opt() { if (!this.pts.length) return {}; const u = this.pts[this.pts.length - 1]; return { desde: u, bloqueo: ejeBloq.v, plano: { n: Z, p0: u }, planoEjes: Z }; },
-    punto(inf) { const p = inf.p.slice(); if (this.pts.length) p[2] = this.pts[0][2]; return p; },
-    abajo(inf) { if (this.modo === 'levantar') return; if (!this.pts.length) { this.pts = [this.punto(inf)]; this.base = null; this.recien = true; } else this.recien = false; this.cur = inf; pista(); },
-    mover(inf) {
-      this.cur = inf;
-      if (this.modo === 'levantar') { const f = this.caraPlano(inf), id = f ? f.id : 0; if (id !== est.hoverCara) { est.hoverCara = id; estVer++; pedir(); } }
-    },
-    arriba(inf, ev, arrastre) {
-      if (this.modo === 'levantar') {
-        const f = this.caraPlano(inf); if (!f) return avisar('Toca un muro del plano: el área cerrada entre sus dos líneas');
-        const id = f.id, d = f.n[2] > 0 ? AJ.muroAlto : -AJ.muroAlto;
-        est.hoverCara = 0; estVer++; operacion(() => m.empujar(id, d)); return;
-      }
-      if (!this.pts.length) return; if (this.recien && !arrastre) { this.recien = false; return; }
-      this.recien = false; this.cur = inf; this.agregar(this.punto(inf));
-    },
-    agregar(p) {
-      const u = this.pts[this.pts.length - 1];
-      if (V.dist(u, p) < 0.01) { if (this.pts.length > 1) this.terminar(); return; }     // dos toques en el mismo sitio: terminar
-      const cierra = this.pts.length >= 3 && V.dist(this.pts[0], p) < 0.01;
-      if (this.base && pila[pila.length - 1] !== this.base) { this.pts = [u]; this.base = null; }   // se deshizo algo: tramo nuevo
-      const antes = this.base || m.clonarDatos(), P = cierra ? this.pts.slice() : this.pts.concat([p]);
-      try {
-        if (this.base) m.cargar(JSON.parse(this.base));
-        Comp.muro(m, P, { alto: AJ.muroAlto, esp: AJ.muroEsp, eje: AJ.muroEje, cerrado: cierra });
-      } catch (e) { console.error(e); m.cargar(JSON.parse(this.base ? pilaActual : antes)); registrarMatsModelo(); pedir(); return avisar('No se pudo: ' + e.message); }
-      registrarMatsModelo();
-      if (!this.base) { this.base = antes; guardarDeshacer(antes); } else cambio();
-      pilaActual = m.clonarDatos();
-      if (cierra) { avisar('Muros cerrados'); return this.terminar(); }
-      this.pts.push(p); ejeBloq.v = null; pista(); pintarOpciones(); pedir();
-    },
-    valor() { return this.pts.length && this.cur ? fmt(V.dist(this.pts[this.pts.length - 1], this.punto(this.cur))) : ''; },
-    vcb(t) {
-      if (!this.pts.length || !this.cur) return false; const L = leerMedida(t); if (!(L > 0)) return false;
-      const a = this.pts[this.pts.length - 1], b = this.punto(this.cur); if (V.dist(a, b) < 1e-6) return false;
-      this.agregar(V.add(a, V.mul(V.norm(V.sub(b, a)), L))); return true;
-    },
-    opciones() {
-      const lev = this.modo === 'levantar', L = [];
-      if (!this.pts.length) L.push({ t: 'Trazar muros', on: !lev, fn: () => { this.modo = 'trazar'; this.terminar(); } }, { t: 'Levantar del plano', on: lev, fn: () => { this.modo = 'levantar'; this.terminar(); } });
-      L.push({ t: 'Altura ' + fmt(AJ.muroAlto), fn: () => pedirMedida('Altura del muro', AJ.muroAlto, [2.4, 2.6, 2.8, 3], 0.05, 60, v => { AJ.muroAlto = v; guardarAjustes(); }) });
-      if (!lev) L.push({ t: 'Espesor ' + fmt(AJ.muroEsp), fn: () => pedirMedida('Espesor del muro', AJ.muroEsp, [0.1, 0.15, 0.2, 0.25], 0.02, 3, v => { AJ.muroEsp = v; guardarAjustes(); }) },
-        { t: EJES_MURO[AJ.muroEje], fn: () => { const k = Object.keys(EJES_MURO); AJ.muroEje = k[(k.indexOf(AJ.muroEje) + 1) % k.length]; guardarAjustes(); pintarOpciones(); pedir(); } });
-      if (!this.pts.length) L.push({ t: 'Importar plano', ico: 'importar', fn: () => elegirArchivo(false) });
-      if (this.pts.length) L.push(...['x', 'y'].map(k => ({ t: k.toUpperCase(), cls: k, on: ejeBloq.v === EJES[k], fn: () => { ejeBloq.v = ejeBloq.v === EJES[k] ? null : EJES[k]; pintarOpciones(); } })));
-      if (this.pts.length >= 3) L.push({ t: 'Cerrar', fn: () => this.agregar(this.pts[0].slice()) });
-      if (this.pts.length >= 2) L.push({ t: 'Terminar', fn: () => this.terminar() });
-      return L;
-    },
-    dibujar() {
-      if (!this.pts.length || !this.cur) return;
-      const a = this.pts[this.pts.length - 1], b = this.punto(this.cur); if (V.dist(a, b) < 1e-4) return;
-      const Hh = Comp.huellaMuro([a, b], AJ.muroEsp, AJ.muroEje, false); if (!Hh) return;
-      const B = Hh[0], T = B.map(q => V.add(q, [0, 0, AJ.muroAlto]));
-      poliOV(B, '#6666ff', '#6666ff2e', 2); poliOV(T, '#6666ff', null, 1.2);
-      for (let i = 0; i < B.length; i++) lineaOV(B[i], T[i], '#6666ff', 1.2);
-      lineaOV(a, b, this.cur.tipo === 'eje' ? this.cur.color : '#18191b', 1.4, [5, 4]);
-    }
-  };
-  let pilaActual = null;
 
   const LISTA_H = [
     ['seleccionar', 'Seleccionar', 'Espacio'], ['borrar', 'Borrador', 'E'], ['pintar', 'Pintar', 'B'], '-',
@@ -1460,6 +1430,7 @@
     const acc = [];
     if (n || a) acc.push(['grupo', 'Agrupar', hacerGrupoSel]);
     if (n || a || g) acc.push(['biblioteca', 'A la biblioteca', guardarSelEnBiblioteca]);
+    if (g === 1 && !n && !a && (m.grupos.get([...est.selGrupos][0]) || {}).vano) acc.push(['lapiz', 'Editar medidas', () => editarVano([...est.selGrupos][0])]);
     if (g === 1 && !n && !a) acc.push(['explotar', 'Explotar', explotarSel], ['grupo', 'Editar', () => entrarContexto([...est.selGrupos][0])]);
     if (n) acc.push(['invertir', 'Invertir caras', invertirSel]);
     acc.push(['papelera', 'Borrar', borrarSeleccion], ['cerrar', '', limpiarSel]);
@@ -1715,7 +1686,6 @@
         if (!res) return;
         registrarMatsModelo(); vista('iso');
         entrarContexto(res.gid);
-        if (nombreHerr === 'muro') { H.muro.modo = res.caras ? 'levantar' : 'trazar'; H.muro.terminar(); }
         avisar(`Plano listo: ${res.ancho.toFixed(2)} × ${res.largo.toFixed(2)} m` + (res.caras ? ` · ${res.caras} caras` : ''));
         guardar();
       };
@@ -2013,17 +1983,7 @@
   })();
   $('gNuevo').innerHTML = icono('mas') + 'Nuevo modelo'; $('gImportar').innerHTML = icono('importar') + 'Importar'; $('gTutorial').innerHTML = icono('ayuda') + 'Tutorial';
   $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes');
-  $('gNuevo').onclick = () => {
-    const nombre = () => 'Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
-    dialogo(`<h3>Nuevo modelo</h3><p>¿Qué vas a modelar?</p><div class="opc opc2">
-      <button id="nArq">${icono('muro')}<span><b>Modelado arquitectónico</b><small>Muros con su altura y espesor, puertas, ventanas y vanos</small></span></button>
-      <button id="nLib">${icono('cubo')}<span><b>Modelado libre</b><small>Líneas, caras y empujar / tirar, como siempre</small></span></button></div>
-      <div class="fila"><button id="dNo">Cancelar</button></div>`, () => {
-      $('dNo').onclick = cerrarDlg;
-      $('nLib').onclick = () => { cerrarDlg(); abrirNuevo(nombre(), null); };
-      $('nArq').onclick = async () => { cerrarDlg(); await abrirNuevo(nombre(), null); cam.eye = [7, -9, 11]; cam.apuntar([0, 0, 0]); H.muro.modo = 'trazar'; usar('muro'); avisar('Importa tu plano o traza los muros. La altura y el espesor se cambian en los botones de abajo.'); };
-    });
-  };
+  $('gNuevo').onclick = () => abrirNuevo('Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }), null);
 
   // ---------------- ejemplos ----------------
   const ILUS = {
@@ -2065,7 +2025,7 @@
       { sel: '#herramientas [data-h="empujar"]', antes: () => { const b = document.querySelector('#herramientas [data-h="empujar"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }, tit: 'Dale volumen', txt: 'Con <b>Empujar / tirar</b> toca una cara y súbela. Así levantas muros, losas y muebles. Si empujas un rectángulo dibujado en un muro hasta el otro lado, <b>el vano se abre solo</b>.' },
       { sel: '#vcb', tit: 'Medidas exactas', txt: 'Mientras dibujas, toca esta caja y escribe la medida: <b>2.5</b> (metros), <b>250cm</b>, o <b>3;4</b> para un rectángulo de 3 × 4.' },
       { sel: '.barra-sup .grupo:last-child', tit: 'Vistas y materiales', txt: 'Cambia a planta, frente o isométrica; mira a través con <b>Rayos X</b>; <b>Ver todo</b> encuadra el modelo; y <b>Materiales</b> para pintar con colores y texturas.' },
-      { sel: '#biblio', tit: 'Muros, ventanas, puertas y vanos', txt: 'Con <b>Muro</b> (arriba) trazas los muros punto a punto con su <b>altura y espesor</b>. Luego eliges una <b>ventana, puerta o vano</b>, le pones <b>ancho, alto y alféizar</b> y tocas el muro: se corta solo y se adapta a su espesor. También guardas aquí <b>tus propios modelos</b> (inodoros, muebles…) o los importas de SketchUp.' },
+      { sel: '#biblio', tit: 'Ventanas, puertas y vanos', txt: 'En esta barra eliges una <b>ventana, puerta o vano</b>, le pones <b>ancho, alto y alféizar</b> y tocas el muro: se corta solo y se adapta a su espesor. También guardas aquí <b>tus propios modelos</b> (inodoros, muebles…) o los importas de SketchUp.' },
       { sel: '#bMenu', tit: 'Abre tus archivos', txt: 'En <b>Menú → Importar</b> abres modelos de <b>SketchUp (.skp)</b> y planos de <b>AutoCAD (.dwg / .dxf)</b>. El plano llega al suelo, listo para levantar los muros.' },
       { tit: '¡Listo para modelar!', txt: 'En la galería tienes <b>modelos de ejemplo</b> (casa, comedor, escalera y un plano para levantar). Ábrelos, gíralos y cámbialos sin miedo: siempre puedes deshacer.', fin: '¡Empezar!' }
     ]);

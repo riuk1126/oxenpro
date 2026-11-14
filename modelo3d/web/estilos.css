@@ -216,3 +216,4 @@ input,select{font:inherit}
 .dlg input[inputmode]{width:100%;height:44px;border:1px solid var(--linea);border-radius:10px;padding:0 12px;background:#fafafa;-webkit-user-select:text;user-select:text}
 .dlg .rapidos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 4px}
 .dlg .rapidos button{height:46px;border-radius:10px;background:#f1f2f4;font-weight:600;font-size:15px}.dlg .rapidos .on{background:var(--acento);color:#fff}
+.dlg .dos{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}.dlg .dos label{display:flex;flex-direction:column;gap:4px;justify-content:flex-end}
