@@ -739,13 +739,74 @@
       opciones() { return [{ t: 'Copiar', ico: 'copiar', on: this.copiar, fn: () => { this.copiar = !this.copiar; pintarOpciones(); pista(); } }].concat(conf.ejesOp ? ['x', 'y', 'z'].map(k => ({ t: k.toUpperCase(), cls: k, on: ejeBloq.v === EJES[k], fn: () => { ejeBloq.v = ejeBloq.v === EJES[k] ? null : EJES[k]; pintarOpciones(); } })) : []); }
     }, conf);
   }
+  // ---------- mover una puerta o ventana: el vano se va con ella ----------
+  // Cierra el vano donde estaba, abre uno nuevo donde se suelta y la vuelve a poner con sus mismas medidas.
+  const vanoDe = gid => { const G = m.grupos.get(gid); return G && G.vano ? G.vano : null; };
+  const itemDeVano = v => Comp.FABRICA.find(x => x.id === v.it) || bib.propios.find(x => x.id === v.it);
+  function conVano(v, it, fn) {
+    const guard = [bib.item, bib.par, bib.ajustar, bib.centrar];
+    bib.item = it; bib.par = { w: v.w, h: v.h, alf: v.alf }; bib.ajustar = v.aj; bib.centrar = false;
+    try { return fn(); } finally { [bib.item, bib.par, bib.ajustar, bib.centrar] = guard; }
+  }
+  // ¿a dónde va? si se suelta sobre otro muro, a ese muro; si no, se desliza por el mismo muro
+  function destinoVano(gid, inf, d) {
+    const v = vanoDe(gid), cen0 = V.add(v.O, V.add(V.mul(v.u, v.w / 2), [0, 0, v.h / 2]));
+    const enHueco = p => { const q = V.sub(p, v.O), a = V.dot(q, v.u), b = -V.dot(q, v.n); return a > -0.01 && a < v.w + 0.01 && q[2] > -0.01 && q[2] < v.h + 0.01 && b > -0.01 && b < (v.T || 0) + 0.01; };
+    const gp = inf && inf.sx != null ? golpeCara(cam.rayo(inf.sx, inf.sy), new Set(m.entidadesGrupo(gid).caras)) : null;
+    if (gp && Math.abs(gp.f.n[2]) < 0.02 && !enHueco(gp.p)) {
+      const mismo = V.dot(gp.f.n, v.n) > 0.999 && Math.abs(V.dot(v.n, V.sub(gp.p, v.O))) < 0.01;
+      if (!mismo) return { otro: true, p: gp.p.slice(), n: gp.f.n.slice(), g: gp.f.g, f: gp.f };
+    }
+    const k = V.dot(d, v.u);
+    return { otro: false, k, p: V.add(cen0, V.mul(v.u, k)), n: v.n, g: v.g };
+  }
   H.mover = Transformar({
     verbo: 'moverlo', ejesOp: true, etiqueta: 'Distancia',
-    pista() { return this.sel ? 'Toca el destino · escribe la distancia · después de copiar: «x3» repite, «/3» divide' : (this.copiar ? 'Copiar: ' : '') + 'Toca lo que quieres mover (o la selección) en un punto de referencia'; },
-    previa(inf) { const d = V.sub(inf.p, this.pts[0]); this.aplicarFn(p => V.add(p, d)); this.d = d; },
-    paso(inf) { const d = V.sub(inf.p, this.pts[0]); if (V.len(d) < 1e-6) return; this.dUlt = d; this.fnK = k => p => V.add(p, V.mul(d, k)); this.terminar(p => V.add(p, d)); },
-    valor() { return this.sel && this.d ? fmt(V.len(this.d)) : ''; },
+    pista() { return this.vano ? 'Llévala por el muro o a otro muro y suelta: el vano se mueve con ella · o escribe la distancia' : this.sel ? 'Toca el destino · escribe la distancia · después de copiar: «x3» repite, «/3» divide' : (this.copiar ? 'Copiar: ' : '') + 'Toca lo que quieres mover (o la selección) en un punto de referencia'; },
+    alEmpezar() {
+      const s = this.sel, g = s && s.grupos && s.grupos.length === 1 && !(s.caras || []).length && !(s.aristas || []).length ? s.grupos[0] : null;
+      this.vano = g && vanoDe(g) ? g : null; this.dest = null;
+    },
+    previa(inf) {
+      const d = V.sub(inf.p, this.pts[0]); this.d = d;
+      if (!this.vano) return this.aplicarFn(p => V.add(p, d));
+      const D = destinoVano(this.vano, inf, d), v = vanoDe(this.vano); this.dest = D; this.marco = null;
+      if (D.otro) {
+        this.aplicarFn(p => V.add(p, d));
+        const it = itemDeVano(v); if (it) this.marco = conVano(v, it, () => H.colocar.enMuro(D.f, D.p, null));
+      } else { const t = V.mul(v.u, D.k); this.aplicarFn(p => V.add(p, t)); }
+    },
+    paso(inf) {
+      const d = V.sub(inf.p, this.pts[0]); if (V.len(d) < 1e-6) return;
+      if (this.vano) return this.terminarVano(destinoVano(this.vano, inf, d));
+      this.dUlt = d; this.fnK = k => p => V.add(p, V.mul(d, k)); this.terminar(p => V.add(p, d));
+    },
+    terminarVano(D) {
+      this.restaurar();
+      const gid = this.vano, v = vanoDe(gid), it = itemDeVano(v), base = this.baseTxt, copiar = this.copiar; let error = '';
+      if (!D.otro && Math.abs(D.k) < 1e-4) error = 'no se movió';
+      else try {
+        if (!it) throw new Error('este componente ya no está en tu biblioteca');
+        if (!copiar) { m.cerrarVano(v.g, v.O, v.u, v.n, v.w, v.h, v.T); borrarGrupo(gid); }
+        const f = m._caraEn(D.p, D.n, D.g); if (!f) throw new Error('no se encontró el muro');
+        const c = conVano(v, it, () => H.colocar.enMuro(f, D.p, null));
+        if (!c.ok) throw new Error(c.msg.replace(/^Aquí choca/, 'Ahí choca'));
+        if (!conVano(v, it, () => H.colocar.poner(c, 'editar'))) throw new Error('no se pudo colocar');
+        this.colocado = c;
+      } catch (e) { console.error(e); error = e.message; }
+      if (error) { m.cargar(JSON.parse(base)); registrarMatsModelo(); if (error !== 'no se movió') avisar('No se movió: ' + error); }
+      else { guardarDeshacer(base); avisar((copiar ? 'Copiada' : 'Movida') + ` · a ${fmt(this.colocado.izq)} del borde del muro`); }
+      this.sel = null; this.pts = []; this.copias = 1; this.vano = null; this.dest = null; this.marco = null; this.temporal = false; this.ultimo = null;
+      limpiarSel(); ejeBloq.v = null; pintarOpciones(); pista(); pedir();
+    },
+    cancelar() { this.vano = null; this.dest = null; this.marco = null; Transformar({}).cancelar.call(this); },
+    valor() { return this.sel && this.d ? fmt(this.vano && this.dest && !this.dest.otro ? Math.abs(this.dest.k) : V.len(this.d)) : ''; },
     vcb(t) {
+      if (this.vano && this.sel && this.d) {
+        const L = leerMedida(t); if (!(L > 0)) return false;
+        const v = vanoDe(this.vano), sg = Math.sign(V.dot(this.d, v.u)) || 1;
+        this.terminarVano(destinoVano(this.vano, null, V.mul(v.u, sg * L))); return true;
+      }
       const arr = String(t).trim().match(/^[x*](\d+)$/i), div = String(t).trim().match(/^\/(\d+)$/);
       if ((arr || div) && this.ultimo && this.dUlt && pila[pila.length - 1] === this.ultimo.base) {
         const n = +(arr || div)[1]; if (n < 1 || n > 500) return false; const d = div ? V.mul(this.dUlt, 1 / n) : this.dUlt;
@@ -757,7 +818,12 @@
       if (!this.sel || !this.d) return false; const L = leerMedida(t); if (!(L > 0)) return false;
       const d = V.mul(V.norm(this.d), L); this.dUlt = d; this.terminar(p => V.add(p, d)); return true;
     },
-    dibujar() { if (this.sel && this.cur) { lineaOV(this.pts[0], this.cur.p, this.cur.tipo === 'eje' ? this.cur.color : '#18191b99', 1.4, [5, 4]); } }
+    dibujar() {
+      if (!this.sel || !this.cur) return;
+      if (this.marco && this.marco.R) { const ok = this.marco.ok, col = ok ? '#6666ff' : '#d64545'; poliOV(this.marco.R, col, ok ? '#6666ff2e' : '#d6454526', 2); if (!ok && this.marco.msg) textoOV(this.marco.cen, this.marco.msg.replace(/^Aquí choca/, 'Choca')); }
+      if (this.vano) return;
+      lineaOV(this.pts[0], this.cur.p, this.cur.tipo === 'eje' ? this.cur.color : '#18191b99', 1.4, [5, 4]);
+    }
   });
   H.rotar = Transformar({
     verbo: 'girarlo', etiqueta: 'Ángulo',
