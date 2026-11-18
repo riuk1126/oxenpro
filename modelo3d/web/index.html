@@ -107,6 +107,8 @@
 <script src="raiki-invitar.js?v=__R3D_VERSION__"></script>
 <script src="app.js?v=__R3D_VERSION__"></script>
 <script src="acceso.js?v=__R3D_VERSION__"></script>
-<script>window.R3D_VERSION = '__R3D_VERSION__';</script>
+<script>window.R3D_VERSION = '__R3D_VERSION__';
+// copia en la tableta para trabajar sin internet (en la app de Android y en el navegador)
+if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>

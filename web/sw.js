@@ -1,8 +1,10 @@
 // OXEN — funciona sin internet y se actualiza solo
 const C = 'oxen-__PD_VERSION__';
-const BASE = ['./', 'index.html', 'estilos.css?v=__PD_VERSION__', 'texturas.js?v=__PD_VERSION__', 'simbolos.js?v=__PD_VERSION__', 'muros.js?v=__PD_VERSION__', 'exportar.js?v=__PD_VERSION__', 'app.js?v=__PD_VERSION__', 'oxen-auth.js?v=__PD_VERSION__', 'acceso.js?v=__PD_VERSION__', 'equipo.js?v=__PD_VERSION__', 'nube.js?v=__PD_VERSION__', 'manifest.json', 'icono.png'];
-self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(BASE)).catch(() => {})); });
-self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim())));
+const BASE = ['./', 'index.html', 'estilos.css?v=__PD_VERSION__', 'texturas.js?v=__PD_VERSION__', 'simbolos.js?v=__PD_VERSION__', 'muros.js?v=__PD_VERSION__', 'exportar.js?v=__PD_VERSION__', 'app.js?v=__PD_VERSION__', 'oxen-auth.js?v=__PD_VERSION__', 'acceso.js?v=__PD_VERSION__', 'equipo.js?v=__PD_VERSION__', 'nube.js?v=__PD_VERSION__', 'raiki-invitar.js?v=__PD_VERSION__', 'manifest.json', 'icono.png', 'icono-192.png', 'flexio.svg'];
+// se guardan aparte (sin frenar la instalación) para abrir PDF de fondo sin internet
+const EXTRA = ['lib/pdf.min.js', 'lib/pdf.worker.min.js'];
+self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(BASE).then(() => c.addAll(EXTRA).catch(() => {}))).catch(() => {})); });
+self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x.startsWith('oxen-') && x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
   const r = e.request; if (r.method !== 'GET' || new URL(r.url).origin !== location.origin) return;
   // primero internet (para recibir mejoras al instante); si no hay, la copia guardada

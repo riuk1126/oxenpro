@@ -44,7 +44,15 @@
       try { await subir(id); enCola.delete(id); } catch (e) { if (e.red) break; console.error(e); enCola.delete(id); } } }
     finally { corriendo = false; pintarEstado(); }
   }
-  addEventListener('online', correr);
+  // al volver internet: sube lo pendiente y lo que se dibujó sin conexión (aunque la app se haya cerrado)
+  async function ponerAlDia() {
+    if (!A.sesion() || !navigator.onLine) return;
+    await refrescar();
+    let locales = []; try { locales = await dbTodos(); } catch (e) {}
+    for (const r of locales) { const f = fila(r.id); if (noSubir.has(r.id) && !f) continue; if (!f || (r.fecha || 0) > Date.parse(f.actualizado) + 3000) enCola.add(r.id); }
+    correr();
+  }
+  addEventListener('online', () => setTimeout(ponerAlDia, 1500));
 
   // ---------- ganchos de app.js ----------
   function alCerrar(d) { if (d && A.sesion() && !(noSubir.has(d.id) && !fila(d.id))) encolar(d.id); }
