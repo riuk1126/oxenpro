@@ -1864,9 +1864,16 @@
       catch (e) { if (!silencio) avisar(e.red ? 'Sin internet: se compartirá al reconectar' : 'No se pudo subir para tu equipo'); if (!e.red) console.error(e); }
     }
     function irGaleriaSiVisible() { if (!$('galeria').classList.contains('oculto')) irGaleria(); }
-    addEventListener('online', async () => {
-      try { for (const r of await Archivos.Almacen.todos()) if (r.comp && huella(r.datos) !== r.comp.hash && r.id !== doc.id) await publicar(r, true); } catch (e) {}
-    });
+    // Lo que se modeló sin internet se sube solo al volver la señal (o al abrir Flexio con internet)
+    let alDia = false;
+    async function ponerAlDia() {
+      if (alDia || !navigator.onLine || !A || !A.sesion()) return; alDia = true; let n = 0;
+      try { for (const r of await Archivos.Almacen.todos()) if (r.comp && huella(r.datos) !== r.comp.hash && !(doc && r.id === doc.id)) { if (await publicar(r, true)) n++; } }
+      catch (e) {} finally { alDia = false; }
+      if (n) { avisar(n === 1 ? 'Tu equipo ya ve la última versión' : `Se compartieron ${n} modelos con tu equipo`); irGaleriaSiVisible(); }
+    }
+    addEventListener('online', () => setTimeout(ponerAlDia, 1500));
+    document.addEventListener('raiki-listo', () => setTimeout(ponerAlDia, 4000), { once: true });
 
     // Abrir: antes trae la versión del equipo si hay una más nueva
     async function abrirModelo(id) {

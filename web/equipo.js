@@ -80,14 +80,35 @@
   }
 
   // Ganchos que llama app.js
-  const pendientes = new Map(); // id -> vista (si falló la subida, se reintenta al volver internet)
+  // Lo que no se pudo compartir (sin internet) se guarda en la tableta y se sube solo al reconectar,
+  // aunque se cierre la app mientras tanto.
+  const PEND = 'equipo-pendientes';
+  const clavePend = id => 'pend/' + encodeURIComponent(id);
+  async function guardarPend(id, v) { try { await (await caches.open(PEND)).put(clavePend(id), new Response(v, { headers: { 'content-type': 'image/jpeg' } })); } catch (e) {} }
+  async function quitarPend(id) { try { await (await caches.open(PEND)).delete(clavePend(id)); } catch (e) {} }
+  let reintentando = false;
+  async function reintentarPendientes() {
+    if (reintentando || !navigator.onLine || !A.sesion() || !window.caches) return;
+    reintentando = true; let n = 0;
+    try {
+      const c = await caches.open(PEND);
+      for (const req of await c.keys()) {
+        const id = decodeURIComponent(new URL(req.url).pathname.split('/pend/')[1] || '');
+        if (!id || !compartidoMio(id)) { await c.delete(req); continue; }
+        const res = await c.match(req); if (!res) continue;
+        try { await subir(id, await res.blob()); await c.delete(req); n++; }
+        catch (e) { if (e.red) break; console.error(e); }
+      }
+    } catch (e) {} finally { reintentando = false; }
+    if (n) avisar(n === 1 ? 'Tu equipo ya ve la última versión' : `Se compartieron ${n} bocetos con tu equipo`);
+  }
   function alCerrar(d) {
     if (!d || !compartidoMio(d.id)) return;
     const vista = aBlob(componer(1, d), 'image/jpeg', 0.9);  // foto ahora; la subida sigue por detrás
-    vista.then(v => subir(d.id, v).then(() => { pendientes.delete(d.id); avisar('Tu equipo ya ve la última versión'); })
-      .catch(e => { pendientes.set(d.id, v); if (!e.red) console.error(e); avisar(e.red ? 'Sin internet: se compartirá al reconectar' : 'No se pudo actualizar para tu equipo'); }));
+    vista.then(v => subir(d.id, v).then(() => { quitarPend(d.id); avisar('Tu equipo ya ve la última versión'); })
+      .catch(e => { guardarPend(d.id, v); if (!e.red) console.error(e); avisar(e.red ? 'Sin internet: se compartirá solo al reconectar' : 'No se pudo actualizar para tu equipo'); }));
   }
-  addEventListener('online', () => { for (const [id, v] of pendientes) subir(id, v).then(() => pendientes.delete(id)).catch(() => {}); });
+  addEventListener('online', () => setTimeout(reintentarPendientes, 1500));
   function alBorrar(id) { if (compartidoMio(id)) dejarDeCompartir(id).catch(() => {}); }
   function alRenombrar(r) {
     const c = compartidoMio(r.id); if (!c) return;
@@ -470,5 +491,5 @@
   }
 
   window.Equipo = { alCerrar, alBorrar, alRenombrar, alPintarGaleria, itemMenu, enlazarMenu, pantalla, refrescar, alAbrir, dibujarComentarios };
-  if ($('galeria') && !$('galeria').classList.contains('oculto')) alPintarGaleria(); else refrescar();
+  (($('galeria') && !$('galeria').classList.contains('oculto')) ? alPintarGaleria() : refrescar()).then(reintentarPendientes, reintentarPendientes);
 })();

@@ -41,7 +41,7 @@ jobs:
             V3="$(node -p "require('./modelo3d/movil/package.json').version")-$(git rev-parse --short HEAD)"
             A3=$(node -p "require('./modelo3d/movil/package.json').version")
             rm -rf site/flexio && cp -r modelo3d/web site/flexio
-            sed -i "s/__R3D_VERSION__/$V3/g" site/flexio/index.html
+            sed -i "s/__R3D_VERSION__/$V3/g" site/flexio/index.html site/flexio/sw.js
             echo "{\"version\":\"$V3\",\"apk\":\"$A3\"}" > site/flexio/version.json
             cat site/flexio/version.json
           fi
