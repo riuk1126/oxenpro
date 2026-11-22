@@ -1728,6 +1728,7 @@
     { tit: 'Modelo' },
     { t: 'Importar (SketchUp, AutoCAD, .dae .obj .stl)', ico: 'importar', fn: () => elegirArchivo(false) },
     { t: 'Exportar…', ico: 'exportar', fn: dlgExportar },
+    { t: 'Guardar en la nube ahora', ico: 'nube', fn: async () => { await guardar(); Nube.subirAhora(doc.id); } },
     { t: 'Compartir con mi equipo…', ico: 'equipo', fn: async () => { await guardar(); const r = await Archivos.Almacen.leer(doc.id); if (r) Eq.compartirCon(r); } },
     { t: 'Renombrar', ico: 'lapiz', fn: renombrar },
     { t: 'Seleccionar todo', ico: 'todo', fn: seleccionarTodo },
@@ -1739,7 +1740,7 @@
     { t: 'Mi cuenta RAIKI', ico: 'cuenta', fn: () => window.RaikiAcceso && RaikiAcceso.verCuenta() },
     { t: 'Buscar actualizaciones', ico: 'importar', fn: () => buscarActualizacion(true) }
   ]);
-  $('bAtras').onclick = async () => { if (herr && herr.cancelar) herr.cancelar(); await guardar(); const id = doc.id; irGaleria(); Eq.alSalir(id); };
+  $('bAtras').onclick = async () => { if (herr && herr.cancelar) herr.cancelar(); await guardar(); const id = doc.id; irGaleria(); Eq.alSalir(id); Nube.alSalir(id); };
   $('bNombre').onclick = renombrar;
 
   function avisar(t) { const a = $('aviso'); a.textContent = t; a.classList.add('ver'); clearTimeout(avisar.t); avisar.t = setTimeout(() => a.classList.remove('ver'), 2200); }
@@ -1932,8 +1933,8 @@
     } catch (e) { console.error(e); }
     guardando = false;
   }
-  addEventListener('pagehide', () => { guardar().then(() => Eq.alSalir(doc.id, true)); });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardar(); });
+  addEventListener('pagehide', () => { guardar().then(() => { Eq.alSalir(doc.id, true); Nube.alSalir(doc.id); }); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { const id = doc.id; guardar().then(() => Nube.alSalir(id)); } });
   async function abrirNuevo(nombre, datos) {
     doc = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nombre: nombre || 'Sin título' };
     m.limpiar(); if (datos) m.cargar(datos); registrarMatsModelo();
@@ -1963,19 +1964,28 @@
     const g = $('gLista');
     pintarEjemplos();
     Eq.pintar(L);
+    Nube.pintar(L);
     L = L.filter(r => !Eq.esRecibido(r));
     if (!L.length) { g.innerHTML = `<div class="gal-vacia">Todavía no tienes modelos.<br>Toca <b>Nuevo modelo</b> para empezar, abre un <b>ejemplo</b> de abajo o <b>Importa</b> un archivo de SketchUp o AutoCAD.</div>`; return; }
-    g.innerHTML = L.map(r => `<div class="tarjeta"><button data-abrir="${r.id}" style="display:block;width:100%;text-align:left">${r.mini ? `<img class="mini" src="${r.mini}" alt="">` : '<span class="mini"></span>'}<div class="inf"><b>${esc(r.nombre)}</b><small>${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small>${Eq.etiqueta(r)}</div></button><button class="mas" data-mas="${r.id}">⋯</button></div>`).join('');
+    g.innerHTML = L.map(r => `<div class="tarjeta"><button data-abrir="${r.id}" style="display:block;width:100%;text-align:left">${r.mini ? `<img class="mini" src="${r.mini}" alt="">` : '<span class="mini"></span>'}<div class="inf"><b>${esc(r.nombre)}</b><small>${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small>${Eq.etiqueta(r)}${Nube.etiqueta(r)}</div></button><button class="mas" data-mas="${r.id}">⋯</button></div>`).join('');
     g.querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => Eq.abrir(b.dataset.abrir));
     g.querySelectorAll('[data-mas]').forEach(b => b.onclick = () => opcionesModelo(L.find(r => r.id === b.dataset.mas)));
   }
   function opcionesModelo(r) {
-    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button>${Eq.itemsMenu(r)}<button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
+    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button>${Eq.itemsMenu(r)}${Nube.esMio(r) ? `<button id="oNube">${icono('nube')} Guardar en la nube ahora</button>` : ''}<button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
       $('dNo').onclick = cerrarDlg; $('oAbrir').onclick = () => { cerrarDlg(); Eq.abrir(r.id); };
       Eq.enlazarMenu(r);
+      if ($('oNube')) $('oNube').onclick = () => { cerrarDlg(); Nube.subirAhora(r.id); };
       $('oDup').onclick = async () => { cerrarDlg(); const c = Object.assign({}, r, { id: 'm' + Date.now().toString(36), nombre: r.nombre + ' (copia)', fecha: Date.now() }); delete c.comp; await Archivos.Almacen.guardar(c); irGaleria(); };
       $('oExp').onclick = async () => { cerrarDlg(); await Archivos.entregar(new Blob([JSON.stringify({ nombre: r.nombre, modelo: JSON.parse(r.datos) })], { type: 'application/json' }), r.nombre.replace(/\s+/g, '_') + '.r3d', avisar); };
-      $('oBorrar').onclick = () => dialogo(`<h3>¿Eliminar “${esc(r.nombre)}”?</h3><p>No se puede deshacer.</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Eliminar</button></div>`, () => { $('dNo').onclick = cerrarDlg; $('dSi').onclick = async () => { await Eq.alBorrar(r); await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); }; });
+      $('oBorrar').onclick = () => {
+        if (Nube.estaEnNube(r.id)) return dialogo(`<h3>Eliminar “${esc(r.nombre)}”</h3><p>Este modelo también está en tu nube.</p><div class="opc"><button id="dEq">${icono('papelera')} Solo de este equipo <small>(lo recuperas desde ☁ Nube)</small></button><button id="dTodo" style="color:#d64545">${icono('papelera')} De este equipo y de la nube <small>(no se puede recuperar)</small></button></div><div class="fila"><button id="dNo">Cancelar</button></div>`, () => {
+          $('dNo').onclick = cerrarDlg;
+          $('dEq').onclick = async () => { await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); };
+          $('dTodo').onclick = async () => { try { await Nube.alBorrar(r.id); } catch (e) { return avisar(e.red ? 'Necesitas internet para quitarlo de la nube' : 'No se pudo: ' + e.message); } await Eq.alBorrar(r); await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); };
+        });
+        dialogo(`<h3>¿Eliminar “${esc(r.nombre)}”?</h3><p>No se puede deshacer.</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Eliminar</button></div>`, () => { $('dNo').onclick = cerrarDlg; $('dSi').onclick = async () => { await Eq.alBorrar(r); await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); }; });
+      };
     });
   }
 
@@ -2131,7 +2141,7 @@
         ${todos.length ? `<div class="eq-lista">${todos.map(c => `<label class="eq-per"><input type="checkbox" data-c="${esc(c)}" ${marcados.has(c) ? 'checked' : ''}><span class="eq-av">${esc(corto(c)[0] || '?')}</span><span><b>${esc(corto(c))}</b><small>${esc(c)}</small></span></label>`).join('')}</div>`
           : '<p class="nota">Aún no hay más personas en tu equipo.</p>'}
         <label class="eq-otro">Agregar por correo<input type="email" id="eqMail" placeholder="correo@ejemplo.com" autocomplete="off"></label>
-        <p class="nota">Solo personas de tu equipo RAIKI (las que agregas en <b>Mi equipo</b> de OXEN PRO o en el panel).</p>
+        <p class="nota">Cualquier persona con cuenta RAIKI (la misma de OXEN PRO, Kivo o Flexio). Escribe su correo si no aparece arriba.</p>
         <div class="fila">${actual ? '<button id="eqQuitar" class="peligro-txt">Dejar de compartir</button><span style="flex:1"></span>' : ''}<button id="dNo">Cancelar</button><button class="pri" id="dSi">${actual ? 'Guardar' : 'Compartir'}</button></div>`, () => {
         $('dNo').onclick = cerrarDlg;
         if (actual) $('eqQuitar').onclick = async () => { cerrarDlg(); await dejar(r); };
@@ -2141,9 +2151,9 @@
           if (extra) { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(extra)) return avisar('Revisa el correo'); if (!para.includes(extra)) para.push(extra); }
           if (!para.length) return avisar('Elige al menos una persona');
           cerrarDlg(); avisar('Compartiendo…');
+          const modelo = (r.comp && r.comp.modelo) || r.id, v = Date.now().toString(36);
+          const hayCambios = !r.comp || huella(r.datos) !== r.comp.hash;
           try {
-            const modelo = (r.comp && r.comp.modelo) || r.id, v = Date.now().toString(36);
-            const hayCambios = !r.comp || huella(r.datos) !== r.comp.hash;
             if (hayCambios) await subirArchivos(yo(), modelo, v, r);
             const res = await A.rpc('flexio_compartir', { p_modelo: modelo, p_nombre: r.nombre, p_version: hayCambios ? v : r.comp.version, p_para: para });
             if (hayCambios && r.comp && r.comp.version && r.comp.version !== v) borrarVersion(yo(), modelo, r.comp.version);
@@ -2154,7 +2164,9 @@
             avisar('Compartido con ' + res.para.map(corto).join(', '));
           } catch (e) {
             const m = String(e.message || '');
-            if (m.includes('no_es_del_equipo')) avisar((m.split(':')[1] || 'Ese correo') + ' no está en tu equipo');
+            if (hayCambios && !e.red) borrarVersion(yo(), modelo, v);
+            if (m.includes('sin_cuenta')) dialogo(`<h3>No se pudo compartir</h3><p><b>${esc(m.split(':')[1] || 'Ese correo')}</b> no tiene cuenta RAIKI. Créale una en el panel de clientes (o que entre a OXEN PRO, Kivo o Flexio) y vuelve a compartir.</p><div class="fila"><button class="pri" id="dNo">Entendido</button></div>`, () => { $('dNo').onclick = cerrarDlg; });
+            else if (m.includes('no_es_del_equipo')) avisar((m.split(':')[1] || 'Ese correo') + ' no está en tu equipo');
             else if (m.includes('sin_personas')) avisar('Elige al menos una persona');
             else avisar(e.red ? 'Necesitas internet para compartir' : 'No se pudo compartir: ' + m);
           }
@@ -2206,8 +2218,163 @@
     }
     return { pintar, etiqueta, itemsMenu, enlazarMenu, compartirCon, alSalir, alBorrar, abrir: abrirModelo, esRecibido, refrescar };
   })();
+
+  // =================================================================
+  //  NUBE: respaldo privado de cada cuenta RAIKI
+  //  · Al salir de un modelo se sube su última versión (por detrás, sin esperar).
+  //  · Al abrir la galería se sube lo que falte o haya cambiado (también lo modelado sin internet).
+  //  · En la galería, "En la nube" muestra los modelos que no están en este equipo: un toque los trae.
+  //  · Archivos en el depósito "respaldos": <correo>/flexio/<modelo>/<versión>/modelo.json + mini.jpg
+  // =================================================================
+  const Nube = (() => {
+    const A = window.RaikiAuth, B = 'respaldos', K = 'flexio-nube', KH = 'flexio-nube-hash';
+    const yo = () => ((A && A.sesion() || {}).email || '').toLowerCase();
+    const leerLS = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+    let filas = leerLS(K) || [], hashes = leerLS(KH) || {}, sinServidor = false;
+    const guardarLS = () => { try { localStorage.setItem(K, JSON.stringify(filas)); localStorage.setItem(KH, JSON.stringify(hashes)); } catch (e) {} };
+    const huella = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); };
+    const firma = r => huella((r.nombre || '') + '|' + (r.datos || ''));
+    const mias = () => filas.filter(f => f.dueno === yo());
+    const fila = id => mias().find(f => f.modelo_id === id);
+    const esMio = r => r && (!r.comp || r.comp.dueno === yo());
+    const pendiente = r => esMio(r) && hashes[yo() + '|' + r.id] !== firma(r);
+    const carpeta = (f, v) => `${f.dueno}/flexio/${f.modelo_id}/${v || f.version}/`;
+    const activa = () => !!(A && A.sesion()) && !sinServidor;
+
+    async function refrescar() {
+      if (!A || !A.sesion()) return false;
+      try { filas = (await A.tabla('flexio_respaldos?select=*&order=actualizado.desc')) || []; sinServidor = false; guardarLS(); return true; }
+      catch (e) { if (e.status === 404 || /flexio_respaldos/.test(e.message || '')) sinServidor = true; return false; }
+    }
+    const dataURLaBlob = u => fetch(u).then(r => r.blob());
+    async function subir(id) {
+      const r = await Archivos.Almacen.leer(id); if (!r || !esMio(r)) return;
+      const dueno = yo(), v = Date.now().toString(36), previo = fila(id), base = carpeta({ dueno, modelo_id: id }, v);
+      const json = new Blob([JSON.stringify({ nombre: r.nombre, datos: r.datos, cam: r.cam || null })], { type: 'application/json' });
+      await A.subirArchivo(base + 'modelo.json', json, 'application/json', B); let bytes = json.size;
+      if (r.mini) { const b = await dataURLaBlob(r.mini); await A.subirArchivo(base + 'mini.jpg', b, 'image/jpeg', B); bytes += b.size; }
+      const nueva = await A.tabla('flexio_respaldos?on_conflict=dueno,modelo_id', 'POST',
+        { dueno, modelo_id: id, nombre: r.nombre, version: v, bytes, actualizado: new Date(Math.max(Date.now(), r.fecha || 0)).toISOString() }, 'resolution=merge-duplicates');
+      if (previo && previo.version !== v) A.borrarArchivos([carpeta(previo) + 'modelo.json', carpeta(previo) + 'mini.jpg'], B).catch(() => {});
+      filas = filas.filter(f => !(f.modelo_id === id && f.dueno === dueno)).concat(nueva && nueva[0] ? nueva[0] : []);
+      hashes[dueno + '|' + id] = firma(r); guardarLS();
+    }
+    const cola = new Set(); let corriendo = false, subidos = 0;
+    function encolar(id) { if (!id) return; cola.add(id); correr(); }
+    async function correr() {
+      if (corriendo || !activa() || !navigator.onLine) return; corriendo = true;
+      try {
+        while (cola.size) {
+          const id = cola.values().next().value;
+          try { await subir(id); cola.delete(id); subidos++; }
+          catch (e) { if (e.red) break; if (e.status === 404) { sinServidor = true; break; } console.error(e); cola.delete(id); }
+        }
+      } finally { corriendo = false; if (subidos && !$('galeria').classList.contains('oculto')) pintarEtiquetas(); }
+    }
+    async function ponerAlDia() {
+      if (!A || !A.sesion() || !navigator.onLine) return;
+      await refrescar(); if (sinServidor) return;
+      let L = []; try { L = await Archivos.Almacen.todos(); } catch (e) {}
+      for (const r of L) if (pendiente(r)) cola.add(r.id);
+      correr();
+    }
+    addEventListener('online', () => setTimeout(ponerAlDia, 2000));
+    document.addEventListener('raiki-listo', () => setTimeout(ponerAlDia, 5000), { once: true });
+
+    async function descargar(f) {
+      const blob = await A.bajarArchivo(carpeta(f) + 'modelo.json', B), d = JSON.parse(await blob.text());
+      let mini = null;
+      try { const b = await A.bajarArchivo(carpeta(f) + 'mini.jpg', B); mini = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); }); } catch (e) {}
+      const reg = { id: f.modelo_id, nombre: f.nombre || d.nombre, fecha: Date.parse(f.actualizado) || Date.now(), datos: d.datos, cam: d.cam, mini };
+      await Archivos.Almacen.guardar(reg); hashes[yo() + '|' + reg.id] = firma(reg); guardarLS();
+      return reg;
+    }
+    async function quitar(f) {
+      await A.tabla('flexio_respaldos?dueno=eq.' + encodeURIComponent(f.dueno) + '&modelo_id=eq.' + encodeURIComponent(f.modelo_id), 'DELETE');
+      A.borrarArchivos([carpeta(f) + 'modelo.json', carpeta(f) + 'mini.jpg'], B).catch(() => {});
+      filas = filas.filter(x => x !== f); delete hashes[f.dueno + '|' + f.modelo_id]; guardarLS();
+    }
+
+    // ---------- galería ----------
+    const minis = new Map();
+    function etiqueta(r) {
+      if (!esMio(r) || !fila(r.id)) return '';
+      return `<span class="eq-tag nube-tag">${icono('nube')} ${pendiente(r) ? 'Nube: por subir cambios' : 'En la nube'}</span>`;
+    }
+    function pintarEtiquetas() { if (!$('galeria').classList.contains('oculto')) irGaleria(); }
+    async function pintar(locales) {
+      const ids = new Set(locales.map(r => r.id));
+      const dibujar = () => {
+        const sec = $('gNube'), tit = $('gNubeTit'); if (!sec) return;
+        const faltan = mias().filter(f => !ids.has(f.modelo_id));
+        tit.classList.toggle('oculto', !faltan.length); sec.classList.toggle('oculto', !faltan.length);
+        sec.innerHTML = faltan.map(f => `<div class="tarjeta"><button data-nube="${esc(f.modelo_id)}" style="display:block;width:100%;text-align:left">${minis.get(f.modelo_id) ? `<img class="mini" src="${minis.get(f.modelo_id)}" alt="">` : `<span class="mini eq-mini">${icono('nube')}</span>`}<div class="inf"><b>${esc(f.nombre || 'Modelo')}</b><small>En la nube · ${new Date(f.actualizado).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small><i class="eq-nuevo">Tocar para traer</i></div></button></div>`).join('');
+        sec.querySelectorAll('[data-nube]').forEach(b => b.onclick = () => traerYAbrir(b.dataset.nube));
+        for (const f of faltan) if (!minis.has(f.modelo_id)) { minis.set(f.modelo_id, ''); A.bajarArchivo(carpeta(f) + 'mini.jpg', B).then(b => { minis.set(f.modelo_id, URL.createObjectURL(b)); dibujar(); }).catch(() => {}); }
+      };
+      dibujar();
+      if (!A || !A.sesion() || !navigator.onLine) return;
+      const antes = JSON.stringify(filas); await refrescar(); if (sinServidor) return;
+      if (JSON.stringify(filas) !== antes) dibujar();
+      let n = 0; for (const r of locales) if (pendiente(r)) { cola.add(r.id); n++; }
+      if (n) correr();
+    }
+    async function traerYAbrir(id) {
+      const f = fila(id); if (!f) return;
+      try { avisar('Trayendo de la nube…'); await descargar(f); await abrir(id); }
+      catch (e) { avisar(e.red ? 'Necesitas internet para traerlo de la nube' : 'No se pudo traer: ' + e.message); }
+    }
+
+    // ---------- pantalla ☁ ----------
+    async function pantalla() {
+      if (!A || !A.sesion()) return avisar('Entra con tu cuenta RAIKI para usar la nube');
+      dialogo('<h3>Nube de Flexio</h3><p class="nota">Revisando tu nube…</p>');
+      const ok = await refrescar();
+      let L = []; try { L = await Archivos.Almacen.todos(); } catch (e) {}
+      const locales = new Map(L.map(r => [r.id, r]));
+      const mios = L.filter(esMio), pend = mios.filter(pendiente);
+      const nube = mias();
+      const estado = sinServidor ? '<p class="nota" style="color:#d64545">La nube todavía no está activada en el servidor.</p>'
+        : !ok && !navigator.onLine ? '<p class="nota">Sin internet: se mostrará lo último que se vio. Lo que modeles se sube solo al volver la señal.</p>'
+        : `<p class="nota">${nube.length} ${nube.length === 1 ? 'modelo' : 'modelos'} en tu nube · ${pend.length ? pend.length + ' por subir' : 'todo al día'} · cuenta ${esc(yo())}</p>`;
+      dialogo(`<h3>Nube de Flexio</h3>
+        <p>Cada modelo tuyo se guarda en tu cuenta RAIKI al salir de él. Así lo recuperas en otra tableta o si se borra la app.</p>
+        ${estado}
+        <div class="nube-lista">${nube.map(f => `<div class="nube-fila"><span><b>${esc(f.nombre || 'Modelo')}</b><small>${new Date(f.actualizado).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${locales.has(f.modelo_id) ? ' · también en este equipo' : ''}</small></span>
+          <button data-ab="${esc(f.modelo_id)}">${locales.has(f.modelo_id) ? 'Abrir' : 'Traer'}</button><button class="ib" data-qu="${esc(f.modelo_id)}" title="Quitar de la nube">${icono('papelera')}</button></div>`).join('') || '<p class="nota">Todavía no hay modelos en tu nube.</p>'}</div>
+        <div class="fila"><button id="dNo">Cerrar</button>${!sinServidor ? `<button class="pri" id="nSubir">Subir ${pend.length ? 'pendientes (' + pend.length + ')' : 'todo'} ahora</button>` : ''}</div>`, () => {
+        $('dNo').onclick = cerrarDlg;
+        const bS = $('nSubir'); if (bS) bS.onclick = async () => {
+          if (!navigator.onLine) return avisar('Sin internet: se subirá solo al volver la señal');
+          const lista = pend.length ? pend : mios; lista.forEach(r => cola.add(r.id)); subidos = 0;
+          bS.disabled = true; bS.textContent = 'Subiendo…'; await correr();
+          avisar(cola.size ? 'Quedaron modelos por subir; se intentará otra vez' : 'Listo: tu nube está al día'); pantalla();
+        };
+        document.querySelectorAll('#dlgCaja [data-ab]').forEach(b => b.onclick = async () => { const id = b.dataset.ab; cerrarDlg(); if (locales.has(id)) Eq.abrir(id); else traerYAbrir(id); });
+        document.querySelectorAll('#dlgCaja [data-qu]').forEach(b => b.onclick = () => {
+          const f = fila(b.dataset.qu); if (!f) return;
+          dialogo(`<h3>¿Quitar “${esc(f.nombre)}” de la nube?</h3><p>${locales.has(f.modelo_id) ? 'Sigue en este equipo.' : 'No está en este equipo: se perderá.'}</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Quitar</button></div>`, () => {
+            $('dNo').onclick = pantalla; $('dSi').onclick = async () => { try { await quitar(f); avisar('Quitado de la nube'); } catch (e) { avisar(e.red ? 'Necesitas internet' : 'No se pudo: ' + e.message); } pantalla(); irGaleriaSiVisible2(); };
+          });
+        });
+      });
+    }
+    function irGaleriaSiVisible2() { if (!$('galeria').classList.contains('oculto')) irGaleria(); }
+
+    // ---------- ganchos ----------
+    function alSalir(id) { Archivos.Almacen.leer(id).then(r => { if (r && pendiente(r) && activa()) encolar(id); }).catch(() => {}); }
+    async function subirAhora(id) {
+      if (!A || !A.sesion()) return avisar('Entra con tu cuenta RAIKI');
+      if (!navigator.onLine) return avisar('Sin internet: se subirá solo al volver la señal');
+      try { avisar('Subiendo a la nube…'); await subir(id); avisar('Guardado en la nube'); irGaleriaSiVisible2(); }
+      catch (e) { avisar(e.status === 404 ? 'La nube todavía no está activada en el servidor' : e.red ? 'Sin internet' : 'No se pudo: ' + e.message); }
+    }
+    const estaEnNube = id => !!fila(id);
+    async function alBorrar(id) { const f = fila(id); if (f) await quitar(f); }
+    return { pintar, etiqueta, pantalla, alSalir, subirAhora, estaEnNube, alBorrar, esMio };
+  })();
   $('gNuevo').innerHTML = icono('mas') + 'Nuevo modelo'; $('gImportar').innerHTML = icono('importar') + 'Importar'; $('gTutorial').innerHTML = icono('ayuda') + 'Tutorial';
-  $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes');
+  $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes'); $('gNubeBtn').innerHTML = icono('nube') + 'Nube'; $('gNubeBtn').onclick = () => Nube.pantalla();
   $('gNuevo').onclick = () => abrirNuevo('Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }), null);
 
   // ---------------- ejemplos ----------------

@@ -239,3 +239,15 @@ input,select{font:inherit}
 .cor-quitar{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:10px;background:#f6f7f8;font-size:12.5px;font-weight:600}
 .cor-quitar .ico{width:16px;height:16px}
 .dlg-ayuda{font-size:13px;color:var(--txt2);margin:0 0 10px}
+
+/* nube */
+.nube-tag{color:#2f7ab8}
+.nube-lista{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto;margin:8px 0}
+.nube-fila{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 12px;border-radius:10px;background:#f6f7f8}
+.nube-fila>span{flex:1;min-width:0;display:flex;flex-direction:column}
+.nube-fila b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nube-fila small{font-size:11.5px;color:var(--txt2)}
+.nube-fila>button:not(.ib){padding:7px 12px;border-radius:8px;background:#fff;font-weight:600;font-size:13px}
+.nube-fila .ib .ico{width:18px;height:18px}
+.opc button small{display:block;font-weight:400;font-size:11.5px;color:var(--txt2)}
+h3 .ico{width:20px;height:20px;vertical-align:-4px}

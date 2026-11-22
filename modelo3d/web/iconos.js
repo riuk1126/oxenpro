@@ -56,6 +56,7 @@ window.ICONOS = {
   corteT: '<rect class="f" x="5" y="3" width="14" height="18" rx="1"/><rect class="af" x="10.9" y="3" width="2.2" height="18" stroke="none"/><path class="ac" d="M2 12h3M3.3 10.3 5 12l-1.7 1.7"/>',
   planta: '<rect class="f" x="3.5" y="3.5" width="17" height="17" rx="1"/><path class="af" d="M3.5 3.5h17v3h-17zM3.5 3.5h3v17h-3z" stroke="none"/><path d="M12 6.5v6h8.5M12 15.5v5"/>',
   elevacion: '<path class="f" d="M4.5 20.5V10L12 4l7.5 6v10.5z"/><rect class="af" x="9.7" y="14" width="4.6" height="6.5" rx=".4"/><path d="M2.5 20.5h19"/>',
+  nube: '<path class="f" d="M7 18.5a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.2a4.7 4.7 0 0 1-.7 9.3z"/><path class="ac" d="M12 16.5v-5M9.8 13.4 12 11.2l2.2 2.2"/>',
   gotero: '<path d="m14 4.5 5.5 5.5M16.5 7.5 6.8 17.2 4 20l2.8-2.8"/><path d="m11 8 5 5"/>'
 };
 window.icono = (n, cls) => `<svg class="ico ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${window.ICONOS[n] || ''}</svg>`;
