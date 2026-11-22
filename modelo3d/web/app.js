@@ -297,7 +297,7 @@
   function seleccionarConectado(ent) {
     const g = ent.tipo === 'cara' ? m.f.get(ent.id).g : m.e.get(ent.id).g;
     const pendV = []; const vistos = new Set();
-    if (ent.tipo === 'cara') pendV.push(...m.vertsCara(m.f.get(ent.id))); else { const E = m.e.get(ent.id); pendV.push(E.a, E.b); }
+    if (ent.tipo === 'cara') for (const v of m.vertsCara(m.f.get(ent.id))) pendV.push(v); else { const E = m.e.get(ent.id); pendV.push(E.a, E.b); }
     while (pendV.length) { const v = pendV.pop(); if (vistos.has(v)) continue; vistos.add(v); for (const e of m.ve.get(v)) { const E = m.e.get(e); if (E.g !== g) continue; est.selAristas.add(e); for (const f of m.ef.get(e)) est.selCaras.add(f); pendV.push(E.a === v ? E.b : E.a); } }
     estVer++; pintarSelBar();
   }

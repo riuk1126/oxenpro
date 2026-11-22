@@ -132,7 +132,7 @@
     }
     const escena = q(doc, 'visual_scene')[0];
     if (escena) for (const c of escena.children) if (c.tagName === 'node') nodo(c, I);
-    if (!polis.length) for (const g of q(doc, 'geometry')) polis.push(...geometria(g.getAttribute('id'), {}));
+    if (!polis.length) for (const g of q(doc, 'geometry')) for (const x of geometria(g.getAttribute('id'), {})) polis.push(x);
     return { polis, unidad, yArriba };
   }
 

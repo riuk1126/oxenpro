@@ -62,7 +62,8 @@
     if (outer.length === 3 && rings.length === 1) return outer;
     // huecos: horario, ordenados por su x máxima (de derecha a izquierda)
     const holes = rings.slice(1).filter(h => h.length >= 3).map(h => { h = h.slice(); if (ar(h) > 0) h.reverse(); return h; });
-    holes.sort((a, b) => Math.max(...b.map(i => pts[i][0])) - Math.max(...a.map(i => pts[i][0])));
+    const xMax = h => { let x = -Infinity; for (const i of h) if (pts[i][0] > x) x = pts[i][0]; return x; };
+    holes.sort((a, b) => xMax(b) - xMax(a));
     let poly = outer;
     for (const h of holes) poly = unirHueco(poly, h, pts);
     return cortarOrejas(poly, pts);
@@ -236,7 +237,7 @@
       if (f.tri) return f.tri;
       const L0 = f.loops[0];
       if (f.loops.length === 1 && L0.length === 3) { f.tri = L0.slice(); return f.tri; }
-      const flat = [].concat(...f.loops);
+      const flat = []; for (const L of f.loops) for (const v of L) flat.push(v);
       const loops2 = f.loops.map(L => this.a2D(f, L.map(i => this.P(i))));
       const idx = triangular(loops2);
       f.tri = idx.map(i => flat[i]);
@@ -886,7 +887,7 @@
     }
     _triangular3D(f) {
       f.tri = null;
-      const flat = [].concat(...f.loops);
+      const flat = []; for (const L of f.loops) for (const v of L) flat.push(v);
       const P = flat.map(i => this.P(i));
       let n = normalNewell(f.loops[0].map(i => this.P(i))); n = V.norm(n);
       const [u, v] = ejesPlano(n);
@@ -1008,7 +1009,10 @@
       }
       for (const [id, nombre, vano] of d.grupos || []) this.grupos.set(id, vano ? { id, nombre, vano } : { id, nombre });
       this.cotas = d.cotas || []; this.mats = d.mats || []; this.cortes = d.cortes || []; this.corteActivo = d.corteActivo || 0; this.escenas = d.escenas || [];
-      this.sig = Math.max(d.sig || 1, ...[0].concat([...this.v.keys()], [...this.e.keys()], [...this.f.keys()], [...this.grupos.keys()]).map(x => x + 1));
+      // sin "..." sobre listas grandes: con modelos pesados el navegador da "Maximum call stack size exceeded"
+      let sig = d.sig || 1;
+      for (const M of [this.v, this.e, this.f, this.grupos]) for (const k of M.keys()) if (k + 1 > sig) sig = k + 1;
+      this.sig = sig;
       this.cambio++; this.todoSucio = true;
     }
     clonarDatos() { return JSON.stringify(this.serializar()); }
