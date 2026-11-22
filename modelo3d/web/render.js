@@ -242,8 +242,10 @@
       this.texs.set(tipo, t); return t;
     }
     _buf(data) { const gl = this.gl, b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return b; }
-    _lineas(segs) { // segs: [ax,ay,az,bx,by,bz,r,g,b,grosor]...
-      const n = segs.length / 10, d = new Float32Array(n * 6 * 12); let o = 0;
+    _lineas(segs) { // segs: [ax,ay,az,bx,by,bz,r,g,b,grosor]... (en bloques, como las caras)
+      const n = segs.length / 10;
+      if (n > 10000) { const partes = []; for (let i = 0; i < n; i += 10000) partes.push(this._lineas(segs.subarray ? segs.subarray(i * 10, Math.min(n, i + 10000) * 10) : segs.slice(i * 10, Math.min(n, i + 10000) * 10))); return { partes, b: null, n: 0 }; }
+      const d = new Float32Array(n * 6 * 12); let o = 0;
       const esq = [[-1, 0], [1, 0], [1, 1], [-1, 0], [1, 1], [-1, 1]];
       for (let i = 0; i < n; i++) {
         const s = i * 10;
@@ -259,59 +261,84 @@
         // parte negativa punteada
         for (let k = 0; k < 400; k++) { const a = -k * 0.5 - 0.1, b = a - 0.25; s.push(x * a, y * a, z * a, x * b, y * b, z * b, c[0], c[1], c[2], 0.8); }
       }
-      if (this.bufEjes) this.gl.deleteBuffer(this.bufEjes.b);
+      this._borrarLin(this.bufEjes);
       this.bufEjes = this._lineas(s);
     }
     // construye los búferes a partir del modelo. est: {selCaras:Set, selAristas:Set, contexto, ocultos}
     construir(m, est) {
       const gl = this.gl;
-      for (const b of this.bufCaras) gl.deleteBuffer(b.b);
-      if (this.bufLin) gl.deleteBuffer(this.bufLin.b);
-      this.bufCaras = [];
-      const lotes = new Map();
-      const lote = (mat, lado) => { const k = mat + '|' + lado; let l = lotes.get(k); if (!l) lotes.set(k, l = { mat, lado, d: [] }); return l; };
-      // normales suaves por grupo de suavizado
-      const suave = new Map();
-      for (const f of m.f.values()) if (f.sg) for (const L of f.loops) for (const v of L) { const k = v + '|' + f.sg; const s = suave.get(k) || [0, 0, 0]; suave.set(k, V.add(s, f.n)); }
+      // un mismo búfer puede servir a las dos caras (frente y reverso): se borra una sola vez
+      for (const b of new Set(this.bufCaras.map(x => x.b))) gl.deleteBuffer(b);
+      this._borrarLin(this.bufLin);
+      this.bufCaras = []; this.bufLin = null;
+      // Memoria: los datos se escriben directo en Float32Array (sin listas intermedias) y,
+      // cuando el frente y el reverso usan la misma escala de textura, comparten el mismo búfer.
+      const matDe = id => MAT.get(id) || MAT.get(0);
+      const grupos = new Map();
+      const grupo = (k, lados) => { let g = grupos.get(k); if (!g) grupos.set(k, g = { lados, caras: [], n: 0, tam: 1 }); return g; };
       const sel = est.selCaras, ctx = est.contexto;
       for (const f of m.f.values()) {
         const tri = m.triangulos(f); if (!tri.length) continue;
-        const enCtx = ctx ? f.g === ctx : true;
-        const tint = sel.has(f.id) || (est.selGrupos && est.selGrupos.has(f.g)) ? [0.25, 0.45, 0.95, 0.38] : (!enCtx ? [1, 1, 1, 0.55] : [0, 0, 0, 0]);
-        const [u, v] = ejesPlano(f.n);
-        for (const [lado, matId] of [[1, f.mat], [-1, f.matB]]) {
-          const mat = MAT.get(matId) || MAT.get(0);
-          const L = lote(mat.id, lado), tam = mat.tam || 1;
-          const d = L.d;
+        const A = matDe(f.mat), B = matDe(f.matB);
+        if ((A.tam || 1) === (B.tam || 1)) { const g = grupo(A.id + '|' + B.id, [[1, A], [-1, B]]); g.tam = A.tam || 1; g.caras.push(f); g.n += tri.length; }
+        else {
+          const g1 = grupo(A.id + '|f', [[1, A]]); g1.tam = A.tam || 1; g1.caras.push(f); g1.n += tri.length;
+          const g2 = grupo(B.id + '|b', [[-1, B]]); g2.tam = B.tam || 1; g2.caras.push(f); g2.n += tri.length;
+        }
+      }
+      // normales suaves por grupo de suavizado
+      const suave = new Map();
+      for (const f of m.f.values()) if (f.sg) for (const L of f.loops) for (const v of L) { const k = v + '|' + f.sg; const s = suave.get(k); if (s) { s[0] += f.n[0]; s[1] += f.n[1]; s[2] += f.n[2]; } else suave.set(k, f.n.slice()); }
+      // en bloques de hasta ~60 mil vértices: las tarjetas gráficas de tabletas sencillas
+      // fallan o se quedan sin memoria con un búfer gigante
+      const LIM = 60000, bloques = [];
+      for (const g of grupos.values()) {
+        let b = null;
+        for (const f of g.caras) { const t = m.triangulos(f).length; if (!b || b.n + t > LIM) bloques.push(b = { lados: g.lados, tam: g.tam, caras: [], n: 0 }); b.caras.push(f); b.n += t; }
+      }
+      for (const g of bloques) {
+        const d = new Float32Array(g.n * 12); let o = 0; const tam = g.tam;
+        for (const f of g.caras) {
+          const tri = m.triangulos(f);
+          const enCtx = ctx ? f.g === ctx : true;
+          const tint = sel.has(f.id) || (est.selGrupos && est.selGrupos.has(f.g)) ? [0.25, 0.45, 0.95, 0.38] : (!enCtx ? [1, 1, 1, 0.55] : null);
+          const [u, v] = ejesPlano(f.n);
           for (let i = 0; i < tri.length; i++) {
             const p = m.P(tri[i]);
             let n = f.n; if (f.sg) { const s = suave.get(tri[i] + '|' + f.sg); if (s) n = V.norm(s); }
-            d.push(p[0], p[1], p[2], n[0], n[1], n[2], V.dot(p, u) / tam, V.dot(p, v) / tam, tint[0], tint[1], tint[2], tint[3]);
+            d[o++] = p[0]; d[o++] = p[1]; d[o++] = p[2]; d[o++] = n[0]; d[o++] = n[1]; d[o++] = n[2];
+            d[o++] = (p[0] * u[0] + p[1] * u[1] + p[2] * u[2]) / tam; d[o++] = (p[0] * v[0] + p[1] * v[1] + p[2] * v[2]) / tam;
+            if (tint) { d[o++] = tint[0]; d[o++] = tint[1]; d[o++] = tint[2]; d[o++] = tint[3]; } else o += 4;
           }
         }
+        const buf = this._buf(d);
+        for (const [lado, mat] of g.lados) this.bufCaras.push({ b: buf, n: g.n, mat, lado });
       }
-      for (const L of lotes.values()) this.bufCaras.push({ b: this._buf(new Float32Array(L.d)), n: L.d.length / 12, mat: MAT.get(L.mat) || MAT.get(0), lado: L.lado });
       // aristas
-      const s = [];
       const selE = est.selAristas;
+      // modo liviano (modelos muy pesados): solo las aristas elegidas
+      const verArista = e => !(e.s && !est.verSuaves) && (!this.liviano || selE.has(e.id) || (est.selGrupos && est.selGrupos.has(e.g)));
+      let ne = 0; for (const e of m.e.values()) if (verArista(e)) ne++;
+      const s = new Float32Array(ne * 10); let o = 0;
       for (const e of m.e.values()) {
+        if (!verArista(e)) continue;
         const enCtx = ctx ? e.g === ctx : true;
         const marcada = selE.has(e.id) || (est.selGrupos && est.selGrupos.has(e.g));
-        if (e.s && !est.verSuaves) continue;
         const a = m.P(e.a), b = m.P(e.b);
-        let c = [0.1, 0.1, 0.12], w = 1;
-        if (marcada) { c = [0.15, 0.4, 1]; w = 2; }
-        else if (!enCtx) { c = [0.55, 0.56, 0.6]; w = 0.85; }
-        else if (e.s) { c = [0.55, 0.55, 0.6]; w = 0.7; }
+        let c0 = 0.1, c1 = 0.1, c2 = 0.12, w = 1;
+        if (marcada) { c0 = 0.15; c1 = 0.4; c2 = 1; w = 2; }
+        else if (!enCtx) { c0 = 0.55; c1 = 0.56; c2 = 0.6; w = 0.85; }
+        else if (e.s) { c0 = 0.55; c1 = 0.55; c2 = 0.6; w = 0.7; }
         else if (!m.ef.get(e.id).size) { w = 1.15; }
-        s.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2], w);
+        s[o++] = a[0]; s[o++] = a[1]; s[o++] = a[2]; s[o++] = b[0]; s[o++] = b[1]; s[o++] = b[2]; s[o++] = c0; s[o++] = c1; s[o++] = c2; s[o++] = w;
       }
-      this.bufLin = s.length ? this._lineas(s) : null;
+      this.bufLin = ne ? this._lineas(s) : null;
       // contorno grueso donde el plano de sección corta las caras
-      if (this.bufCorte) { gl.deleteBuffer(this.bufCorte.b); this.bufCorte = null; }
+      if (this.bufCorte) { this._borrarLin(this.bufCorte); this.bufCorte = null; }
       this.corte = est.corte || null;
       if (this.corte) { const sc = segmentosCorte(m, this.corte); if (sc.length) this.bufCorte = this._lineas(sc); }
     }
+    _borrarLin(b) { if (!b) return; if (b.partes) b.partes.forEach(x => this._borrarLin(x)); else if (b.b) this.gl.deleteBuffer(b.b); }
     tamano(w, h, dpr) {
       this.dpr = dpr; const W = Math.round(w * dpr), Hh = Math.round(h * dpr);
       if (this.cv.width !== W || this.cv.height !== Hh) { this.cv.width = W; this.cv.height = Hh; }
@@ -360,6 +387,7 @@
       gl.uniform2f(q.u.uRes, this.cv.width / 2, this.cv.height / 2);
       const linea = (b, ancho, sesgo, alfa, corta) => {
         if (!b) return;
+        if (b.partes) { for (const x of b.partes) linea(x, ancho, sesgo, alfa, corta); return; }
         gl.uniform1f(q.u.uCorta, corta && ct ? 1 : 0);
         if (ct) gl.uniform4f(q.u.uPlano, ct.n[0], ct.n[1], ct.n[2], ct.d);
         gl.uniform1f(q.u.uAncho, ancho * this.dpr / 2); gl.uniform1f(q.u.uSesgo, sesgo); gl.uniform1f(q.u.uAlfa, alfa);
