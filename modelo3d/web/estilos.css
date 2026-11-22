@@ -217,3 +217,25 @@ input,select{font:inherit}
 .dlg .rapidos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 4px}
 .dlg .rapidos button{height:46px;border-radius:10px;background:#f1f2f4;font-weight:600;font-size:15px}.dlg .rapidos .on{background:var(--acento);color:#fff}
 .dlg .dos{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}.dlg .dos label{display:flex;flex-direction:column;gap:4px;justify-content:flex-end}
+
+/* cortes y elevaciones */
+.cor-cuerpo{flex:1;overflow:auto;padding:6px 12px 14px;display:flex;flex-direction:column;gap:6px}
+.cor-tit{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--txt2);margin:10px 0 2px}
+.cor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}
+.cor-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:10px;background:#f6f7f8;font-size:11.5px;color:var(--txt)}
+.cor-b .ico{width:26px;height:26px}
+.cor-b.on,.cor-b:active{background:#6666ff1f;box-shadow:inset 0 0 0 1.5px #6666ff}
+.cor-item{border-radius:10px;background:#f6f7f8;padding:4px;display:flex;flex-direction:column;gap:4px}
+.cor-item.on{background:#f08a2418;box-shadow:inset 0 0 0 1.5px #e07b12}
+.cor-nom{display:flex;align-items:center;gap:8px;padding:6px 8px;font-size:13px;font-weight:600;text-align:left}
+.cor-nom i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px #9aa0a6;flex:none}
+.cor-item.on .cor-nom i{box-shadow:inset 0 0 0 4px #e07b12}
+.cor-acc{display:flex;gap:3px}
+.cor-acc button{flex:1;height:32px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;gap:3px;font-size:14px;font-weight:700}
+.cor-acc button:first-child{flex:1.6;font-size:12px;font-weight:600}
+.cor-acc .ico{width:16px;height:16px}
+.cor-vacio{font-size:12.5px;color:var(--txt2);margin:2px 0}
+.cor-chk{font-size:12.5px;margin-top:4px}
+.cor-quitar{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:10px;background:#f6f7f8;font-size:12.5px;font-weight:600}
+.cor-quitar .ico{width:16px;height:16px}
+.dlg-ayuda{font-size:13px;color:var(--txt2);margin:0 0 10px}

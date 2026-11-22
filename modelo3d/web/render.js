@@ -170,7 +170,12 @@
     precision mediump float;
     varying vec3 vN; varying vec2 vUV; varying vec4 vT; varying vec3 vP;
     uniform vec4 uC; uniform sampler2D uTex; uniform float uUsaTex; uniform vec3 uLuz; uniform float uRayos; uniform vec3 uOjo;
+    uniform vec4 uPlano; uniform float uCorta; uniform float uPoche; uniform vec3 uColPoche;
     void main(){
+      // plano de sección: se quita lo que queda delante del plano
+      if (uCorta > 0.5 && dot(vP, uPlano.xyz) < uPlano.w - 0.0005) discard;
+      // relleno del corte (lo que se ve del interior de muros y losas cortados)
+      if (uPoche > 0.5) { gl_FragColor = vec4(uColPoche, 1.0); return; }
       vec4 b = uC;
       if (uUsaTex > 0.5) b *= texture2D(uTex, vUV);
       vec3 n = normalize(vN);
@@ -184,8 +189,9 @@
   const VS_LIN = `
     attribute vec3 aA; attribute vec3 aB; attribute vec2 aL; attribute vec4 aC;
     uniform mat4 uVP; uniform vec2 uRes; uniform float uAncho; uniform float uSesgo;
-    varying vec4 vC;
+    varying vec4 vC; varying vec3 vW;
     void main(){
+      vW = aL.y < 0.5 ? aA : aB;
       vec4 a = uVP * vec4(aA,1.0); vec4 b = uVP * vec4(aB,1.0);
       float e = 0.0001;
       if (a.w < e) { a = mix(a, b, (e - a.w) / (b.w - a.w)); }
@@ -199,7 +205,8 @@
       p.z -= uSesgo * p.w;
       gl_Position = p; vC = vec4(aC.rgb, 1.0);
     }`;
-  const FS_LIN = `precision mediump float; varying vec4 vC; uniform float uAlfa; void main(){ gl_FragColor = vec4(vC.rgb, uAlfa); }`;
+  const FS_LIN = `precision mediump float; varying vec4 vC; varying vec3 vW; uniform float uAlfa; uniform vec4 uPlano; uniform float uCorta;
+    void main(){ if (uCorta > 0.5 && dot(vW, uPlano.xyz) < uPlano.w - 0.0005) discard; gl_FragColor = vec4(vC.rgb, uAlfa); }`;
 
   class Visor {
     constructor(canvas) {
@@ -211,6 +218,7 @@
       this.pC = this._prog(VS_CARA, FS_CARA); this.pL = this._prog(VS_LIN, FS_LIN);
       this.bufCaras = []; this.bufLin = null; this.bufEjes = null; this.texs = new Map();
       this.rayos = false; this.verEjes = true; this.dpr = 1;
+      this.corte = null; this.bufCorte = null; // corte = { n:[x,y,z], d } (se ve lo que cumple n·p >= d)
       gl.enable(gl.DEPTH_TEST); gl.clearColor(0, 0, 0, 0);
       this._ejes();
     }
@@ -299,6 +307,10 @@
         s.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2], w);
       }
       this.bufLin = s.length ? this._lineas(s) : null;
+      // contorno grueso donde el plano de sección corta las caras
+      if (this.bufCorte) { gl.deleteBuffer(this.bufCorte.b); this.bufCorte = null; }
+      this.corte = est.corte || null;
+      if (this.corte) { const sc = segmentosCorte(m, this.corte); if (sc.length) this.bufCorte = this._lineas(sc); }
     }
     tamano(w, h, dpr) {
       this.dpr = dpr; const W = Math.round(w * dpr), Hh = Math.round(h * dpr);
@@ -313,6 +325,10 @@
       gl.uniformMatrix4fv(p.u.uVP, false, vp);
       gl.uniform3fv(p.u.uLuz, V.norm([0.35, -0.55, 0.75]));
       gl.uniform1f(p.u.uRayos, this.rayos ? 1 : 0);
+      const ct = this.corte;
+      gl.uniform1f(p.u.uCorta, ct ? 1 : 0);
+      if (ct) gl.uniform4f(p.u.uPlano, ct.n[0], ct.n[1], ct.n[2], ct.d);
+      gl.uniform3f(p.u.uColPoche, 0.24, 0.24, 0.27);
       gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1);
       gl.enable(gl.CULL_FACE);
       const stride = 48;
@@ -320,6 +336,7 @@
         const mat = b.mat, lado = b.lado;
         gl.cullFace(lado > 0 ? gl.BACK : gl.FRONT);
         gl.uniform1f(p.u.uFlip, lado);
+        gl.uniform1f(p.u.uPoche, ct && lado < 0 && !this.rayos ? 1 : 0);
         const c = hexRGB(lado < 0 && mat.id === 0 ? mat.reverso : mat.color);
         gl.uniform4f(p.u.uC, c[0], c[1], c[2], mat.alfa || 1);
         if (mat.tex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex(mat.tex)); gl.uniform1i(p.u.uTex, 0); gl.uniform1f(p.u.uUsaTex, 1); } else gl.uniform1f(p.u.uUsaTex, 0);
@@ -341,8 +358,10 @@
       const q = this.pL; gl.useProgram(q);
       gl.uniformMatrix4fv(q.u.uVP, false, vp);
       gl.uniform2f(q.u.uRes, this.cv.width / 2, this.cv.height / 2);
-      const linea = (b, ancho, sesgo, alfa) => {
+      const linea = (b, ancho, sesgo, alfa, corta) => {
         if (!b) return;
+        gl.uniform1f(q.u.uCorta, corta && ct ? 1 : 0);
+        if (ct) gl.uniform4f(q.u.uPlano, ct.n[0], ct.n[1], ct.n[2], ct.d);
         gl.uniform1f(q.u.uAncho, ancho * this.dpr / 2); gl.uniform1f(q.u.uSesgo, sesgo); gl.uniform1f(q.u.uAlfa, alfa);
         gl.bindBuffer(gl.ARRAY_BUFFER, b.b); const st = 48;
         gl.enableVertexAttribArray(q.a.aA); gl.vertexAttribPointer(q.a.aA, 3, gl.FLOAT, false, st, 0);
@@ -353,10 +372,34 @@
       };
       gl.enable(gl.BLEND);
       if (this.verEjes) linea(this.bufEjes, 1.4, 0.00002, 0.9);
-      linea(this.bufLin, 1.5, 0.00004, 1);
+      linea(this.bufLin, 1.5, 0.00004, 1, true);
+      if (ct) linea(this.bufCorte, 1.5, 0.00008, 1, false);
       for (const k of ['aA', 'aB', 'aL', 'aC']) gl.disableVertexAttribArray(q.a[k]);
     }
   }
 
-  Object.assign(G.R3, { Camara, Visor, MATERIALES, MAT, texCanvas, hexRGB, M4 });
+  // Segmentos donde un plano corta las caras del modelo (para el contorno grueso del corte)
+  function segmentosCorte(m, ct) {
+    const n = ct.n, d = ct.d, s = [], W = 2.3, eps = 1e-7;
+    for (const f of m.f.values()) {
+      const dir = V.cross(f.n, n); const Ld = V.len(dir); if (Ld < 1e-6) continue; // cara paralela al plano
+      const u = V.mul(dir, 1 / Ld), pts = [];
+      for (const L of f.loops) for (let i = 0; i < L.length; i++) {
+        const A = m.P(L[i]), B = m.P(L[(i + 1) % L.length]);
+        const da = V.dot(A, n) - d, db = V.dot(B, n) - d;
+        if ((da > eps && db > eps) || (da < -eps && db < -eps)) continue;
+        if (Math.abs(da - db) < 1e-12) continue; // arista sobre el plano
+        // regla semiabierta para no contar dos veces un vértice sobre el plano
+        if (!((da <= 0 && db > 0) || (db <= 0 && da > 0))) continue;
+        const t = da / (da - db), P = V.add(A, V.mul(V.sub(B, A), t));
+        pts.push([V.dot(P, u), P]);
+      }
+      if (pts.length < 2) continue;
+      pts.sort((a, b) => a[0] - b[0]);
+      for (let i = 0; i + 1 < pts.length; i += 2) { const a = pts[i][1], b = pts[i + 1][1]; s.push(a[0], a[1], a[2], b[0], b[1], b[2], 0.05, 0.05, 0.07, W); }
+    }
+    return s;
+  }
+
+  Object.assign(G.R3, { segmentosCorte, Camara, Visor, MATERIALES, MAT, texCanvas, hexRGB, M4 });
 })(window);

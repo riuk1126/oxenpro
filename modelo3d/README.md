@@ -28,6 +28,15 @@ Seleccionar · Borrador · Pintar (colores y texturas: ladrillo, concreto, mader
 - **Tus propios componentes:** selecciona algo que modelaste → *A la biblioteca* (nombre y categoría). Los de Puertas y Ventanas abren su vano y se estiran al ancho y alto que les des; los demás (inodoros, muebles…) se colocan en el piso o contra un muro con el ancho, fondo y alto que quieras.
 - **Importar varios a la vez:** botón *Importar modelos* de la barra derecha: eliges muchos `.skp`, `.dae`, `.obj` o `.stl` y cada uno queda como componente (la categoría se adivina por el nombre del archivo). La biblioteca se guarda en el equipo.
 
+## Cortes y elevaciones
+- Botón **Cortes y elevaciones** (arriba, junto a Vistas) o *Vistas → Cortes y elevaciones…*.
+- **Nuevo corte:** *Planta* (pide la altura, lo usual 1.20 m), *Longitudinal*, *Transversal* o *En una cara* (herramienta **Plano de sección**, tecla K: tocas un muro, piso o techo y el corte se pone paralelo a esa cara, mirando hacia adentro). Al crear uno de los tres primeros la vista se pone de frente al corte, sin perspectiva.
+- Lo cortado se ve **relleno en gris oscuro con contorno grueso**, como en un plano. Detrás del corte se ve el resto del modelo (proyección).
+- En la lista de cortes: tocar el nombre lo activa o lo apaga · **Ver** lo pone de frente · **− / +** lo mueve 10 cm · ✎ altura o distancia exacta · ⇄ mira al otro lado · 🗑 lo borra. Solo hay un corte activo a la vez; *Ver el modelo completo* los apaga todos.
+- **Elevaciones:** Frontal, Posterior, Derecha, Izquierda y Techos, sin perspectiva (apagan el corte activo).
+- *Guardar esta vista como imagen* saca un `.png` del corte o la elevación.
+- Los cortes se guardan con el modelo (y viajan al compartirlo). Todo funciona sin internet.
+
 ## Gestos
 - **Con lápiz:** el lápiz usa la herramienta; **2 dedos giran (órbita) y hacen zoom**; 1 dedo o 3 dedos desplazan. En *Ajustes* se puede invertir.
 - **Sin lápiz:** 1 dedo usa la herramienta; 2 dedos giran y hacen zoom; 3 dedos desplazan.
