@@ -57,7 +57,7 @@
   function deshacer() { if (herr && herr.activa && herr.activa()) { herr.cancelar(); return; } if (!pila.length) return avisar('Nada que deshacer'); rehacer.push(m.clonarDatos()); m.cargar(JSON.parse(pila.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Deshecho'); }
   function rehacerOp() { if (!rehacer.length) return; pila.push(m.clonarDatos()); m.cargar(JSON.parse(rehacer.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Rehecho'); }
   let tGuardar = 0;
-  function cambio() { pedir(); estVer++; if (!$('pCortes').classList.contains('oculto')) pintarCortes(); clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
+  function cambio() { pedir(); estVer++; if (!$('pCortes').classList.contains('oculto')) pintarCortes(); pintarEscenas(); clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
 
   // ---------------- dibujo ----------------
   function pedir() { if (!pedido) { pedido = true; requestAnimationFrame(cuadro); } }
@@ -1543,17 +1543,20 @@
     const ax = Math.abs(c.n[0]) > 0.99 ? 'transversal' : Math.abs(c.n[1]) > 0.99 ? 'longitudinal' : 'vertical';
     return `Corte ${c.num} · ${ax}`;
   }
-  function nuevoCorte(p, n, alinear) {
+  function nuevoCorte(p, n, alinear, sinActivar) {
     m.cortes = m.cortes || [];
     const c = { id: m.id(), num: 1 + Math.max(0, ...m.cortes.map(x => x.num || 0)), p: p.map(x => +x.toFixed(4)), n: V.norm(n) };
-    const antes = m.clonarDatos(); m.cortes.push(c); m.corteActivo = c.id; guardarDeshacer(antes);
-    estVer++; if (alinear) alinearCorte(c); pintarCortes(); pedir();
+    const antes = m.clonarDatos(); m.cortes.push(c); if (!sinActivar) m.corteActivo = c.id;
+    // cada corte trae su vista (pestaña de arriba), mirando el corte de frente
+    crearEscena(null, camAlineada(c), c.id, c.id);
+    guardarDeshacer(antes);
+    estVer++; if (alinear) irEscena(escenaDe(c.id).id); pintarCortes(); pedir();
     return c;
   }
   function activarCorte(id) { m.corteActivo = m.corteActivo === id ? 0 : id; estVer++; cambio(); pintarCortes(); }
   function moverCorte(c, dist) { const antes = m.clonarDatos(); c.p = V.add(c.p, V.mul(c.n, dist)).map(x => +x.toFixed(4)); m.corteActivo = c.id; guardarDeshacer(antes); estVer++; pintarCortes(); }
   function invertirCorte(c) { const antes = m.clonarDatos(); c.n = V.neg(c.n); m.corteActivo = c.id; guardarDeshacer(antes); estVer++; pintarCortes(); }
-  function borrarCorte(c) { const antes = m.clonarDatos(); m.cortes = m.cortes.filter(x => x !== c); if (m.corteActivo === c.id) m.corteActivo = 0; guardarDeshacer(antes); estVer++; pintarCortes(); }
+  function borrarCorte(c) { const antes = m.clonarDatos(); m.cortes = m.cortes.filter(x => x !== c); m.escenas = (m.escenas || []).filter(s => s.de !== c.id); if (m.corteActivo === c.id) m.corteActivo = 0; guardarDeshacer(antes); estVer++; pintarCortes(); pintarEscenas(); }
   // mira el corte de frente, sin perspectiva (como un plano)
   function alinearCorte(c) {
     const n = c.n; cam.orto = true;
@@ -1565,8 +1568,7 @@
   function cortePreset(tipo) {
     const bb = cajaOSuelo(), cen = V.mul(V.add(bb[0], bb[1]), 0.5);
     if (tipo === 'planta') return pedirMedida('Planta: altura del corte', 'Desde el nivel 0. Lo usual es 1.20 m (corta puertas y ventanas).', fmt(Math.min(1.2, bb[1][2] - 0.01 || 1.2)), h => nuevoCorte([cen[0], cen[1], h], [0, 0, -1], true));
-    if (tipo === 'long') return nuevoCorte(cen, [0, 1, 0], true);
-    if (tipo === 'trans') return nuevoCorte(cen, [-1, 0, 0], true);
+    if (tipo === 'long' || tipo === 'trans' || tipo === 'libre') return iniciarColocar(tipo);
   }
   function pedirMedida(tit, ayuda, ini, fn) {
     dialogo(`<h3>${tit}</h3>${ayuda ? `<p class="dlg-ayuda">${ayuda}</p>` : ''}<input type="text" id="dMed" inputmode="decimal" value="${esc(String(ini).replace(/\s*m$/, ''))}"><div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Aceptar</button></div>`, () => {
@@ -1579,9 +1581,147 @@
     if (Math.abs(c.n[2]) > 0.99) return pedirMedida('Altura del corte', 'Desde el nivel 0.', fmt(c.p[2]), h => moverCorte(c, (h - c.p[2]) * (c.n[2] < 0 ? -1 : 1)));
     pedirMedida('Mover el corte', 'Positivo: hacia adentro del modelo (en la dirección de la flecha). Negativo: hacia afuera.', '0.50', d => moverCorte(c, d));
   }
+  const NOMBRE_ELEV = { frontal: 'Elevación frontal', posterior: 'Elevación posterior', derecha: 'Elevación derecha', izquierda: 'Elevación izquierda', superior: 'Techos' };
   function elevacion(nombre) {
-    if (m.corteActivo) { m.corteActivo = 0; estVer++; cambio(); }
-    cam.orto = true; vista(nombre); pintarCortes();
+    const antes = camEstado(); cam.orto = true; vista(nombre); const c = camEstado(); ponerCam(antes);
+    const s = crearEscena(NOMBRE_ELEV[nombre], c, 0, 'e-' + nombre); irEscena(s.id);
+  }
+
+  // ---------------- vistas guardadas (pestañas de arriba, como las escenas de SketchUp) ----------------
+  // Cada vista: { id, nombre, cam:{eye,yaw,pitch,orto,alto}, corte, de }. "de" = corte o elevación que la creó.
+  let escenaActual = 0;
+  const camEstado = () => ({ eye: cam.eye.slice(), yaw: cam.yaw, pitch: cam.pitch, orto: cam.orto, alto: cam.altoOrto });
+  function ponerCam(s) { cam.eye = s.eye.slice(); cam.yaw = s.yaw; cam.pitch = s.pitch; cam.orto = s.orto; cam.altoOrto = s.alto || cam.altoOrto; pedir(); }
+  function camAlineada(c) { const a = camEstado(); alinearCorte(c); const r = camEstado(); ponerCam(a); return r; }
+  const escenaDe = de => (m.escenas || []).find(s => s.de === de);
+  function nombreEscena(s) { if (s.nombre) return s.nombre; const c = corteDe(s.de); return c ? nombreCorte(c).replace(/^Corte (\d+) · /, 'Corte $1 – ') : 'Vista'; }
+  function crearEscena(nombre, camS, corte, de) {
+    m.escenas = m.escenas || [];
+    let s = de ? escenaDe(de) : null;
+    if (s) { s.cam = camS; s.corte = corte; }
+    else { s = { id: m.id(), nombre: nombre || null, cam: camS, corte: corte || 0, de: de || 0 }; m.escenas.push(s); }
+    pintarEscenas(); return s;
+  }
+  function irEscena(id) {
+    const s = (m.escenas || []).find(x => x.id === id); if (!s) return;
+    ponerCam(s.cam); m.corteActivo = s.corte && corteDe(s.corte) ? s.corte : 0;
+    escenaActual = id; estVer++; cambio(); pintarEscenas(); pintarCortes();
+  }
+  function pintarEscenas() {
+    const el = $('escenas'); if (!el) return;
+    const L = m.escenas || [];
+    el.innerHTML = L.map(s => `<button class="esc${s.id === escenaActual ? ' on' : ''}" data-esc="${s.id}">${esc(nombreEscena(s))}</button>`).join('') + `<button class="esc mas" id="escMas" title="Guardar la vista actual">${icono('mas')}Vista</button>`;
+    el.querySelectorAll('[data-esc]').forEach(b => b.onclick = () => { const id = +b.dataset.esc; if (id === escenaActual) menuEscena(id); else irEscena(id); });
+    $('escMas').onclick = nuevaEscenaDlg;
+  }
+  function nuevaEscenaDlg() {
+    const n = (m.escenas || []).length + 1;
+    pedirTextoEsc('Guardar esta vista', 'Queda como pestaña arriba, con la cámara y el corte que ves ahora.', 'Vista ' + n, nombre => {
+      const s = crearEscena(nombre, camEstado(), m.corteActivo, 0); escenaActual = s.id; pintarEscenas(); cambio(); avisar('Vista guardada');
+    });
+  }
+  function pedirTextoEsc(tit, ayuda, ini, fn) {
+    dialogo(`<h3>${tit}</h3>${ayuda ? `<p class="dlg-ayuda">${ayuda}</p>` : ''}<input type="text" id="dTxt" value="${esc(ini)}"><div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Guardar</button></div>`, () => {
+      const i = $('dTxt'); i.focus(); i.select();
+      const ok = () => { const v = i.value.trim(); if (!v) return; cerrarDlg(); fn(v); };
+      $('dSi').onclick = ok; $('dNo').onclick = cerrarDlg; i.onkeydown = e => { if (e.key === 'Enter') ok(); };
+    });
+  }
+  function menuEscena(id) {
+    const s = (m.escenas || []).find(x => x.id === id); if (!s) return;
+    dialogo(`<h3>${esc(nombreEscena(s))}</h3><div class="opc">
+      <button id="eRen">${icono('lapiz')} Renombrar</button>
+      <button id="eAct">${icono('girar')} Actualizar con lo que veo ahora</button>
+      <button id="ePng">${icono('exportar')} Guardar como imagen</button>
+      <button id="eBor" style="color:#d64545">${icono('papelera')} Quitar esta vista</button></div>
+      <div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
+      $('dNo').onclick = cerrarDlg;
+      $('eRen').onclick = () => pedirTextoEsc('Nombre de la vista', '', nombreEscena(s), v => { s.nombre = v; pintarEscenas(); cambio(); });
+      $('eAct').onclick = () => { cerrarDlg(); s.cam = camEstado(); s.corte = m.corteActivo; pintarEscenas(); cambio(); avisar('Vista actualizada'); };
+      $('ePng').onclick = () => { cerrarDlg(); exportar('png'); };
+      $('eBor').onclick = () => { cerrarDlg(); m.escenas = m.escenas.filter(x => x !== s); if (escenaActual === id) escenaActual = 0; pintarEscenas(); cambio(); };
+    });
+  }
+
+  // ---------------- colocar cortes en planta (longitudinal, transversal o libre) ----------------
+  function ponerEnPlanta() {
+    const f = cam.adelante();
+    const enPlanta = cam.orto && f[2] < -0.98;
+    // si hay un corte de planta, se usa (se ve la planta cortada a su altura)
+    const cp = (m.cortes || []).find(c => c.n[2] < -0.99);
+    const act = corteDe(m.corteActivo);
+    if (!act || Math.abs(act.n[2]) < 0.99) { m.corteActivo = cp ? cp.id : 0; estVer++; }
+    if (!enPlanta) { cam.orto = true; cam.yaw = Math.PI / 2; cam.pitch = -1.5706; verTodo(); }
+    escenaActual = (cp && escenaDe(cp.id) && m.corteActivo === cp.id && enPlanta) ? escenaActual : 0; pintarEscenas();
+  }
+  function iniciarColocar(modo) { H.colocarCorte.modo = modo; ponerEnPlanta(); usar('colocarCorte'); pintarCortes(); }
+  // plano del corte a partir de los puntos tocados en planta
+  function planoColocado(modo, a, b, inv) {
+    const bb = cajaOSuelo(), z = (bb[0][2] + bb[1][2]) / 2;
+    let n;
+    if (modo === 'long') n = [0, 1, 0];
+    else if (modo === 'trans') n = [-1, 0, 0];
+    else { if (!b) return null; const d = V.sub([b[0], b[1], 0], [a[0], a[1], 0]); if (V.len(d) < 0.05) return null; const u = V.norm(d); n = [-u[1], u[0], 0]; }
+    if (inv) n = V.neg(n);
+    return { p: [a[0], a[1], z], n };
+  }
+  function puntoPlanta(inf) {
+    if (inf && inf.p && inf.tipo !== 'libre' && inf.tipo !== 'suelo') return inf.p;
+    if (!inf) return null;
+    const bb = cajaOSuelo(); return planoRayo(Z, [0, 0, bb[0][2]], cam.rayo(inf.sx, inf.sy));
+  }
+  H.colocarCorte = {
+    modo: 'long', pts: [], cur: null, inv: false, muestraInf: true,
+    pista() {
+      if (this.modo === 'libre') return this.pts.length ? 'Toca el segundo punto de la línea de corte' : 'Toca el primer punto de la línea de corte (cualquier dirección)';
+      return this.modo === 'long' ? 'Toca por dónde pasa el corte longitudinal · puedes poner varios' : 'Toca por dónde pasa el corte transversal · puedes poner varios';
+    },
+    abajo() {}, hover(inf) { this.mover(inf); },
+    mover(inf) { this.cur = puntoPlanta(inf); pedir(); },
+    arriba(inf) {
+      const p = puntoPlanta(inf); if (!p) return;
+      if (this.modo === 'libre' && !this.pts.length) { this.pts = [p]; pista(); pintarOpciones(); return pedir(); }
+      const pl = this.modo === 'libre' ? planoColocado('libre', this.pts[0], p, this.inv) : planoColocado(this.modo, p, null, this.inv);
+      this.pts = []; if (!pl) return avisar('La línea es muy corta');
+      const c = nuevoCorte(pl.p, pl.n, false, true);
+      avisar(`Corte ${c.num} listo · su vista quedó arriba`); pista(); pintarOpciones(); pintarCortes();
+    },
+    dibujar() {
+      const a = this.modo === 'libre' && this.pts.length ? this.pts[0] : this.cur; if (!a) return;
+      const pl = this.modo === 'libre' ? (this.pts.length && this.cur ? planoColocado('libre', this.pts[0], this.cur, this.inv) : null) : planoColocado(this.modo, a, null, this.inv);
+      if (this.modo === 'libre' && this.pts.length) { const S = pr(this.pts[0]); if (S) { ov.save(); ov.fillStyle = '#e07b12'; ov.beginPath(); ov.arc(S[0], S[1], 5, 0, 7); ov.fill(); ov.restore(); } }
+      if (pl) marcaCorte({ p: pl.p, n: pl.n, num: 1 + Math.max(0, ...(m.cortes || []).map(x => x.num || 0)) }, '#e07b12', true);
+    },
+    opciones() {
+      return [
+        { t: 'Longitudinal', ico: 'corteL', on: this.modo === 'long', fn: () => { this.modo = 'long'; this.pts = []; pista(); pintarOpciones(); pedir(); } },
+        { t: 'Transversal', ico: 'corteT', on: this.modo === 'trans', fn: () => { this.modo = 'trans'; this.pts = []; pista(); pintarOpciones(); pedir(); } },
+        { t: 'Libre', ico: 'linea', on: this.modo === 'libre', fn: () => { this.modo = 'libre'; this.pts = []; pista(); pintarOpciones(); pedir(); } },
+        { t: 'Mirar al otro lado', ico: 'invertir', on: this.inv, fn: () => { this.inv = !this.inv; pintarOpciones(); pedir(); } },
+        { t: 'Listo', fn: () => usar('seleccionar') }
+      ];
+    },
+    cancelar() { this.pts = []; this.cur = null; },
+    activa() { return this.pts.length > 0; }
+  };
+  // marca de corte en planta: línea de eje con número y flecha a cada lado (como en un plano)
+  function marcaCorte(c, color, punteada) {
+    const u = V.norm(V.cross(c.n, Z)), bb = cajaOSuelo(); let a0 = Infinity, a1 = -Infinity;
+    for (let i = 0; i < 4; i++) { const q = [bb[i & 1][0], bb[i >> 1 & 1][1], c.p[2]]; const t = V.dot(V.sub(q, c.p), u); a0 = Math.min(a0, t); a1 = Math.max(a1, t); }
+    const mg = 0.9, A = V.add(c.p, V.mul(u, a0 - mg)), B = V.add(c.p, V.mul(u, a1 + mg));
+    const SA = pr(A), SB = pr(B); if (!SA || !SB) return;
+    ov.save(); ov.strokeStyle = color; ov.fillStyle = color; ov.lineWidth = 1.6;
+    ov.setLineDash(punteada ? [8, 5] : [16, 4, 3, 4]); ov.beginPath(); ov.moveTo(SA[0], SA[1]); ov.lineTo(SB[0], SB[1]); ov.stroke(); ov.setLineDash([]);
+    for (const [P, S] of [[A, SA], [B, SB]]) {
+      const Q = pr(V.add(P, V.mul(c.n, 1))); if (!Q) continue;
+      let dx = Q[0] - S[0], dy = Q[1] - S[1]; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+      // flecha hacia donde mira el corte
+      ov.beginPath(); ov.moveTo(S[0] + dx * 26, S[1] + dy * 26); ov.lineTo(S[0] + dx * 12 - dy * 8, S[1] + dy * 12 + dx * 8); ov.lineTo(S[0] + dx * 12 + dy * 8, S[1] + dy * 12 - dx * 8); ov.closePath(); ov.fill();
+      ov.beginPath(); ov.arc(S[0], S[1], 12, 0, 7); ov.fillStyle = '#fff'; ov.fill(); ov.lineWidth = 2; ov.stroke();
+      ov.fillStyle = color; ov.font = '700 12px -apple-system,Segoe UI,Roboto,sans-serif'; ov.textAlign = 'center'; ov.textBaseline = 'middle'; ov.fillText(String(c.num), S[0], S[1] + 0.5);
+      ov.fillStyle = color;
+    }
+    ov.restore();
   }
   // contorno del plano de sección sobre el modelo
   function rectPlano(c, margen) {
@@ -1594,9 +1734,11 @@
   }
   function dibujarPlanosCorte() {
     if (!AJ.verPlanos || !(m.cortes || []).length) return;
-    const f = cam.adelante();
+    const f = cam.adelante(), enPlanta = cam.orto && f[2] < -0.98;
+    if (enPlanta) for (const c of m.cortes) if (Math.abs(c.n[2]) < 0.1) marcaCorte(c, c.id === m.corteActivo ? '#e07b12' : '#2b2d31', false);
     for (const c of m.cortes) {
       const act = c.id === m.corteActivo; if (!act) continue;
+      if (enPlanta && Math.abs(c.n[2]) < 0.1) continue;
       if (Math.abs(V.dot(f, c.n)) > 0.995) continue; // mirando de frente: el plano no estorba
       const R = rectPlano(c, 0.35), S = R.map(pr); if (S.some(x => !x)) continue;
       ov.save(); ov.beginPath(); S.forEach((q, i) => i ? ov.lineTo(q[0], q[1]) : ov.moveTo(q[0], q[1])); ov.closePath();
@@ -1639,7 +1781,8 @@
     const b = (ico, t, a, cls = '') => `<button class="cor-b ${cls}" data-a="${a}">${icono(ico)}<span>${t}</span></button>`;
     el.innerHTML = `
       <div class="cor-tit">Nuevo corte</div>
-      <div class="cor-grid">${b('planta', 'Planta', 'planta')}${b('corteL', 'Longitudinal', 'long')}${b('corteT', 'Transversal', 'trans')}${b('corte', 'En una cara', 'cara', nombreHerr === 'cortar' ? 'on' : '')}</div>
+      <div class="cor-grid">${b('planta', 'Planta', 'planta')}${b('corteL', 'Longitudinal', 'long', nombreHerr === 'colocarCorte' && H.colocarCorte.modo === 'long' ? 'on' : '')}${b('corteT', 'Transversal', 'trans', nombreHerr === 'colocarCorte' && H.colocarCorte.modo === 'trans' ? 'on' : '')}${b('linea', 'Libre', 'libre', nombreHerr === 'colocarCorte' && H.colocarCorte.modo === 'libre' ? 'on' : '')}${b('corte', 'En una cara', 'cara', nombreHerr === 'cortar' ? 'on' : '')}</div>
+      <p class="cor-vacio">Longitudinal, transversal y libre: se ponen tocando la planta. Cada corte crea su vista en las pestañas de arriba.</p>
       <div class="cor-tit">Cortes del modelo</div>
       ${L.length ? L.map(c => `<div class="cor-item${c.id === m.corteActivo ? ' on' : ''}">
           <button class="cor-nom" data-act="${c.id}"><i></i>${esc(nombreCorte(c))}</button>
@@ -1650,7 +1793,7 @@
             <button data-c="${c.id}" data-o="mover" title="Mover una medida exacta">${icono('lapiz')}</button>
             <button data-c="${c.id}" data-o="inv" title="Mirar al otro lado">${icono('invertir')}</button>
             <button data-c="${c.id}" data-o="borrar" title="Borrar corte">${icono('papelera')}</button>
-          </div></div>`).join('') : '<p class="cor-vacio">Aún no hay cortes. Elige uno arriba: la vista se pone de frente al corte.</p>'}
+          </div></div>`).join('') : '<p class="cor-vacio">Aún no hay cortes.</p>'}
       ${L.length ? `<label class="chk cor-chk"><input type="checkbox" id="corPlanos" ${AJ.verPlanos ? 'checked' : ''}> Mostrar el plano del corte</label>
       ${m.corteActivo ? '<button class="cor-quitar" data-a="ninguno">Ver el modelo completo (sin corte)</button>' : ''}` : ''}
       <div class="cor-tit">Elevaciones</div>
@@ -1668,7 +1811,7 @@
     el.querySelectorAll('[data-act]').forEach(x => x.onclick = () => activarCorte(+x.dataset.act));
     el.querySelectorAll('[data-o]').forEach(x => x.onclick = () => {
       const c = corteDe(+x.dataset.c); if (!c) return; const o = x.dataset.o;
-      if (o === 'ver') { m.corteActivo = c.id; estVer++; alinearCorte(c); cambio(); pintarCortes(); }
+      if (o === 'ver') { const s = escenaDe(c.id); if (s) irEscena(s.id); else { m.corteActivo = c.id; estVer++; alinearCorte(c); cambio(); pintarCortes(); } }
       else if (o === 'mas') moverCorte(c, 0.1); else if (o === 'menos') moverCorte(c, -0.1);
       else if (o === 'mover') moverCorteDlg(c); else if (o === 'inv') invertirCorte(c); else if (o === 'borrar') borrarCorte(c);
     });
@@ -1728,6 +1871,7 @@
     { tit: 'Modelo' },
     { t: 'Importar (SketchUp, AutoCAD, .dae .obj .stl)', ico: 'importar', fn: () => elegirArchivo(false) },
     { t: 'Exportar…', ico: 'exportar', fn: dlgExportar },
+    { t: 'Guardar en la nube ahora', ico: 'nube', fn: async () => { await guardar(); Nube.subirAhora(doc.id); } },
     { t: 'Compartir con mi equipo…', ico: 'equipo', fn: async () => { await guardar(); const r = await Archivos.Almacen.leer(doc.id); if (r) Eq.compartirCon(r); } },
     { t: 'Renombrar', ico: 'lapiz', fn: renombrar },
     { t: 'Seleccionar todo', ico: 'todo', fn: seleccionarTodo },
@@ -1739,7 +1883,7 @@
     { t: 'Mi cuenta RAIKI', ico: 'cuenta', fn: () => window.RaikiAcceso && RaikiAcceso.verCuenta() },
     { t: 'Buscar actualizaciones', ico: 'importar', fn: () => buscarActualizacion(true) }
   ]);
-  $('bAtras').onclick = async () => { if (herr && herr.cancelar) herr.cancelar(); await guardar(); const id = doc.id; irGaleria(); Eq.alSalir(id); };
+  $('bAtras').onclick = async () => { if (herr && herr.cancelar) herr.cancelar(); await guardar(); const id = doc.id; irGaleria(); Eq.alSalir(id); Nube.alSalir(id); };
   $('bNombre').onclick = renombrar;
 
   function avisar(t) { const a = $('aviso'); a.textContent = t; a.classList.add('ver'); clearTimeout(avisar.t); avisar.t = setTimeout(() => a.classList.remove('ver'), 2200); }
@@ -1932,8 +2076,8 @@
     } catch (e) { console.error(e); }
     guardando = false;
   }
-  addEventListener('pagehide', () => { guardar().then(() => Eq.alSalir(doc.id, true)); });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardar(); });
+  addEventListener('pagehide', () => { guardar().then(() => { Eq.alSalir(doc.id, true); Nube.alSalir(doc.id); }); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { const id = doc.id; guardar().then(() => Nube.alSalir(id)); } });
   async function abrirNuevo(nombre, datos) {
     doc = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nombre: nombre || 'Sin título' };
     m.limpiar(); if (datos) m.cargar(datos); registrarMatsModelo();
@@ -1951,7 +2095,7 @@
   }
   function mostrarEditor() {
     $('galeria').classList.add('oculto'); $('editor').classList.remove('oculto');
-    $('bNombre').textContent = doc.nombre; limpiarSel(); salirContexto();
+    $('bNombre').textContent = doc.nombre; limpiarSel(); salirContexto(); escenaActual = 0; pintarEscenas();
     tamano(); usar(nombreHerr === 'orbitar' || nombreHerr === 'desplazar' ? 'seleccionar' : (nombreHerr || 'seleccionar'), true); pintarBotones(); pintarMateriales();
     construido = -1; pedir();
     if (!R3.Tutorial.visto()) setTimeout(verTutorial, 450);
@@ -1963,19 +2107,28 @@
     const g = $('gLista');
     pintarEjemplos();
     Eq.pintar(L);
+    Nube.pintar(L);
     L = L.filter(r => !Eq.esRecibido(r));
     if (!L.length) { g.innerHTML = `<div class="gal-vacia">Todavía no tienes modelos.<br>Toca <b>Nuevo modelo</b> para empezar, abre un <b>ejemplo</b> de abajo o <b>Importa</b> un archivo de SketchUp o AutoCAD.</div>`; return; }
-    g.innerHTML = L.map(r => `<div class="tarjeta"><button data-abrir="${r.id}" style="display:block;width:100%;text-align:left">${r.mini ? `<img class="mini" src="${r.mini}" alt="">` : '<span class="mini"></span>'}<div class="inf"><b>${esc(r.nombre)}</b><small>${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small>${Eq.etiqueta(r)}</div></button><button class="mas" data-mas="${r.id}">⋯</button></div>`).join('');
+    g.innerHTML = L.map(r => `<div class="tarjeta"><button data-abrir="${r.id}" style="display:block;width:100%;text-align:left">${r.mini ? `<img class="mini" src="${r.mini}" alt="">` : '<span class="mini"></span>'}<div class="inf"><b>${esc(r.nombre)}</b><small>${new Date(r.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small>${Eq.etiqueta(r)}${Nube.etiqueta(r)}</div></button><button class="mas" data-mas="${r.id}">⋯</button></div>`).join('');
     g.querySelectorAll('[data-abrir]').forEach(b => b.onclick = () => Eq.abrir(b.dataset.abrir));
     g.querySelectorAll('[data-mas]').forEach(b => b.onclick = () => opcionesModelo(L.find(r => r.id === b.dataset.mas)));
   }
   function opcionesModelo(r) {
-    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button>${Eq.itemsMenu(r)}<button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
+    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button>${Eq.itemsMenu(r)}${Nube.esMio(r) ? `<button id="oNube">${icono('nube')} Guardar en la nube ahora</button>` : ''}<button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
       $('dNo').onclick = cerrarDlg; $('oAbrir').onclick = () => { cerrarDlg(); Eq.abrir(r.id); };
       Eq.enlazarMenu(r);
+      if ($('oNube')) $('oNube').onclick = () => { cerrarDlg(); Nube.subirAhora(r.id); };
       $('oDup').onclick = async () => { cerrarDlg(); const c = Object.assign({}, r, { id: 'm' + Date.now().toString(36), nombre: r.nombre + ' (copia)', fecha: Date.now() }); delete c.comp; await Archivos.Almacen.guardar(c); irGaleria(); };
       $('oExp').onclick = async () => { cerrarDlg(); await Archivos.entregar(new Blob([JSON.stringify({ nombre: r.nombre, modelo: JSON.parse(r.datos) })], { type: 'application/json' }), r.nombre.replace(/\s+/g, '_') + '.r3d', avisar); };
-      $('oBorrar').onclick = () => dialogo(`<h3>¿Eliminar “${esc(r.nombre)}”?</h3><p>No se puede deshacer.</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Eliminar</button></div>`, () => { $('dNo').onclick = cerrarDlg; $('dSi').onclick = async () => { await Eq.alBorrar(r); await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); }; });
+      $('oBorrar').onclick = () => {
+        if (Nube.estaEnNube(r.id)) return dialogo(`<h3>Eliminar “${esc(r.nombre)}”</h3><p>Este modelo también está en tu nube.</p><div class="opc"><button id="dEq">${icono('papelera')} Solo de este equipo <small>(lo recuperas desde ☁ Nube)</small></button><button id="dTodo" style="color:#d64545">${icono('papelera')} De este equipo y de la nube <small>(no se puede recuperar)</small></button></div><div class="fila"><button id="dNo">Cancelar</button></div>`, () => {
+          $('dNo').onclick = cerrarDlg;
+          $('dEq').onclick = async () => { await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); };
+          $('dTodo').onclick = async () => { try { await Nube.alBorrar(r.id); } catch (e) { return avisar(e.red ? 'Necesitas internet para quitarlo de la nube' : 'No se pudo: ' + e.message); } await Eq.alBorrar(r); await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); };
+        });
+        dialogo(`<h3>¿Eliminar “${esc(r.nombre)}”?</h3><p>No se puede deshacer.</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Eliminar</button></div>`, () => { $('dNo').onclick = cerrarDlg; $('dSi').onclick = async () => { await Eq.alBorrar(r); await Archivos.Almacen.borrar(r.id); cerrarDlg(); irGaleria(); }; });
+      };
     });
   }
 
@@ -2131,7 +2284,7 @@
         ${todos.length ? `<div class="eq-lista">${todos.map(c => `<label class="eq-per"><input type="checkbox" data-c="${esc(c)}" ${marcados.has(c) ? 'checked' : ''}><span class="eq-av">${esc(corto(c)[0] || '?')}</span><span><b>${esc(corto(c))}</b><small>${esc(c)}</small></span></label>`).join('')}</div>`
           : '<p class="nota">Aún no hay más personas en tu equipo.</p>'}
         <label class="eq-otro">Agregar por correo<input type="email" id="eqMail" placeholder="correo@ejemplo.com" autocomplete="off"></label>
-        <p class="nota">Solo personas de tu equipo RAIKI (las que agregas en <b>Mi equipo</b> de OXEN PRO o en el panel).</p>
+        <p class="nota">Cualquier persona con cuenta RAIKI (la misma de OXEN PRO, Kivo o Flexio). Escribe su correo si no aparece arriba.</p>
         <div class="fila">${actual ? '<button id="eqQuitar" class="peligro-txt">Dejar de compartir</button><span style="flex:1"></span>' : ''}<button id="dNo">Cancelar</button><button class="pri" id="dSi">${actual ? 'Guardar' : 'Compartir'}</button></div>`, () => {
         $('dNo').onclick = cerrarDlg;
         if (actual) $('eqQuitar').onclick = async () => { cerrarDlg(); await dejar(r); };
@@ -2141,9 +2294,9 @@
           if (extra) { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(extra)) return avisar('Revisa el correo'); if (!para.includes(extra)) para.push(extra); }
           if (!para.length) return avisar('Elige al menos una persona');
           cerrarDlg(); avisar('Compartiendo…');
+          const modelo = (r.comp && r.comp.modelo) || r.id, v = Date.now().toString(36);
+          const hayCambios = !r.comp || huella(r.datos) !== r.comp.hash;
           try {
-            const modelo = (r.comp && r.comp.modelo) || r.id, v = Date.now().toString(36);
-            const hayCambios = !r.comp || huella(r.datos) !== r.comp.hash;
             if (hayCambios) await subirArchivos(yo(), modelo, v, r);
             const res = await A.rpc('flexio_compartir', { p_modelo: modelo, p_nombre: r.nombre, p_version: hayCambios ? v : r.comp.version, p_para: para });
             if (hayCambios && r.comp && r.comp.version && r.comp.version !== v) borrarVersion(yo(), modelo, r.comp.version);
@@ -2154,7 +2307,9 @@
             avisar('Compartido con ' + res.para.map(corto).join(', '));
           } catch (e) {
             const m = String(e.message || '');
-            if (m.includes('no_es_del_equipo')) avisar((m.split(':')[1] || 'Ese correo') + ' no está en tu equipo');
+            if (hayCambios && !e.red) borrarVersion(yo(), modelo, v);
+            if (m.includes('sin_cuenta')) dialogo(`<h3>No se pudo compartir</h3><p><b>${esc(m.split(':')[1] || 'Ese correo')}</b> no tiene cuenta RAIKI. Créale una en el panel de clientes (o que entre a OXEN PRO, Kivo o Flexio) y vuelve a compartir.</p><div class="fila"><button class="pri" id="dNo">Entendido</button></div>`, () => { $('dNo').onclick = cerrarDlg; });
+            else if (m.includes('no_es_del_equipo')) avisar((m.split(':')[1] || 'Ese correo') + ' no está en tu equipo');
             else if (m.includes('sin_personas')) avisar('Elige al menos una persona');
             else avisar(e.red ? 'Necesitas internet para compartir' : 'No se pudo compartir: ' + m);
           }
@@ -2206,8 +2361,163 @@
     }
     return { pintar, etiqueta, itemsMenu, enlazarMenu, compartirCon, alSalir, alBorrar, abrir: abrirModelo, esRecibido, refrescar };
   })();
+
+  // =================================================================
+  //  NUBE: respaldo privado de cada cuenta RAIKI
+  //  · Al salir de un modelo se sube su última versión (por detrás, sin esperar).
+  //  · Al abrir la galería se sube lo que falte o haya cambiado (también lo modelado sin internet).
+  //  · En la galería, "En la nube" muestra los modelos que no están en este equipo: un toque los trae.
+  //  · Archivos en el depósito "respaldos": <correo>/flexio/<modelo>/<versión>/modelo.json + mini.jpg
+  // =================================================================
+  const Nube = (() => {
+    const A = window.RaikiAuth, B = 'respaldos', K = 'flexio-nube', KH = 'flexio-nube-hash';
+    const yo = () => ((A && A.sesion() || {}).email || '').toLowerCase();
+    const leerLS = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+    let filas = leerLS(K) || [], hashes = leerLS(KH) || {}, sinServidor = false;
+    const guardarLS = () => { try { localStorage.setItem(K, JSON.stringify(filas)); localStorage.setItem(KH, JSON.stringify(hashes)); } catch (e) {} };
+    const huella = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); };
+    const firma = r => huella((r.nombre || '') + '|' + (r.datos || ''));
+    const mias = () => filas.filter(f => f.dueno === yo());
+    const fila = id => mias().find(f => f.modelo_id === id);
+    const esMio = r => r && (!r.comp || r.comp.dueno === yo());
+    const pendiente = r => esMio(r) && hashes[yo() + '|' + r.id] !== firma(r);
+    const carpeta = (f, v) => `${f.dueno}/flexio/${f.modelo_id}/${v || f.version}/`;
+    const activa = () => !!(A && A.sesion()) && !sinServidor;
+
+    async function refrescar() {
+      if (!A || !A.sesion()) return false;
+      try { filas = (await A.tabla('flexio_respaldos?select=*&order=actualizado.desc')) || []; sinServidor = false; guardarLS(); return true; }
+      catch (e) { if (e.status === 404 || /flexio_respaldos/.test(e.message || '')) sinServidor = true; return false; }
+    }
+    const dataURLaBlob = u => fetch(u).then(r => r.blob());
+    async function subir(id) {
+      const r = await Archivos.Almacen.leer(id); if (!r || !esMio(r)) return;
+      const dueno = yo(), v = Date.now().toString(36), previo = fila(id), base = carpeta({ dueno, modelo_id: id }, v);
+      const json = new Blob([JSON.stringify({ nombre: r.nombre, datos: r.datos, cam: r.cam || null })], { type: 'application/json' });
+      await A.subirArchivo(base + 'modelo.json', json, 'application/json', B); let bytes = json.size;
+      if (r.mini) { const b = await dataURLaBlob(r.mini); await A.subirArchivo(base + 'mini.jpg', b, 'image/jpeg', B); bytes += b.size; }
+      const nueva = await A.tabla('flexio_respaldos?on_conflict=dueno,modelo_id', 'POST',
+        { dueno, modelo_id: id, nombre: r.nombre, version: v, bytes, actualizado: new Date(Math.max(Date.now(), r.fecha || 0)).toISOString() }, 'resolution=merge-duplicates');
+      if (previo && previo.version !== v) A.borrarArchivos([carpeta(previo) + 'modelo.json', carpeta(previo) + 'mini.jpg'], B).catch(() => {});
+      filas = filas.filter(f => !(f.modelo_id === id && f.dueno === dueno)).concat(nueva && nueva[0] ? nueva[0] : []);
+      hashes[dueno + '|' + id] = firma(r); guardarLS();
+    }
+    const cola = new Set(); let corriendo = false, subidos = 0;
+    function encolar(id) { if (!id) return; cola.add(id); correr(); }
+    async function correr() {
+      if (corriendo || !activa() || !navigator.onLine) return; corriendo = true;
+      try {
+        while (cola.size) {
+          const id = cola.values().next().value;
+          try { await subir(id); cola.delete(id); subidos++; }
+          catch (e) { if (e.red) break; if (e.status === 404) { sinServidor = true; break; } console.error(e); cola.delete(id); }
+        }
+      } finally { corriendo = false; if (subidos && !$('galeria').classList.contains('oculto')) pintarEtiquetas(); }
+    }
+    async function ponerAlDia() {
+      if (!A || !A.sesion() || !navigator.onLine) return;
+      await refrescar(); if (sinServidor) return;
+      let L = []; try { L = await Archivos.Almacen.todos(); } catch (e) {}
+      for (const r of L) if (pendiente(r)) cola.add(r.id);
+      correr();
+    }
+    addEventListener('online', () => setTimeout(ponerAlDia, 2000));
+    document.addEventListener('raiki-listo', () => setTimeout(ponerAlDia, 5000), { once: true });
+
+    async function descargar(f) {
+      const blob = await A.bajarArchivo(carpeta(f) + 'modelo.json', B), d = JSON.parse(await blob.text());
+      let mini = null;
+      try { const b = await A.bajarArchivo(carpeta(f) + 'mini.jpg', B); mini = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); }); } catch (e) {}
+      const reg = { id: f.modelo_id, nombre: f.nombre || d.nombre, fecha: Date.parse(f.actualizado) || Date.now(), datos: d.datos, cam: d.cam, mini };
+      await Archivos.Almacen.guardar(reg); hashes[yo() + '|' + reg.id] = firma(reg); guardarLS();
+      return reg;
+    }
+    async function quitar(f) {
+      await A.tabla('flexio_respaldos?dueno=eq.' + encodeURIComponent(f.dueno) + '&modelo_id=eq.' + encodeURIComponent(f.modelo_id), 'DELETE');
+      A.borrarArchivos([carpeta(f) + 'modelo.json', carpeta(f) + 'mini.jpg'], B).catch(() => {});
+      filas = filas.filter(x => x !== f); delete hashes[f.dueno + '|' + f.modelo_id]; guardarLS();
+    }
+
+    // ---------- galería ----------
+    const minis = new Map();
+    function etiqueta(r) {
+      if (!esMio(r) || !fila(r.id)) return '';
+      return `<span class="eq-tag nube-tag">${icono('nube')} ${pendiente(r) ? 'Nube: por subir cambios' : 'En la nube'}</span>`;
+    }
+    function pintarEtiquetas() { if (!$('galeria').classList.contains('oculto')) irGaleria(); }
+    async function pintar(locales) {
+      const ids = new Set(locales.map(r => r.id));
+      const dibujar = () => {
+        const sec = $('gNube'), tit = $('gNubeTit'); if (!sec) return;
+        const faltan = mias().filter(f => !ids.has(f.modelo_id));
+        tit.classList.toggle('oculto', !faltan.length); sec.classList.toggle('oculto', !faltan.length);
+        sec.innerHTML = faltan.map(f => `<div class="tarjeta"><button data-nube="${esc(f.modelo_id)}" style="display:block;width:100%;text-align:left">${minis.get(f.modelo_id) ? `<img class="mini" src="${minis.get(f.modelo_id)}" alt="">` : `<span class="mini eq-mini">${icono('nube')}</span>`}<div class="inf"><b>${esc(f.nombre || 'Modelo')}</b><small>En la nube · ${new Date(f.actualizado).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}</small><i class="eq-nuevo">Tocar para traer</i></div></button></div>`).join('');
+        sec.querySelectorAll('[data-nube]').forEach(b => b.onclick = () => traerYAbrir(b.dataset.nube));
+        for (const f of faltan) if (!minis.has(f.modelo_id)) { minis.set(f.modelo_id, ''); A.bajarArchivo(carpeta(f) + 'mini.jpg', B).then(b => { minis.set(f.modelo_id, URL.createObjectURL(b)); dibujar(); }).catch(() => {}); }
+      };
+      dibujar();
+      if (!A || !A.sesion() || !navigator.onLine) return;
+      const antes = JSON.stringify(filas); await refrescar(); if (sinServidor) return;
+      if (JSON.stringify(filas) !== antes) dibujar();
+      let n = 0; for (const r of locales) if (pendiente(r)) { cola.add(r.id); n++; }
+      if (n) correr();
+    }
+    async function traerYAbrir(id) {
+      const f = fila(id); if (!f) return;
+      try { avisar('Trayendo de la nube…'); await descargar(f); await abrir(id); }
+      catch (e) { avisar(e.red ? 'Necesitas internet para traerlo de la nube' : 'No se pudo traer: ' + e.message); }
+    }
+
+    // ---------- pantalla ☁ ----------
+    async function pantalla() {
+      if (!A || !A.sesion()) return avisar('Entra con tu cuenta RAIKI para usar la nube');
+      dialogo('<h3>Nube de Flexio</h3><p class="nota">Revisando tu nube…</p>');
+      const ok = await refrescar();
+      let L = []; try { L = await Archivos.Almacen.todos(); } catch (e) {}
+      const locales = new Map(L.map(r => [r.id, r]));
+      const mios = L.filter(esMio), pend = mios.filter(pendiente);
+      const nube = mias();
+      const estado = sinServidor ? '<p class="nota" style="color:#d64545">La nube todavía no está activada en el servidor.</p>'
+        : !ok && !navigator.onLine ? '<p class="nota">Sin internet: se mostrará lo último que se vio. Lo que modeles se sube solo al volver la señal.</p>'
+        : `<p class="nota">${nube.length} ${nube.length === 1 ? 'modelo' : 'modelos'} en tu nube · ${pend.length ? pend.length + ' por subir' : 'todo al día'} · cuenta ${esc(yo())}</p>`;
+      dialogo(`<h3>Nube de Flexio</h3>
+        <p>Cada modelo tuyo se guarda en tu cuenta RAIKI al salir de él. Así lo recuperas en otra tableta o si se borra la app.</p>
+        ${estado}
+        <div class="nube-lista">${nube.map(f => `<div class="nube-fila"><span><b>${esc(f.nombre || 'Modelo')}</b><small>${new Date(f.actualizado).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${locales.has(f.modelo_id) ? ' · también en este equipo' : ''}</small></span>
+          <button data-ab="${esc(f.modelo_id)}">${locales.has(f.modelo_id) ? 'Abrir' : 'Traer'}</button><button class="ib" data-qu="${esc(f.modelo_id)}" title="Quitar de la nube">${icono('papelera')}</button></div>`).join('') || '<p class="nota">Todavía no hay modelos en tu nube.</p>'}</div>
+        <div class="fila"><button id="dNo">Cerrar</button>${!sinServidor ? `<button class="pri" id="nSubir">Subir ${pend.length ? 'pendientes (' + pend.length + ')' : 'todo'} ahora</button>` : ''}</div>`, () => {
+        $('dNo').onclick = cerrarDlg;
+        const bS = $('nSubir'); if (bS) bS.onclick = async () => {
+          if (!navigator.onLine) return avisar('Sin internet: se subirá solo al volver la señal');
+          const lista = pend.length ? pend : mios; lista.forEach(r => cola.add(r.id)); subidos = 0;
+          bS.disabled = true; bS.textContent = 'Subiendo…'; await correr();
+          avisar(cola.size ? 'Quedaron modelos por subir; se intentará otra vez' : 'Listo: tu nube está al día'); pantalla();
+        };
+        document.querySelectorAll('#dlgCaja [data-ab]').forEach(b => b.onclick = async () => { const id = b.dataset.ab; cerrarDlg(); if (locales.has(id)) Eq.abrir(id); else traerYAbrir(id); });
+        document.querySelectorAll('#dlgCaja [data-qu]').forEach(b => b.onclick = () => {
+          const f = fila(b.dataset.qu); if (!f) return;
+          dialogo(`<h3>¿Quitar “${esc(f.nombre)}” de la nube?</h3><p>${locales.has(f.modelo_id) ? 'Sigue en este equipo.' : 'No está en este equipo: se perderá.'}</p><div class="fila"><button id="dNo">Cancelar</button><button class="peligro" id="dSi">Quitar</button></div>`, () => {
+            $('dNo').onclick = pantalla; $('dSi').onclick = async () => { try { await quitar(f); avisar('Quitado de la nube'); } catch (e) { avisar(e.red ? 'Necesitas internet' : 'No se pudo: ' + e.message); } pantalla(); irGaleriaSiVisible2(); };
+          });
+        });
+      });
+    }
+    function irGaleriaSiVisible2() { if (!$('galeria').classList.contains('oculto')) irGaleria(); }
+
+    // ---------- ganchos ----------
+    function alSalir(id) { Archivos.Almacen.leer(id).then(r => { if (r && pendiente(r) && activa()) encolar(id); }).catch(() => {}); }
+    async function subirAhora(id) {
+      if (!A || !A.sesion()) return avisar('Entra con tu cuenta RAIKI');
+      if (!navigator.onLine) return avisar('Sin internet: se subirá solo al volver la señal');
+      try { avisar('Subiendo a la nube…'); await subir(id); avisar('Guardado en la nube'); irGaleriaSiVisible2(); }
+      catch (e) { avisar(e.status === 404 ? 'La nube todavía no está activada en el servidor' : e.red ? 'Sin internet' : 'No se pudo: ' + e.message); }
+    }
+    const estaEnNube = id => !!fila(id);
+    async function alBorrar(id) { const f = fila(id); if (f) await quitar(f); }
+    return { pintar, etiqueta, pantalla, alSalir, subirAhora, estaEnNube, alBorrar, esMio };
+  })();
   $('gNuevo').innerHTML = icono('mas') + 'Nuevo modelo'; $('gImportar').innerHTML = icono('importar') + 'Importar'; $('gTutorial').innerHTML = icono('ayuda') + 'Tutorial';
-  $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes');
+  $('gCuenta').innerHTML = icono('cuenta'); $('gAjustes').innerHTML = icono('ajustes'); $('gNubeBtn').innerHTML = icono('nube') + 'Nube'; $('gNubeBtn').onclick = () => Nube.pantalla();
   $('gNuevo').onclick = () => abrirNuevo('Modelo ' + new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }), null);
 
   // ---------------- ejemplos ----------------
