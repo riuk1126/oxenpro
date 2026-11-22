@@ -50,6 +50,12 @@ window.ICONOS = {
   mueble: '<path class="f" d="M5.5 12V8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v4z"/><path class="af" d="M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v4.5H3z"/><path d="M6 17.5V20M18 17.5V20"/>',
   biblioteca: '<path d="m12 3.5 8 4-8 4-8-4z"/><path d="m4 12 8 4 8-4M4 16.5l8 4 8-4"/>',
   girar: '<path d="M19.5 12a7.5 7.5 0 1 1-2.6-5.7"/><path d="M20 4v4.5h-4.5"/>',
+  corte: '<path class="f" d="m12 3.5 7.5 4.2v8.6L12 20.5l-7.5-4.2V7.7z"/><path class="af" d="M2.8 12.4 12 8.2l9.2 4.2-9.2 4.3z"/><path class="ac" d="M12 8.2V2.6M10.2 4.4 12 2.6l1.8 1.8"/>',
+  cortar: '<path class="f" d="m12 3.5 7.5 4.2v8.6L12 20.5l-7.5-4.2V7.7z"/><path class="af" d="M2.8 12.4 12 8.2l9.2 4.2-9.2 4.3z"/><path class="ac" d="M12 8.2V2.6M10.2 4.4 12 2.6l1.8 1.8"/>',
+  corteL: '<rect class="f" x="3" y="7" width="18" height="11" rx="1"/><rect class="af" x="3" y="11.4" width="18" height="2.2" stroke="none"/><path class="ac" d="M12 3v4M10.3 5.3 12 7l1.7-1.7"/>',
+  corteT: '<rect class="f" x="5" y="3" width="14" height="18" rx="1"/><rect class="af" x="10.9" y="3" width="2.2" height="18" stroke="none"/><path class="ac" d="M2 12h3M3.3 10.3 5 12l-1.7 1.7"/>',
+  planta: '<rect class="f" x="3.5" y="3.5" width="17" height="17" rx="1"/><path class="af" d="M3.5 3.5h17v3h-17zM3.5 3.5h3v17h-3z" stroke="none"/><path d="M12 6.5v6h8.5M12 15.5v5"/>',
+  elevacion: '<path class="f" d="M4.5 20.5V10L12 4l7.5 6v10.5z"/><rect class="af" x="9.7" y="14" width="4.6" height="6.5" rx=".4"/><path d="M2.5 20.5h19"/>',
   gotero: '<path d="m14 4.5 5.5 5.5M16.5 7.5 6.8 17.2 4 20l2.8-2.8"/><path d="m11 8 5 5"/>'
 };
 window.icono = (n, cls) => `<svg class="ico ${cls || ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${window.ICONOS[n] || ''}</svg>`;

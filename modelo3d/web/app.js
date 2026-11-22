@@ -57,7 +57,7 @@
   function deshacer() { if (herr && herr.activa && herr.activa()) { herr.cancelar(); return; } if (!pila.length) return avisar('Nada que deshacer'); rehacer.push(m.clonarDatos()); m.cargar(JSON.parse(pila.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Deshecho'); }
   function rehacerOp() { if (!rehacer.length) return; pila.push(m.clonarDatos()); m.cargar(JSON.parse(rehacer.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Rehecho'); }
   let tGuardar = 0;
-  function cambio() { pedir(); estVer++; clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
+  function cambio() { pedir(); estVer++; if (!$('pCortes').classList.contains('oculto')) pintarCortes(); clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
 
   // ---------------- dibujo ----------------
   function pedir() { if (!pedido) { pedido = true; requestAnimationFrame(cuadro); } }
@@ -80,7 +80,7 @@
       if (construido !== m.cambio || estVerHecho !== estVer || m.todoSucio) {
         const hov = new Set(est.selCaras); if (est.hoverCara) hov.add(est.hoverCara);
         vis.verEjes = AJ.ejes;
-        vis.construir(m, { selCaras: hov, selAristas: est.selAristas, selGrupos: est.selGrupos, contexto: est.contexto, verSuaves: AJ.aristasSuaves });
+        vis.construir(m, { selCaras: hov, selAristas: est.selAristas, selGrupos: est.selGrupos, contexto: est.contexto, verSuaves: AJ.aristasSuaves, corte: corteVis() });
         construido = m.cambio; estVerHecho = estVer; m.todoSucio = false;
       }
       vis.dibujar(cam);
@@ -89,6 +89,7 @@
   }
   function dibujarOverlay() {
     ov.clearRect(0, 0, pantallaW, pantallaH);
+    dibujarPlanosCorte();
     dibujarCotas();
     if (herr && herr.dibujar) herr.dibujar(ov);
     if (cajaSel) { const { x0, y0, x1, y1 } = cajaSel; ov.save(); ov.strokeStyle = '#2f6bff'; ov.fillStyle = '#2f6bff14'; ov.lineWidth = 1; if (x1 < x0) ov.setLineDash([5, 4]); ov.fillRect(x0, y0, x1 - x0, y1 - y0); ov.strokeRect(x0, y0, x1 - x0, y1 - y0); ov.restore(); }
@@ -158,6 +159,7 @@
       const p = V.add(ray.o, V.mul(ray.d, t)); cacheCara(f);
       const [mn, mx] = f._bb, e = 1e-4;
       if (p[0] < mn[0] - e || p[1] < mn[1] - e || p[2] < mn[2] - e || p[0] > mx[0] + e || p[1] > mx[1] + e || p[2] > mx[2] + e) continue;
+      if (ocultoPorCorte(p)) continue;
       if (m.puntoEnCara(f, p)) { bt = t; best = { f, p, t, atras: den > 0 }; }
     }
     return best;
@@ -182,6 +184,7 @@
     // extremos
     for (const v of m.v.values()) {
       if (exV && exV.has(v.id)) continue;
+      if (ocultoPorCorte(v.p)) continue;
       const S = pr(v.p); if (!S) continue;
       const d = Math.hypot(S[0] - sx, S[1] - sy); if (d >= bd) continue;
       const t = V.dot(V.sub(v.p, ray.o), ray.d); if (!vis_(t)) continue;
@@ -192,6 +195,7 @@
     if (!mejor || bd > tol * 0.5) for (const e of m.e.values()) {
       if (exV && (exV.has(e.a) || exV.has(e.b))) continue;
       const A = m.P(e.a), B = m.P(e.b);
+      if (ocultoPorCorte(A) && ocultoPorCorte(B)) continue;
       const SA = pr(A), SB = pr(B); if (!SA || !SB) continue;
       const mid = V.lerp(A, B, 0.5), SM = [(SA[0] + SB[0]) / 2, (SA[1] + SB[1]) / 2];
       const dm = Math.hypot(SM[0] - sx, SM[1] - sy);
@@ -1112,7 +1116,7 @@
   function cerrarBib() { $('pBib').classList.add('oculto'); marcarBib(); }
   function abrirBib(cat) {
     if (bib.cat === cat && !$('pBib').classList.contains('oculto')) return cerrarBib();
-    bib.cat = cat; $('pMat').classList.add('oculto'); $('pBib').classList.remove('oculto'); pintarBib(); marcarBib();
+    bib.cat = cat; $('pMat').classList.add('oculto'); $('pCortes').classList.add('oculto'); $('pBib').classList.remove('oculto'); pintarBib(); marcarBib();
   }
   function pintarBib() {
     const c = catDe(bib.cat); if (!c) return;
@@ -1255,7 +1259,7 @@
     ['seleccionar', 'Seleccionar', 'Espacio'], ['borrar', 'Borrador', 'E'], ['pintar', 'Pintar', 'B'], '-',
     ['linea', 'Línea', 'L'], ['arco', 'Arco', 'A'], ['rectangulo', 'Rectángulo', 'R'], ['circulo', 'Círculo', 'C'], ['poligono', 'Polígono', 'G'], '-',
     ['empujar', 'Empujar / tirar', 'P'], ['mover', 'Mover', 'M'], ['rotar', 'Rotar', 'Q'], ['escalar', 'Escala', 'S'], ['equidistancia', 'Equidistancia', 'F'], '-',
-    ['medir', 'Cinta métrica', 'T'], ['cota', 'Cota', 'D'], '-',
+    ['medir', 'Cinta métrica', 'T'], ['cota', 'Cota', 'D'], ['cortar', 'Plano de sección', 'K'], '-',
     ['orbitar', 'Órbita', 'O'], ['desplazar', 'Desplazar', 'H']
   ];
   const QUE_HACE = {
@@ -1274,6 +1278,7 @@
     equidistancia: 'Toca una cara para dibujar un borde paralelo hacia dentro o afuera.',
     medir: 'Toca dos puntos para ver la distancia, o crea guías.',
     cota: 'Toca dos puntos y luego dónde va la cota.',
+    cortar: 'Toca un muro o una losa y el corte se pone paralelo a ella. Muévelo con + y − en el panel de cortes.',
     orbitar: 'Arrastra para girar la vista alrededor del modelo.',
     desplazar: 'Arrastra para mover la vista sin girarla.'
   };
@@ -1289,7 +1294,8 @@
     if (!silencio && n !== nombreHerr) setTimeout(() => mostrarNombre(n), 0);
     nombreHerr = n; herr = H[n]; ejeBloq.v = null; est.hoverCara = 0; estVer++;
     document.querySelectorAll('#herramientas [data-h]').forEach(b => b.classList.toggle('on', b.dataset.h === n));
-    if (n === 'pintar') { $('pMat').classList.remove('oculto'); cerrarBib(); }
+    if (n === 'pintar') { $('pMat').classList.remove('oculto'); $('pCortes').classList.add('oculto'); cerrarBib(); }
+    if (!$('pCortes').classList.contains('oculto')) pintarCortes();
     marcarBib(); cerrarVcb(); pintarOpciones(); pista(); pedir();
   }
   function pista() {
@@ -1452,7 +1458,7 @@
   }, { passive: false });
 
   // ---------------- teclado físico ----------------
-  const ATAJOS = { ' ': 'seleccionar', e: 'borrar', b: 'pintar', l: 'linea', a: 'arco', r: 'rectangulo', c: 'circulo', g: 'poligono', p: 'empujar', m: 'mover', q: 'rotar', s: 'escalar', f: 'equidistancia', t: 'medir', d: 'cota', o: 'orbitar', h: 'desplazar' };
+  const ATAJOS = { ' ': 'seleccionar', e: 'borrar', b: 'pintar', l: 'linea', a: 'arco', r: 'rectangulo', c: 'circulo', g: 'poligono', p: 'empujar', m: 'mover', q: 'rotar', s: 'escalar', f: 'equidistancia', t: 'medir', d: 'cota', k: 'cortar', o: 'orbitar', h: 'desplazar' };
   addEventListener('keydown', ev => {
     if ($('editor').classList.contains('oculto') || !$('dialogo').classList.contains('oculto')) return;
     if (ev.target && /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
@@ -1524,6 +1530,151 @@
     verTodo();
   }
 
+
+  // ---------------- cortes (planos de sección) y elevaciones ----------------
+  // Cada corte: { id, num, p:[x,y,z], n:[x,y,z] }. Se ve lo que queda detrás del plano (n·x >= n·p); n mira hacia el modelo.
+  if (AJ.verPlanos === undefined) AJ.verPlanos = true;
+  const corteDe = id => (m.cortes || []).find(c => c.id === id);
+  function corteVis() { const c = corteDe(m.corteActivo); return c ? { n: c.n, d: V.dot(c.n, c.p) } : null; }
+  function ocultoPorCorte(p) { const c = corteDe(m.corteActivo); return !!c && V.dot(c.n, p) < V.dot(c.n, c.p) - 5e-4; }
+  function nombreCorte(c) {
+    if (c.n[2] < -0.99) return `Corte ${c.num} · Planta a ${fmt(c.p[2])}`;
+    if (c.n[2] > 0.99) return `Corte ${c.num} · Cielo raso a ${fmt(c.p[2])}`;
+    const ax = Math.abs(c.n[0]) > 0.99 ? 'transversal' : Math.abs(c.n[1]) > 0.99 ? 'longitudinal' : 'vertical';
+    return `Corte ${c.num} · ${ax}`;
+  }
+  function nuevoCorte(p, n, alinear) {
+    m.cortes = m.cortes || [];
+    const c = { id: m.id(), num: 1 + Math.max(0, ...m.cortes.map(x => x.num || 0)), p: p.map(x => +x.toFixed(4)), n: V.norm(n) };
+    const antes = m.clonarDatos(); m.cortes.push(c); m.corteActivo = c.id; guardarDeshacer(antes);
+    estVer++; if (alinear) alinearCorte(c); pintarCortes(); pedir();
+    return c;
+  }
+  function activarCorte(id) { m.corteActivo = m.corteActivo === id ? 0 : id; estVer++; cambio(); pintarCortes(); }
+  function moverCorte(c, dist) { const antes = m.clonarDatos(); c.p = V.add(c.p, V.mul(c.n, dist)).map(x => +x.toFixed(4)); m.corteActivo = c.id; guardarDeshacer(antes); estVer++; pintarCortes(); }
+  function invertirCorte(c) { const antes = m.clonarDatos(); c.n = V.neg(c.n); m.corteActivo = c.id; guardarDeshacer(antes); estVer++; pintarCortes(); }
+  function borrarCorte(c) { const antes = m.clonarDatos(); m.cortes = m.cortes.filter(x => x !== c); if (m.corteActivo === c.id) m.corteActivo = 0; guardarDeshacer(antes); estVer++; pintarCortes(); }
+  // mira el corte de frente, sin perspectiva (como un plano)
+  function alinearCorte(c) {
+    const n = c.n; cam.orto = true;
+    if (Math.abs(n[2]) > 0.99) { cam.yaw = Math.PI / 2; cam.pitch = n[2] < 0 ? -1.5706 : 1.5706; }
+    else { cam.yaw = Math.atan2(n[1], n[0]); cam.pitch = Math.max(-1.5706, Math.min(1.5706, Math.asin(n[2]))); }
+    verTodo();
+  }
+  function cajaOSuelo() { return m.caja() || [[-5, -5, 0], [5, 5, 3]]; }
+  function cortePreset(tipo) {
+    const bb = cajaOSuelo(), cen = V.mul(V.add(bb[0], bb[1]), 0.5);
+    if (tipo === 'planta') return pedirMedida('Planta: altura del corte', 'Desde el nivel 0. Lo usual es 1.20 m (corta puertas y ventanas).', fmt(Math.min(1.2, bb[1][2] - 0.01 || 1.2)), h => nuevoCorte([cen[0], cen[1], h], [0, 0, -1], true));
+    if (tipo === 'long') return nuevoCorte(cen, [0, 1, 0], true);
+    if (tipo === 'trans') return nuevoCorte(cen, [-1, 0, 0], true);
+  }
+  function pedirMedida(tit, ayuda, ini, fn) {
+    dialogo(`<h3>${tit}</h3>${ayuda ? `<p class="dlg-ayuda">${ayuda}</p>` : ''}<input type="text" id="dMed" inputmode="decimal" value="${esc(String(ini).replace(/\s*m$/, ''))}"><div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Aceptar</button></div>`, () => {
+      const i = $('dMed'); i.focus(); i.select();
+      const ok = () => { const v = leerMedida(i.value.replace(',', '.')); if (isNaN(v)) return avisar('Escribe una medida, por ejemplo 1.20'); cerrarDlg(); fn(v); };
+      $('dSi').onclick = ok; $('dNo').onclick = cerrarDlg; i.onkeydown = e => { if (e.key === 'Enter') ok(); };
+    });
+  }
+  function moverCorteDlg(c) {
+    if (Math.abs(c.n[2]) > 0.99) return pedirMedida('Altura del corte', 'Desde el nivel 0.', fmt(c.p[2]), h => moverCorte(c, (h - c.p[2]) * (c.n[2] < 0 ? -1 : 1)));
+    pedirMedida('Mover el corte', 'Positivo: hacia adentro del modelo (en la dirección de la flecha). Negativo: hacia afuera.', '0.50', d => moverCorte(c, d));
+  }
+  function elevacion(nombre) {
+    if (m.corteActivo) { m.corteActivo = 0; estVer++; cambio(); }
+    cam.orto = true; vista(nombre); pintarCortes();
+  }
+  // contorno del plano de sección sobre el modelo
+  function rectPlano(c, margen) {
+    const bb = cajaOSuelo(), n = c.n, [u, v] = ejesPlano(n);
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (let i = 0; i < 8; i++) { const q = [bb[i & 1][0], bb[i >> 1 & 1][1], bb[i >> 2 & 1][2]], r = V.sub(q, c.p); const a = V.dot(r, u), b = V.dot(r, v); a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b); }
+    a0 -= margen; b0 -= margen; a1 += margen; b1 += margen;
+    const P = (a, b) => V.add(c.p, V.add(V.mul(u, a), V.mul(v, b)));
+    return [P(a0, b0), P(a1, b0), P(a1, b1), P(a0, b1)];
+  }
+  function dibujarPlanosCorte() {
+    if (!AJ.verPlanos || !(m.cortes || []).length) return;
+    const f = cam.adelante();
+    for (const c of m.cortes) {
+      const act = c.id === m.corteActivo; if (!act) continue;
+      if (Math.abs(V.dot(f, c.n)) > 0.995) continue; // mirando de frente: el plano no estorba
+      const R = rectPlano(c, 0.35), S = R.map(pr); if (S.some(x => !x)) continue;
+      ov.save(); ov.beginPath(); S.forEach((q, i) => i ? ov.lineTo(q[0], q[1]) : ov.moveTo(q[0], q[1])); ov.closePath();
+      ov.fillStyle = act ? '#f08a2414' : '#8a8f9608'; ov.fill();
+      ov.strokeStyle = act ? '#e07b12' : '#9aa0a6'; ov.lineWidth = act ? 1.6 : 1; if (!act) ov.setLineDash([6, 5]); ov.stroke();
+      // flechas que muestran hacia dónde mira el corte
+      const cen = V.mul(V.add(R[0], R[2]), 0.5);
+      for (const q of [R[0], R[1], R[2], R[3]]) {
+        const base = V.lerp(q, cen, 0.12), A = pr(base), B = pr(V.add(base, V.mul(c.n, 0.6))); if (!A || !B) continue;
+        ov.setLineDash([]); ov.beginPath(); ov.moveTo(A[0], A[1]); ov.lineTo(B[0], B[1]); ov.stroke();
+        const d = Math.atan2(B[1] - A[1], B[0] - A[0]); ov.beginPath(); ov.moveTo(B[0], B[1]); ov.lineTo(B[0] - Math.cos(d - .4) * 8, B[1] - Math.sin(d - .4) * 8); ov.lineTo(B[0] - Math.cos(d + .4) * 8, B[1] - Math.sin(d + .4) * 8); ov.closePath(); ov.fillStyle = ov.strokeStyle; ov.fill();
+      }
+      ov.font = '700 12px -apple-system,Segoe UI,Roboto,sans-serif'; ov.fillStyle = act ? '#e07b12' : '#8a8f96'; ov.fillText('C-' + c.num, S[3][0] + 6, S[3][1] - 6);
+      ov.restore();
+    }
+  }
+  H.cortar = {
+    pista: () => 'Toca un muro, piso o techo: el corte se pone paralelo a esa cara y mira hacia adentro',
+    muestraInf: false,
+    hover(inf) { const c = inf.golpe && inf.golpe.f; const id = c ? c.id : 0; this.g = inf.golpe || null; if (id !== est.hoverCara) { est.hoverCara = id; estVer++; } pedir(); },
+    abajo() {}, mover(inf) { this.hover(inf); },
+    arriba(inf) {
+      const g = inf.golpe; if (!g) return avisar('Toca una cara del modelo');
+      const n = g.atras ? g.f.n : V.neg(g.f.n);
+      est.hoverCara = 0; this.g = null;
+      nuevoCorte(g.p, n, false); usar('seleccionar', true); abrirCortes();
+      avisar('Corte creado · con + y − lo mueves hacia adentro');
+    },
+    dibujar() {
+      if (!this.g) return; const f = this.g.f, n = this.g.atras ? f.n : V.neg(f.n);
+      const R = rectPlano({ p: this.g.p, n }, 0.35), S = R.map(pr); if (S.some(x => !x)) return;
+      ov.save(); ov.beginPath(); S.forEach((q, i) => i ? ov.lineTo(q[0], q[1]) : ov.moveTo(q[0], q[1])); ov.closePath(); ov.fillStyle = '#f08a241c'; ov.fill(); ov.strokeStyle = '#e07b12'; ov.setLineDash([6, 4]); ov.lineWidth = 1.4; ov.stroke(); ov.restore();
+    },
+    cancelar() { this.g = null; est.hoverCara = 0; }
+  };
+  function abrirCortes() { $('pMat').classList.add('oculto'); cerrarBib(); $('pCortes').classList.remove('oculto'); pintarCortes(); }
+  function pintarCortes() {
+    const el = $('cortesCuerpo'); if (!el) return;
+    const L = m.cortes || [];
+    const b = (ico, t, a, cls = '') => `<button class="cor-b ${cls}" data-a="${a}">${icono(ico)}<span>${t}</span></button>`;
+    el.innerHTML = `
+      <div class="cor-tit">Nuevo corte</div>
+      <div class="cor-grid">${b('planta', 'Planta', 'planta')}${b('corteL', 'Longitudinal', 'long')}${b('corteT', 'Transversal', 'trans')}${b('corte', 'En una cara', 'cara', nombreHerr === 'cortar' ? 'on' : '')}</div>
+      <div class="cor-tit">Cortes del modelo</div>
+      ${L.length ? L.map(c => `<div class="cor-item${c.id === m.corteActivo ? ' on' : ''}">
+          <button class="cor-nom" data-act="${c.id}"><i></i>${esc(nombreCorte(c))}</button>
+          <div class="cor-acc">
+            <button data-c="${c.id}" data-o="ver" title="Ver de frente">${icono('ojo')}Ver</button>
+            <button data-c="${c.id}" data-o="menos" title="Mover 10 cm hacia afuera">−</button>
+            <button data-c="${c.id}" data-o="mas" title="Mover 10 cm hacia adentro">+</button>
+            <button data-c="${c.id}" data-o="mover" title="Mover una medida exacta">${icono('lapiz')}</button>
+            <button data-c="${c.id}" data-o="inv" title="Mirar al otro lado">${icono('invertir')}</button>
+            <button data-c="${c.id}" data-o="borrar" title="Borrar corte">${icono('papelera')}</button>
+          </div></div>`).join('') : '<p class="cor-vacio">Aún no hay cortes. Elige uno arriba: la vista se pone de frente al corte.</p>'}
+      ${L.length ? `<label class="chk cor-chk"><input type="checkbox" id="corPlanos" ${AJ.verPlanos ? 'checked' : ''}> Mostrar el plano del corte</label>
+      ${m.corteActivo ? '<button class="cor-quitar" data-a="ninguno">Ver el modelo completo (sin corte)</button>' : ''}` : ''}
+      <div class="cor-tit">Elevaciones</div>
+      <div class="cor-grid">${b('elevacion', 'Frontal', 'e-frontal')}${b('elevacion', 'Posterior', 'e-posterior')}${b('elevacion', 'Derecha', 'e-derecha')}${b('elevacion', 'Izquierda', 'e-izquierda')}${b('planta', 'Techos', 'e-superior')}</div>
+      <div class="cor-tit">Guardar</div>
+      <button class="cor-quitar" data-a="png">${icono('exportar')} Guardar esta vista como imagen</button>`;
+    el.querySelectorAll('[data-a]').forEach(x => x.onclick = () => {
+      const a = x.dataset.a;
+      if (a === 'cara') { usar('cortar'); pintarCortes(); }
+      else if (a === 'ninguno') { m.corteActivo = 0; estVer++; cambio(); pintarCortes(); }
+      else if (a === 'png') exportar('png');
+      else if (a.startsWith('e-')) elevacion(a.slice(2));
+      else cortePreset(a);
+    });
+    el.querySelectorAll('[data-act]').forEach(x => x.onclick = () => activarCorte(+x.dataset.act));
+    el.querySelectorAll('[data-o]').forEach(x => x.onclick = () => {
+      const c = corteDe(+x.dataset.c); if (!c) return; const o = x.dataset.o;
+      if (o === 'ver') { m.corteActivo = c.id; estVer++; alinearCorte(c); cambio(); pintarCortes(); }
+      else if (o === 'mas') moverCorte(c, 0.1); else if (o === 'menos') moverCorte(c, -0.1);
+      else if (o === 'mover') moverCorteDlg(c); else if (o === 'inv') invertirCorte(c); else if (o === 'borrar') borrarCorte(c);
+    });
+    const ch = $('corPlanos'); if (ch) ch.onchange = () => { AJ.verPlanos = ch.checked; guardarAjustes(); pedir(); };
+  }
+
   // ---------------- interfaz ----------------
   function pintarHerramientas() {
     $('herramientas').innerHTML = LISTA_H.map(h => h === '-' ? '<div class="sep"></div>' : `<button class="ib" data-h="${h[0]}" title="${h[1]} (${h[2]})">${icono(h[0])}</button>`).join('');
@@ -1561,14 +1712,15 @@
   }
   document.addEventListener('pointerdown', e => { if (!e.target.closest('.menu') && !e.target.closest('#bVistas,#bMenu')) document.querySelectorAll('.menu').forEach(x => x.classList.add('oculto')); }, true);
   $('bVistas').onclick = () => menu('menuVistas', [
-    { tit: 'Vistas' }, { t: 'Isométrica', ico: 'cubo', fn: () => vista('iso') }, { t: 'Superior (planta)', fn: () => vista('superior') }, { t: 'Frontal', fn: () => vista('frontal') }, { t: 'Derecha', fn: () => vista('derecha') }, { t: 'Posterior', fn: () => vista('posterior') }, { t: 'Izquierda', fn: () => vista('izquierda') }, '-',
+    { tit: 'Vistas' }, { t: 'Cortes y elevaciones…', ico: 'corte', fn: abrirCortes }, '-', { t: 'Isométrica', ico: 'cubo', fn: () => vista('iso') }, { t: 'Superior (planta)', fn: () => vista('superior') }, { t: 'Frontal', fn: () => vista('frontal') }, { t: 'Derecha', fn: () => vista('derecha') }, { t: 'Posterior', fn: () => vista('posterior') }, { t: 'Izquierda', fn: () => vista('izquierda') }, '-',
     { t: 'Perspectiva', on: !cam.orto, fn: () => { cam.orto = false; pedir(); } }, { t: 'Proyección paralela', on: cam.orto, fn: () => { cam.orto = true; const bb = m.caja(); cam.altoOrto = bb ? Math.max(2, V.dist(cam.eye, V.mul(V.add(bb[0], bb[1]), .5)) * 0.62) : 12; pedir(); } }, '-',
     { t: 'Mostrar ejes', on: AJ.ejes, fn: () => { AJ.ejes = !AJ.ejes; guardarAjustes(); estVer++; pedir(); } },
     { t: 'Mostrar aristas suaves', on: AJ.aristasSuaves, fn: () => { AJ.aristasSuaves = !AJ.aristasSuaves; guardarAjustes(); estVer++; pedir(); } }
   ]);
+  $('bCortes').onclick = () => { if ($('pCortes').classList.contains('oculto')) abrirCortes(); else $('pCortes').classList.add('oculto'); };
   $('bRayos').onclick = () => { if (vis) { vis.rayos = !vis.rayos; pintarBotones(); pedir(); } };
   $('bExt').onclick = () => verTodo();
-  $('bMat').onclick = () => { $('pMat').classList.toggle('oculto'); cerrarBib(); pintarMateriales(); };
+  $('bMat').onclick = () => { $('pCortes').classList.add('oculto'); $('pMat').classList.toggle('oculto'); cerrarBib(); pintarMateriales(); };
   document.querySelectorAll('[data-cerrar]').forEach(b => { b.innerHTML = icono('cerrar'); b.onclick = () => { $(b.dataset.cerrar).classList.add('oculto'); marcarBib(); }; });
   $('bDeshacer').onclick = deshacer; $('bRehacer').onclick = rehacerOp;
   $('ctxSalir').onclick = () => { limpiarSel(); salirContexto(); };
@@ -2107,7 +2259,7 @@
   $('gImportar').onclick = () => elegirArchivo(true);
   $('gCuenta').onclick = () => window.RaikiAcceso && RaikiAcceso.verCuenta();
   $('gAjustes').onclick = dlgAjustes;
-  for (const [id, ic] of [['bAtras', 'atras'], ['bDeshacer', 'deshacer'], ['bRehacer', 'rehacer'], ['bVistas', 'cubo'], ['bRayos', 'rayos'], ['bExt', 'extension'], ['bMat', 'materiales'], ['bMenu', 'menu']]) $(id).innerHTML = icono(ic);
+  for (const [id, ic] of [['bAtras', 'atras'], ['bDeshacer', 'deshacer'], ['bRehacer', 'rehacer'], ['bVistas', 'cubo'], ['bCortes', 'corte'], ['bRayos', 'rayos'], ['bExt', 'extension'], ['bMat', 'materiales'], ['bMenu', 'menu']]) $(id).innerHTML = icono(ic);
 
   // ---------------- actualizaciones (app de Android) ----------------
   const N = () => ES_APP && Capacitor.Plugins && Capacitor.Plugins.RaikiNative;
