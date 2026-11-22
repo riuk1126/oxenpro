@@ -61,8 +61,11 @@
 
   // ---------------- dibujo ----------------
   function pedir() { if (!pedido) { pedido = true; requestAnimationFrame(cuadro); } }
+  // resolución de la pantalla 3D: en modo liviano o con modelos muy grandes se baja (ahorra memoria de video)
+  let liviano = false;
+  function dprPantalla() { const d = window.devicePixelRatio || 1; if (liviano) return 1; return Math.min(d, m.f.size > 40000 ? 1.25 : m.f.size > 15000 ? 1.5 : 2); }
   function tamano() {
-    const r = cvGL.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const r = cvGL.getBoundingClientRect(), dpr = dprPantalla();
     pantallaW = r.width || innerWidth; pantallaH = r.height || innerHeight;
     cam.w = pantallaW; cam.h = pantallaH;
     if (vis) vis.tamano(pantallaW, pantallaH, dpr);
@@ -84,6 +87,7 @@
         construido = m.cambio; estVerHecho = estVer; m.todoSucio = false;
       }
       vis.dibujar(cam);
+      if (abriendo) { abriendo = false; try { localStorage.removeItem(K_ABRIENDO); } catch (e) {} ocultarCargando(); }
     } else cam.matrices();
     dibujarOverlay();
   }
@@ -1875,7 +1879,8 @@
     { t: 'Compartir con mi equipo…', ico: 'equipo', fn: async () => { await guardar(); const r = await Archivos.Almacen.leer(doc.id); if (r) Eq.compartirCon(r); } },
     { t: 'Renombrar', ico: 'lapiz', fn: renombrar },
     { t: 'Seleccionar todo', ico: 'todo', fn: seleccionarTodo },
-    { t: 'Información del modelo', ico: 'ayuda', fn: infoModelo }, '-',
+    { t: 'Información del modelo', ico: 'ayuda', fn: infoModelo },
+    { t: liviano ? 'Ver aristas (salir del modo liviano)' : 'Modo liviano (modelos pesados)', ico: 'rayos', fn: () => { liviano = !liviano; ponerLiviano(doc.id, liviano); if (vis) vis.liviano = liviano; estVer++; tamano(); avisar(liviano ? 'Modo liviano activado' : 'Modo normal'); } }, '-',
     { tit: 'App' },
     { t: 'Ajustes', ico: 'ajustes', fn: dlgAjustes },
     { t: 'Tutorial', ico: 'ayuda', fn: () => verTutorial() },
@@ -2081,15 +2086,34 @@
   async function abrirNuevo(nombre, datos) {
     doc = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nombre: nombre || 'Sin título' };
     m.limpiar(); if (datos) m.cargar(datos); registrarMatsModelo();
+    liviano = false; if (vis) vis.liviano = false;
     pila.length = 0; rehacer.length = 0;
     cam.eye = [9, -12, 7]; cam.apuntar([0, 0, 1]); cam.orto = false;
     mostrarEditor(); if (datos) verTodo(); await guardar();
   }
-  async function abrir(id) {
+  // Si Flexio se cierra mientras abre un modelo (memoria de la tableta), la próxima vez se ofrece el modo liviano
+  const K_ABRIENDO = 'flexio-abriendo', K_LIVIANOS = 'flexio-livianos';
+  let abriendo = false;
+  const livianos = () => leerLS(K_LIVIANOS) || [];
+  function ponerLiviano(id, si) { let L = livianos().filter(x => x !== id); if (si) L.push(id); try { localStorage.setItem(K_LIVIANOS, JSON.stringify(L.slice(-50))); } catch (e) {} }
+  function mostrarCargando(t) { let el = $('cargando'); if (!el) { el = document.createElement('div'); el.id = 'cargando'; document.body.appendChild(el); } el.innerHTML = `<div class="carg-caja"><i class="carg-rueda"></i><span>${esc(t)}</span></div>`; el.classList.remove('oculto'); }
+  function ocultarCargando() { const el = $('cargando'); if (el) el.classList.add('oculto'); }
+  const espera = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));
+  async function abrir(id, forzarLiviano) {
     const reg = await Archivos.Almacen.leer(id); if (!reg) return;
+    const kb = Math.round((reg.datos || '').length / 1024);
+    liviano = forzarLiviano === undefined ? livianos().includes(id) : !!forzarLiviano;
+    if (forzarLiviano !== undefined) ponerLiviano(id, liviano);
+    mostrarCargando(kb > 1500 ? `Abriendo “${reg.nombre}” (${(kb / 1024).toFixed(1)} MB)…` : 'Abriendo…'); await espera();
+    try { localStorage.setItem(K_ABRIENDO, JSON.stringify({ id, nombre: reg.nombre, t: Date.now() })); } catch (e) {}
+    abriendo = true;
     doc = { id: reg.id, nombre: reg.nombre, comp: reg.comp };
-    m.cargar(JSON.parse(reg.datos)); registrarMatsModelo(); pila.length = 0; rehacer.length = 0;
+    try { m.cargar(JSON.parse(reg.datos)); }
+    catch (e) { console.error(e); abriendo = false; try { localStorage.removeItem(K_ABRIENDO); } catch (x) {} ocultarCargando(); return dialogo(`<h3>No se pudo abrir “${esc(reg.nombre)}”</h3><p>${esc(e.message || e)}</p><div class="fila"><button class="pri" id="dNo">Cerrar</button></div>`, () => { $('dNo').onclick = cerrarDlg; }); }
+    if (vis) vis.liviano = liviano;
+    registrarMatsModelo(); pila.length = 0; rehacer.length = 0;
     mostrarEditor();
+    if (liviano) avisar('Modo liviano: sin aristas y menos resolución (Menú → Ver aristas para volver)');
     if (reg.cam) { cam.eye = reg.cam.eye; cam.yaw = reg.cam.yaw; cam.pitch = reg.cam.pitch; cam.orto = reg.cam.orto; cam.altoOrto = reg.cam.alto || 12; } else verTodo();
     pedir();
   }
@@ -2115,8 +2139,9 @@
     g.querySelectorAll('[data-mas]').forEach(b => b.onclick = () => opcionesModelo(L.find(r => r.id === b.dataset.mas)));
   }
   function opcionesModelo(r) {
-    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button>${Eq.itemsMenu(r)}${Nube.esMio(r) ? `<button id="oNube">${icono('nube')} Guardar en la nube ahora</button>` : ''}<button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
+    dialogo(`<h3>${esc(r.nombre)}</h3><div class="opc"><button id="oAbrir">${icono('cubo')} Abrir</button><button id="oLiv">${icono('rayos')} Abrir en modo liviano</button>${Eq.itemsMenu(r)}${Nube.esMio(r) ? `<button id="oNube">${icono('nube')} Guardar en la nube ahora</button>` : ''}<button id="oDup">${icono('copiar')} Duplicar</button><button id="oExp">${icono('exportar')} Guardar copia (.r3d)</button><button id="oBorrar" style="color:#d64545">${icono('papelera')} Eliminar</button></div><div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
       $('dNo').onclick = cerrarDlg; $('oAbrir').onclick = () => { cerrarDlg(); Eq.abrir(r.id); };
+      $('oLiv').onclick = () => { cerrarDlg(); ponerLiviano(r.id, true); Eq.abrir(r.id); };
       Eq.enlazarMenu(r);
       if ($('oNube')) $('oNube').onclick = () => { cerrarDlg(); Nube.subirAhora(r.id); };
       $('oDup').onclick = async () => { cerrarDlg(); const c = Object.assign({}, r, { id: 'm' + Date.now().toString(36), nombre: r.nombre + ' (copia)', fecha: Date.now() }); delete c.comp; await Archivos.Almacen.guardar(c); irGaleria(); };
@@ -2605,6 +2630,15 @@
   $('bibImportar').innerHTML = icono('importar') + ' Importar modelos'; $('bibImportar').onclick = elegirArchivosBib;
   herr = H.seleccionar;
   irGaleria();
+  (() => {
+    const a = leerLS(K_ABRIENDO); try { localStorage.removeItem(K_ABRIENDO); } catch (e) {}
+    if (!a || Date.now() - a.t > 15 * 60000) return;
+    setTimeout(() => dialogo(`<h3>Flexio se cerró al abrir “${esc(a.nombre)}”</h3>
+      <p>Suele pasar con modelos muy pesados en tabletas con poca memoria. En <b>modo liviano</b> se muestra sin las líneas de las aristas y con menos resolución, y usa mucha menos memoria. Puedes volver al modo normal desde el menú.</p>
+      <div class="fila"><button id="dNo">Ahora no</button><button class="pri" id="dSi">Abrir en modo liviano</button></div>`, () => {
+      $('dNo').onclick = cerrarDlg; $('dSi').onclick = () => { cerrarDlg(); abrir(a.id, true); };
+    }), 600);
+  })();
   document.addEventListener('raiki-listo', () => setTimeout(() => buscarActualizacion(false), 3000), { once: true });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') buscarActualizacion(false); });
   // invitaciones a las otras apps RAIKI (Kivo y OXEN PRO) y registro de este equipo

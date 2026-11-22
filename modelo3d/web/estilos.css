@@ -262,3 +262,10 @@ h3 .ico{width:20px;height:20px;vertical-align:-4px}
 #selBar{top:calc(104px + var(--sa-t))}
 #contexto{top:calc(106px + var(--sa-t))}
 @media (max-width:760px){#escenas{right:calc(10px + var(--sa-r))}}
+
+/* abriendo un modelo */
+#cargando{position:fixed;inset:0;background:#f4f5f7cc;display:grid;place-items:center;z-index:60}
+#cargando.oculto{display:none}
+.carg-caja{display:flex;align-items:center;gap:12px;background:#fff;padding:16px 20px;border-radius:14px;box-shadow:0 6px 24px #0002;font-weight:600;font-size:14px;max-width:80vw}
+.carg-rueda{width:22px;height:22px;border-radius:50%;border:3px solid #6666ff33;border-top-color:#6666ff;animation:giro .8s linear infinite;flex:none}
+@keyframes giro{to{transform:rotate(360deg)}}
