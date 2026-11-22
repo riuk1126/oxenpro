@@ -148,7 +148,7 @@
     constructor() { this.limpiar(); }
     limpiar() {
       this.v = new Map(); this.e = new Map(); this.f = new Map();
-      this.grupos = new Map(); this.cotas = []; this.mats = []; this.cortes = []; this.corteActivo = 0; this.sig = 1;
+      this.grupos = new Map(); this.cotas = []; this.mats = []; this.cortes = []; this.corteActivo = 0; this.escenas = []; this.sig = 1;
       this.ek = new Map(); this.vh = new Map(); this.ve = new Map(); this.ef = new Map();
       this.cambio = 0; this.sucio = new Set(); this.todoSucio = true;
     }
@@ -986,7 +986,7 @@
         e: [...this.e.values()].map(e => [e.id, e.a, e.b, e.g, e.s, e.c]),
         f: [...this.f.values()].map(f => [f.id, f.loops, f.g, f.mat, f.matB, f.sg]),
         grupos: [...this.grupos.values()].map(g => g.vano ? [g.id, g.nombre, g.vano] : [g.id, g.nombre]),
-        cotas: this.cotas, mats: this.mats, cortes: this.cortes, corteActivo: this.corteActivo
+        cotas: this.cotas, mats: this.mats, cortes: this.cortes, corteActivo: this.corteActivo, escenas: this.escenas
       };
     }
     cargar(d) {
@@ -1007,7 +1007,7 @@
         this.calcNormal(f);
       }
       for (const [id, nombre, vano] of d.grupos || []) this.grupos.set(id, vano ? { id, nombre, vano } : { id, nombre });
-      this.cotas = d.cotas || []; this.mats = d.mats || []; this.cortes = d.cortes || []; this.corteActivo = d.corteActivo || 0;
+      this.cotas = d.cotas || []; this.mats = d.mats || []; this.cortes = d.cortes || []; this.corteActivo = d.corteActivo || 0; this.escenas = d.escenas || [];
       this.sig = Math.max(d.sig || 1, ...[0].concat([...this.v.keys()], [...this.e.keys()], [...this.f.keys()], [...this.grupos.keys()]).map(x => x + 1));
       this.cambio++; this.todoSucio = true;
     }

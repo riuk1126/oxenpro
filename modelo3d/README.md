@@ -30,7 +30,9 @@ Seleccionar · Borrador · Pintar (colores y texturas: ladrillo, concreto, mader
 
 ## Cortes y elevaciones
 - Botón **Cortes y elevaciones** (arriba, junto a Vistas) o *Vistas → Cortes y elevaciones…*.
-- **Nuevo corte:** *Planta* (pide la altura, lo usual 1.20 m), *Longitudinal*, *Transversal* o *En una cara* (herramienta **Plano de sección**, tecla K: tocas un muro, piso o techo y el corte se pone paralelo a esa cara, mirando hacia adentro). Al crear uno de los tres primeros la vista se pone de frente al corte, sin perspectiva.
+- **Nuevo corte:** *Planta* (pide la altura, lo usual 1.20 m) · *Longitudinal*, *Transversal* o *Libre*: la vista pasa a planta (cortada a la altura de tu corte de planta, si lo hay) y **tocas por dónde pasa el corte**; puedes poner varios seguidos (abajo eliges el tipo, *Mirar al otro lado* y *Listo*). *Libre* se marca con dos puntos, en cualquier dirección · *En una cara* (herramienta **Plano de sección**, tecla K): tocas un muro, piso o techo.
+- En planta los cortes se dibujan como en un plano: línea de eje con su **número y flecha** a cada lado.
+- **Vistas (pestañas de arriba):** cada corte y cada elevación crea su vista. Un toque en la pestaña te lleva a esa vista (el corte de frente, sin perspectiva); tocándola otra vez: renombrar, actualizar con lo que ves, guardar imagen o quitar. **+ Vista** guarda cualquier vista que tengas en pantalla. Se guardan con el modelo.
 - Lo cortado se ve **relleno en gris oscuro con contorno grueso**, como en un plano. Detrás del corte se ve el resto del modelo (proyección).
 - En la lista de cortes: tocar el nombre lo activa o lo apaga · **Ver** lo pone de frente · **− / +** lo mueve 10 cm · ✎ altura o distancia exacta · ⇄ mira al otro lado · 🗑 lo borra. Solo hay un corte activo a la vez; *Ver el modelo completo* los apaga todos.
 - **Elevaciones:** Frontal, Posterior, Derecha, Izquierda y Techos, sin perspectiva (apagan el corte activo).

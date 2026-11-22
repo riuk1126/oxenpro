@@ -57,7 +57,7 @@
   function deshacer() { if (herr && herr.activa && herr.activa()) { herr.cancelar(); return; } if (!pila.length) return avisar('Nada que deshacer'); rehacer.push(m.clonarDatos()); m.cargar(JSON.parse(pila.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Deshecho'); }
   function rehacerOp() { if (!rehacer.length) return; pila.push(m.clonarDatos()); m.cargar(JSON.parse(rehacer.pop())); registrarMatsModelo(); limpiarSel(); cambio(); avisar('Rehecho'); }
   let tGuardar = 0;
-  function cambio() { pedir(); estVer++; if (!$('pCortes').classList.contains('oculto')) pintarCortes(); clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
+  function cambio() { pedir(); estVer++; if (!$('pCortes').classList.contains('oculto')) pintarCortes(); pintarEscenas(); clearTimeout(tGuardar); tGuardar = setTimeout(guardar, 1200); pintarBotones(); }
 
   // ---------------- dibujo ----------------
   function pedir() { if (!pedido) { pedido = true; requestAnimationFrame(cuadro); } }
@@ -1543,17 +1543,20 @@
     const ax = Math.abs(c.n[0]) > 0.99 ? 'transversal' : Math.abs(c.n[1]) > 0.99 ? 'longitudinal' : 'vertical';
     return `Corte ${c.num} · ${ax}`;
   }
-  function nuevoCorte(p, n, alinear) {
+  function nuevoCorte(p, n, alinear, sinActivar) {
     m.cortes = m.cortes || [];
     const c = { id: m.id(), num: 1 + Math.max(0, ...m.cortes.map(x => x.num || 0)), p: p.map(x => +x.toFixed(4)), n: V.norm(n) };
-    const antes = m.clonarDatos(); m.cortes.push(c); m.corteActivo = c.id; guardarDeshacer(antes);
-    estVer++; if (alinear) alinearCorte(c); pintarCortes(); pedir();
+    const antes = m.clonarDatos(); m.cortes.push(c); if (!sinActivar) m.corteActivo = c.id;
+    // cada corte trae su vista (pestaña de arriba), mirando el corte de frente
+    crearEscena(null, camAlineada(c), c.id, c.id);
+    guardarDeshacer(antes);
+    estVer++; if (alinear) irEscena(escenaDe(c.id).id); pintarCortes(); pedir();
     return c;
   }
   function activarCorte(id) { m.corteActivo = m.corteActivo === id ? 0 : id; estVer++; cambio(); pintarCortes(); }
   function moverCorte(c, dist) { const antes = m.clonarDatos(); c.p = V.add(c.p, V.mul(c.n, dist)).map(x => +x.toFixed(4)); m.corteActivo = c.id; guardarDeshacer(antes); estVer++; pintarCortes(); }
   function invertirCorte(c) { const antes = m.clonarDatos(); c.n = V.neg(c.n); m.corteActivo = c.id; guardarDeshacer(antes); estVer++; pintarCortes(); }
-  function borrarCorte(c) { const antes = m.clonarDatos(); m.cortes = m.cortes.filter(x => x !== c); if (m.corteActivo === c.id) m.corteActivo = 0; guardarDeshacer(antes); estVer++; pintarCortes(); }
+  function borrarCorte(c) { const antes = m.clonarDatos(); m.cortes = m.cortes.filter(x => x !== c); m.escenas = (m.escenas || []).filter(s => s.de !== c.id); if (m.corteActivo === c.id) m.corteActivo = 0; guardarDeshacer(antes); estVer++; pintarCortes(); pintarEscenas(); }
   // mira el corte de frente, sin perspectiva (como un plano)
   function alinearCorte(c) {
     const n = c.n; cam.orto = true;
@@ -1565,8 +1568,7 @@
   function cortePreset(tipo) {
     const bb = cajaOSuelo(), cen = V.mul(V.add(bb[0], bb[1]), 0.5);
     if (tipo === 'planta') return pedirMedida('Planta: altura del corte', 'Desde el nivel 0. Lo usual es 1.20 m (corta puertas y ventanas).', fmt(Math.min(1.2, bb[1][2] - 0.01 || 1.2)), h => nuevoCorte([cen[0], cen[1], h], [0, 0, -1], true));
-    if (tipo === 'long') return nuevoCorte(cen, [0, 1, 0], true);
-    if (tipo === 'trans') return nuevoCorte(cen, [-1, 0, 0], true);
+    if (tipo === 'long' || tipo === 'trans' || tipo === 'libre') return iniciarColocar(tipo);
   }
   function pedirMedida(tit, ayuda, ini, fn) {
     dialogo(`<h3>${tit}</h3>${ayuda ? `<p class="dlg-ayuda">${ayuda}</p>` : ''}<input type="text" id="dMed" inputmode="decimal" value="${esc(String(ini).replace(/\s*m$/, ''))}"><div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Aceptar</button></div>`, () => {
@@ -1579,9 +1581,147 @@
     if (Math.abs(c.n[2]) > 0.99) return pedirMedida('Altura del corte', 'Desde el nivel 0.', fmt(c.p[2]), h => moverCorte(c, (h - c.p[2]) * (c.n[2] < 0 ? -1 : 1)));
     pedirMedida('Mover el corte', 'Positivo: hacia adentro del modelo (en la dirección de la flecha). Negativo: hacia afuera.', '0.50', d => moverCorte(c, d));
   }
+  const NOMBRE_ELEV = { frontal: 'Elevación frontal', posterior: 'Elevación posterior', derecha: 'Elevación derecha', izquierda: 'Elevación izquierda', superior: 'Techos' };
   function elevacion(nombre) {
-    if (m.corteActivo) { m.corteActivo = 0; estVer++; cambio(); }
-    cam.orto = true; vista(nombre); pintarCortes();
+    const antes = camEstado(); cam.orto = true; vista(nombre); const c = camEstado(); ponerCam(antes);
+    const s = crearEscena(NOMBRE_ELEV[nombre], c, 0, 'e-' + nombre); irEscena(s.id);
+  }
+
+  // ---------------- vistas guardadas (pestañas de arriba, como las escenas de SketchUp) ----------------
+  // Cada vista: { id, nombre, cam:{eye,yaw,pitch,orto,alto}, corte, de }. "de" = corte o elevación que la creó.
+  let escenaActual = 0;
+  const camEstado = () => ({ eye: cam.eye.slice(), yaw: cam.yaw, pitch: cam.pitch, orto: cam.orto, alto: cam.altoOrto });
+  function ponerCam(s) { cam.eye = s.eye.slice(); cam.yaw = s.yaw; cam.pitch = s.pitch; cam.orto = s.orto; cam.altoOrto = s.alto || cam.altoOrto; pedir(); }
+  function camAlineada(c) { const a = camEstado(); alinearCorte(c); const r = camEstado(); ponerCam(a); return r; }
+  const escenaDe = de => (m.escenas || []).find(s => s.de === de);
+  function nombreEscena(s) { if (s.nombre) return s.nombre; const c = corteDe(s.de); return c ? nombreCorte(c).replace(/^Corte (\d+) · /, 'Corte $1 – ') : 'Vista'; }
+  function crearEscena(nombre, camS, corte, de) {
+    m.escenas = m.escenas || [];
+    let s = de ? escenaDe(de) : null;
+    if (s) { s.cam = camS; s.corte = corte; }
+    else { s = { id: m.id(), nombre: nombre || null, cam: camS, corte: corte || 0, de: de || 0 }; m.escenas.push(s); }
+    pintarEscenas(); return s;
+  }
+  function irEscena(id) {
+    const s = (m.escenas || []).find(x => x.id === id); if (!s) return;
+    ponerCam(s.cam); m.corteActivo = s.corte && corteDe(s.corte) ? s.corte : 0;
+    escenaActual = id; estVer++; cambio(); pintarEscenas(); pintarCortes();
+  }
+  function pintarEscenas() {
+    const el = $('escenas'); if (!el) return;
+    const L = m.escenas || [];
+    el.innerHTML = L.map(s => `<button class="esc${s.id === escenaActual ? ' on' : ''}" data-esc="${s.id}">${esc(nombreEscena(s))}</button>`).join('') + `<button class="esc mas" id="escMas" title="Guardar la vista actual">${icono('mas')}Vista</button>`;
+    el.querySelectorAll('[data-esc]').forEach(b => b.onclick = () => { const id = +b.dataset.esc; if (id === escenaActual) menuEscena(id); else irEscena(id); });
+    $('escMas').onclick = nuevaEscenaDlg;
+  }
+  function nuevaEscenaDlg() {
+    const n = (m.escenas || []).length + 1;
+    pedirTextoEsc('Guardar esta vista', 'Queda como pestaña arriba, con la cámara y el corte que ves ahora.', 'Vista ' + n, nombre => {
+      const s = crearEscena(nombre, camEstado(), m.corteActivo, 0); escenaActual = s.id; pintarEscenas(); cambio(); avisar('Vista guardada');
+    });
+  }
+  function pedirTextoEsc(tit, ayuda, ini, fn) {
+    dialogo(`<h3>${tit}</h3>${ayuda ? `<p class="dlg-ayuda">${ayuda}</p>` : ''}<input type="text" id="dTxt" value="${esc(ini)}"><div class="fila"><button id="dNo">Cancelar</button><button class="pri" id="dSi">Guardar</button></div>`, () => {
+      const i = $('dTxt'); i.focus(); i.select();
+      const ok = () => { const v = i.value.trim(); if (!v) return; cerrarDlg(); fn(v); };
+      $('dSi').onclick = ok; $('dNo').onclick = cerrarDlg; i.onkeydown = e => { if (e.key === 'Enter') ok(); };
+    });
+  }
+  function menuEscena(id) {
+    const s = (m.escenas || []).find(x => x.id === id); if (!s) return;
+    dialogo(`<h3>${esc(nombreEscena(s))}</h3><div class="opc">
+      <button id="eRen">${icono('lapiz')} Renombrar</button>
+      <button id="eAct">${icono('girar')} Actualizar con lo que veo ahora</button>
+      <button id="ePng">${icono('exportar')} Guardar como imagen</button>
+      <button id="eBor" style="color:#d64545">${icono('papelera')} Quitar esta vista</button></div>
+      <div class="fila"><button id="dNo">Cerrar</button></div>`, () => {
+      $('dNo').onclick = cerrarDlg;
+      $('eRen').onclick = () => pedirTextoEsc('Nombre de la vista', '', nombreEscena(s), v => { s.nombre = v; pintarEscenas(); cambio(); });
+      $('eAct').onclick = () => { cerrarDlg(); s.cam = camEstado(); s.corte = m.corteActivo; pintarEscenas(); cambio(); avisar('Vista actualizada'); };
+      $('ePng').onclick = () => { cerrarDlg(); exportar('png'); };
+      $('eBor').onclick = () => { cerrarDlg(); m.escenas = m.escenas.filter(x => x !== s); if (escenaActual === id) escenaActual = 0; pintarEscenas(); cambio(); };
+    });
+  }
+
+  // ---------------- colocar cortes en planta (longitudinal, transversal o libre) ----------------
+  function ponerEnPlanta() {
+    const f = cam.adelante();
+    const enPlanta = cam.orto && f[2] < -0.98;
+    // si hay un corte de planta, se usa (se ve la planta cortada a su altura)
+    const cp = (m.cortes || []).find(c => c.n[2] < -0.99);
+    const act = corteDe(m.corteActivo);
+    if (!act || Math.abs(act.n[2]) < 0.99) { m.corteActivo = cp ? cp.id : 0; estVer++; }
+    if (!enPlanta) { cam.orto = true; cam.yaw = Math.PI / 2; cam.pitch = -1.5706; verTodo(); }
+    escenaActual = (cp && escenaDe(cp.id) && m.corteActivo === cp.id && enPlanta) ? escenaActual : 0; pintarEscenas();
+  }
+  function iniciarColocar(modo) { H.colocarCorte.modo = modo; ponerEnPlanta(); usar('colocarCorte'); pintarCortes(); }
+  // plano del corte a partir de los puntos tocados en planta
+  function planoColocado(modo, a, b, inv) {
+    const bb = cajaOSuelo(), z = (bb[0][2] + bb[1][2]) / 2;
+    let n;
+    if (modo === 'long') n = [0, 1, 0];
+    else if (modo === 'trans') n = [-1, 0, 0];
+    else { if (!b) return null; const d = V.sub([b[0], b[1], 0], [a[0], a[1], 0]); if (V.len(d) < 0.05) return null; const u = V.norm(d); n = [-u[1], u[0], 0]; }
+    if (inv) n = V.neg(n);
+    return { p: [a[0], a[1], z], n };
+  }
+  function puntoPlanta(inf) {
+    if (inf && inf.p && inf.tipo !== 'libre' && inf.tipo !== 'suelo') return inf.p;
+    if (!inf) return null;
+    const bb = cajaOSuelo(); return planoRayo(Z, [0, 0, bb[0][2]], cam.rayo(inf.sx, inf.sy));
+  }
+  H.colocarCorte = {
+    modo: 'long', pts: [], cur: null, inv: false, muestraInf: true,
+    pista() {
+      if (this.modo === 'libre') return this.pts.length ? 'Toca el segundo punto de la línea de corte' : 'Toca el primer punto de la línea de corte (cualquier dirección)';
+      return this.modo === 'long' ? 'Toca por dónde pasa el corte longitudinal · puedes poner varios' : 'Toca por dónde pasa el corte transversal · puedes poner varios';
+    },
+    abajo() {}, hover(inf) { this.mover(inf); },
+    mover(inf) { this.cur = puntoPlanta(inf); pedir(); },
+    arriba(inf) {
+      const p = puntoPlanta(inf); if (!p) return;
+      if (this.modo === 'libre' && !this.pts.length) { this.pts = [p]; pista(); pintarOpciones(); return pedir(); }
+      const pl = this.modo === 'libre' ? planoColocado('libre', this.pts[0], p, this.inv) : planoColocado(this.modo, p, null, this.inv);
+      this.pts = []; if (!pl) return avisar('La línea es muy corta');
+      const c = nuevoCorte(pl.p, pl.n, false, true);
+      avisar(`Corte ${c.num} listo · su vista quedó arriba`); pista(); pintarOpciones(); pintarCortes();
+    },
+    dibujar() {
+      const a = this.modo === 'libre' && this.pts.length ? this.pts[0] : this.cur; if (!a) return;
+      const pl = this.modo === 'libre' ? (this.pts.length && this.cur ? planoColocado('libre', this.pts[0], this.cur, this.inv) : null) : planoColocado(this.modo, a, null, this.inv);
+      if (this.modo === 'libre' && this.pts.length) { const S = pr(this.pts[0]); if (S) { ov.save(); ov.fillStyle = '#e07b12'; ov.beginPath(); ov.arc(S[0], S[1], 5, 0, 7); ov.fill(); ov.restore(); } }
+      if (pl) marcaCorte({ p: pl.p, n: pl.n, num: 1 + Math.max(0, ...(m.cortes || []).map(x => x.num || 0)) }, '#e07b12', true);
+    },
+    opciones() {
+      return [
+        { t: 'Longitudinal', ico: 'corteL', on: this.modo === 'long', fn: () => { this.modo = 'long'; this.pts = []; pista(); pintarOpciones(); pedir(); } },
+        { t: 'Transversal', ico: 'corteT', on: this.modo === 'trans', fn: () => { this.modo = 'trans'; this.pts = []; pista(); pintarOpciones(); pedir(); } },
+        { t: 'Libre', ico: 'linea', on: this.modo === 'libre', fn: () => { this.modo = 'libre'; this.pts = []; pista(); pintarOpciones(); pedir(); } },
+        { t: 'Mirar al otro lado', ico: 'invertir', on: this.inv, fn: () => { this.inv = !this.inv; pintarOpciones(); pedir(); } },
+        { t: 'Listo', fn: () => usar('seleccionar') }
+      ];
+    },
+    cancelar() { this.pts = []; this.cur = null; },
+    activa() { return this.pts.length > 0; }
+  };
+  // marca de corte en planta: línea de eje con número y flecha a cada lado (como en un plano)
+  function marcaCorte(c, color, punteada) {
+    const u = V.norm(V.cross(c.n, Z)), bb = cajaOSuelo(); let a0 = Infinity, a1 = -Infinity;
+    for (let i = 0; i < 4; i++) { const q = [bb[i & 1][0], bb[i >> 1 & 1][1], c.p[2]]; const t = V.dot(V.sub(q, c.p), u); a0 = Math.min(a0, t); a1 = Math.max(a1, t); }
+    const mg = 0.9, A = V.add(c.p, V.mul(u, a0 - mg)), B = V.add(c.p, V.mul(u, a1 + mg));
+    const SA = pr(A), SB = pr(B); if (!SA || !SB) return;
+    ov.save(); ov.strokeStyle = color; ov.fillStyle = color; ov.lineWidth = 1.6;
+    ov.setLineDash(punteada ? [8, 5] : [16, 4, 3, 4]); ov.beginPath(); ov.moveTo(SA[0], SA[1]); ov.lineTo(SB[0], SB[1]); ov.stroke(); ov.setLineDash([]);
+    for (const [P, S] of [[A, SA], [B, SB]]) {
+      const Q = pr(V.add(P, V.mul(c.n, 1))); if (!Q) continue;
+      let dx = Q[0] - S[0], dy = Q[1] - S[1]; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+      // flecha hacia donde mira el corte
+      ov.beginPath(); ov.moveTo(S[0] + dx * 26, S[1] + dy * 26); ov.lineTo(S[0] + dx * 12 - dy * 8, S[1] + dy * 12 + dx * 8); ov.lineTo(S[0] + dx * 12 + dy * 8, S[1] + dy * 12 - dx * 8); ov.closePath(); ov.fill();
+      ov.beginPath(); ov.arc(S[0], S[1], 12, 0, 7); ov.fillStyle = '#fff'; ov.fill(); ov.lineWidth = 2; ov.stroke();
+      ov.fillStyle = color; ov.font = '700 12px -apple-system,Segoe UI,Roboto,sans-serif'; ov.textAlign = 'center'; ov.textBaseline = 'middle'; ov.fillText(String(c.num), S[0], S[1] + 0.5);
+      ov.fillStyle = color;
+    }
+    ov.restore();
   }
   // contorno del plano de sección sobre el modelo
   function rectPlano(c, margen) {
@@ -1594,9 +1734,11 @@
   }
   function dibujarPlanosCorte() {
     if (!AJ.verPlanos || !(m.cortes || []).length) return;
-    const f = cam.adelante();
+    const f = cam.adelante(), enPlanta = cam.orto && f[2] < -0.98;
+    if (enPlanta) for (const c of m.cortes) if (Math.abs(c.n[2]) < 0.1) marcaCorte(c, c.id === m.corteActivo ? '#e07b12' : '#2b2d31', false);
     for (const c of m.cortes) {
       const act = c.id === m.corteActivo; if (!act) continue;
+      if (enPlanta && Math.abs(c.n[2]) < 0.1) continue;
       if (Math.abs(V.dot(f, c.n)) > 0.995) continue; // mirando de frente: el plano no estorba
       const R = rectPlano(c, 0.35), S = R.map(pr); if (S.some(x => !x)) continue;
       ov.save(); ov.beginPath(); S.forEach((q, i) => i ? ov.lineTo(q[0], q[1]) : ov.moveTo(q[0], q[1])); ov.closePath();
@@ -1639,7 +1781,8 @@
     const b = (ico, t, a, cls = '') => `<button class="cor-b ${cls}" data-a="${a}">${icono(ico)}<span>${t}</span></button>`;
     el.innerHTML = `
       <div class="cor-tit">Nuevo corte</div>
-      <div class="cor-grid">${b('planta', 'Planta', 'planta')}${b('corteL', 'Longitudinal', 'long')}${b('corteT', 'Transversal', 'trans')}${b('corte', 'En una cara', 'cara', nombreHerr === 'cortar' ? 'on' : '')}</div>
+      <div class="cor-grid">${b('planta', 'Planta', 'planta')}${b('corteL', 'Longitudinal', 'long', nombreHerr === 'colocarCorte' && H.colocarCorte.modo === 'long' ? 'on' : '')}${b('corteT', 'Transversal', 'trans', nombreHerr === 'colocarCorte' && H.colocarCorte.modo === 'trans' ? 'on' : '')}${b('linea', 'Libre', 'libre', nombreHerr === 'colocarCorte' && H.colocarCorte.modo === 'libre' ? 'on' : '')}${b('corte', 'En una cara', 'cara', nombreHerr === 'cortar' ? 'on' : '')}</div>
+      <p class="cor-vacio">Longitudinal, transversal y libre: se ponen tocando la planta. Cada corte crea su vista en las pestañas de arriba.</p>
       <div class="cor-tit">Cortes del modelo</div>
       ${L.length ? L.map(c => `<div class="cor-item${c.id === m.corteActivo ? ' on' : ''}">
           <button class="cor-nom" data-act="${c.id}"><i></i>${esc(nombreCorte(c))}</button>
@@ -1650,7 +1793,7 @@
             <button data-c="${c.id}" data-o="mover" title="Mover una medida exacta">${icono('lapiz')}</button>
             <button data-c="${c.id}" data-o="inv" title="Mirar al otro lado">${icono('invertir')}</button>
             <button data-c="${c.id}" data-o="borrar" title="Borrar corte">${icono('papelera')}</button>
-          </div></div>`).join('') : '<p class="cor-vacio">Aún no hay cortes. Elige uno arriba: la vista se pone de frente al corte.</p>'}
+          </div></div>`).join('') : '<p class="cor-vacio">Aún no hay cortes.</p>'}
       ${L.length ? `<label class="chk cor-chk"><input type="checkbox" id="corPlanos" ${AJ.verPlanos ? 'checked' : ''}> Mostrar el plano del corte</label>
       ${m.corteActivo ? '<button class="cor-quitar" data-a="ninguno">Ver el modelo completo (sin corte)</button>' : ''}` : ''}
       <div class="cor-tit">Elevaciones</div>
@@ -1668,7 +1811,7 @@
     el.querySelectorAll('[data-act]').forEach(x => x.onclick = () => activarCorte(+x.dataset.act));
     el.querySelectorAll('[data-o]').forEach(x => x.onclick = () => {
       const c = corteDe(+x.dataset.c); if (!c) return; const o = x.dataset.o;
-      if (o === 'ver') { m.corteActivo = c.id; estVer++; alinearCorte(c); cambio(); pintarCortes(); }
+      if (o === 'ver') { const s = escenaDe(c.id); if (s) irEscena(s.id); else { m.corteActivo = c.id; estVer++; alinearCorte(c); cambio(); pintarCortes(); } }
       else if (o === 'mas') moverCorte(c, 0.1); else if (o === 'menos') moverCorte(c, -0.1);
       else if (o === 'mover') moverCorteDlg(c); else if (o === 'inv') invertirCorte(c); else if (o === 'borrar') borrarCorte(c);
     });
@@ -1952,7 +2095,7 @@
   }
   function mostrarEditor() {
     $('galeria').classList.add('oculto'); $('editor').classList.remove('oculto');
-    $('bNombre').textContent = doc.nombre; limpiarSel(); salirContexto();
+    $('bNombre').textContent = doc.nombre; limpiarSel(); salirContexto(); escenaActual = 0; pintarEscenas();
     tamano(); usar(nombreHerr === 'orbitar' || nombreHerr === 'desplazar' ? 'seleccionar' : (nombreHerr || 'seleccionar'), true); pintarBotones(); pintarMateriales();
     construido = -1; pedir();
     if (!R3.Tutorial.visto()) setTimeout(verTutorial, 450);
